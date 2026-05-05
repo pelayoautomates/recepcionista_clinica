@@ -5,7 +5,9 @@ import { Suspense } from "react";
 
 function LoginContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token"); // invitación de clínica
+  const token = searchParams.get("token");
+  const error = searchParams.get("error");
+  const msg = searchParams.get("msg");
 
   const handleGoogleLogin = async () => {
     const supabase = createClient();
@@ -34,6 +36,12 @@ function LoginContent() {
             ? "Inicia sesión para acceder al panel de tu clínica"
             : "Panel de gestión de la agencia"}
         </p>
+
+        {error && (
+          <div style={{ marginBottom: 16, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, fontSize: 13, color: "#991b1b", textAlign: "left" }}>
+            Error: {error}{msg ? ` — ${msg}` : ""}
+          </div>
+        )}
 
         <button
           onClick={handleGoogleLogin}

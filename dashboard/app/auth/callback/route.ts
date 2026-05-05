@@ -9,9 +9,10 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const token = searchParams.get("token");
 
-  if (!code) return NextResponse.redirect(`${origin}/login`);
+  if (!code) {
+    return NextResponse.redirect(`${origin}/login?error=no_code`);
+  }
 
-  // Create response first so we can attach cookies to it
   const response = NextResponse.redirect(`${origin}/`);
 
   const supabase = createServerClient(
@@ -34,36 +35,46 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.user) {
-    return NextResponse.redirect(`${origin}/login`);
+    const msg = encodeURIComponent(error?.message || "unknown");
+    return NextResponse.redirect(`${origin}/login?error=exchange_failed&msg=${msg}`);
   }
 
   const user = data.user;
 
+  // Token de invitación → vincular y mandar al panel de clínica
   if (token) {
-    await fetch(`${BACKEND}/admin/invitaciones/vincular`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, user_id: user.id, email: user.email }),
-    });
+    try {
+      await fetch(`${BACKEND}/admin/invitaciones/vincular`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, user_id: user.id, email: user.email }),
+      });
+    } catch {}
     response.headers.set("location", `${origin}/panel`);
     return response;
   }
 
+  // Email de agencia → panel de agencia directamente (sin llamar al backend)
   if (user.email === AGENCY_EMAIL) {
-    await fetch(`${BACKEND}/me/rol?user_id=${user.id}&email=${user.email}`);
-    return response; // ya apunta a /
+    return response; // redirige a /
   }
 
-  const rolRes = await fetch(`${BACKEND}/me/rol?user_id=${user.id}&email=${user.email}`);
-  const rolData = await rolRes.json();
-
-  if (rolData.rol === "clinica") {
-    response.headers.set("location", `${origin}/panel`);
-    return response;
+  // Resto de usuarios → comprobar rol en backend
+  try {
+    const rolRes = await fetch(
+      `${BACKEND}/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    const rolData = await rolRes.json();
+    if (rolData.rol === "clinica" || rolData.rol === "agencia") {
+      const dest = rolData.rol === "clinica" ? "/panel" : "/";
+      response.headers.set("location", `${origin}${dest}`);
+    } else {
+      response.headers.set("location", `${origin}/login?error=sin_acceso`);
+    }
+  } catch {
+    response.headers.set("location", `${origin}/login?error=backend_timeout`);
   }
-  if (rolData.rol === "agencia") {
-    return response;
-  }
 
-  return NextResponse.redirect(`${origin}/login?error=sin_acceso`);
+  return response;
 }
