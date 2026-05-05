@@ -1,0 +1,33 @@
+# FastAPI
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# Pydantic / config
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# Supabase
+supabase==2.10.0
+
+# OpenAI (GPT-4o + Whisper)
+openai==1.57.2
+
+# Google Calendar
+google-auth==2.37.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+google-api-python-client==2.154.0
+
+# Cifrado tokens OAuth
+cryptography==44.0.0
+
+# Scheduling
+APScheduler==3.10.4
+
+# HTTP client (supabase 2.10.0 requiere httpx<0.28)
+httpx==0.27.2
+
+# Utils
+python-jose[cryptography]==3.3.0
