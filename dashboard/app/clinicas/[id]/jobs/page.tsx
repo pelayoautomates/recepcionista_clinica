@@ -13,8 +13,9 @@ const ESTADO_STYLE: Record<string, { bg: string; color: string }> = {
   fallido: { bg: "#fee2e2", color: "#991b1b" },
 };
 
-export default async function JobsPage({ params }: { params: { id: string } }) {
-  const jobs = await getJobs(params.id);
+export default async function JobsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const jobs = await getJobs(id);
 
   return (
     <div>

@@ -14,9 +14,11 @@ const ESTADO_COLORES: Record<string, { bg: string; color: string }> = {
   no_asistio: { bg: "#fff3cd", color: "#856404" },
 };
 
-export default async function CitasPage({ params }: { params: { id: string } }) {
-  const citas = await getCitas(params.id);
+export default async function CitasPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const citas = await getCitas(id);
   const hoy = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+
 
   return (
     <div>

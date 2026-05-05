@@ -18,17 +18,18 @@ async function getMetricas(id: string) {
   return res.json();
 }
 
-export default async function ClinicaDetailPage({ params }: { params: { id: string } }) {
+export default async function ClinicaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [clinica, metricas] = await Promise.all([
-    getClinica(params.id),
-    getMetricas(params.id),
+    getClinica(id),
+    getMetricas(id),
   ]);
 
   if (!clinica) {
     return <div style={{ padding: 32, color: "#ef4444" }}>Cliente no encontrado</div>;
   }
 
-  const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${params.id}`;
+  const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${id}`;
   const tieneCalendario = !!clinica.google_tokens_enc;
 
   return (
@@ -41,10 +42,10 @@ export default async function ClinicaDetailPage({ params }: { params: { id: stri
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {[
-            { href: `/clinicas/${params.id}/leads`, label: "Leads" },
-            { href: `/clinicas/${params.id}/conversaciones`, label: "Conversaciones" },
-            { href: `/clinicas/${params.id}/citas`, label: "Citas" },
-            { href: `/clinicas/${params.id}/jobs`, label: "Jobs" },
+            { href: `/clinicas/${id}/leads`, label: "Leads" },
+            { href: `/clinicas/${id}/conversaciones`, label: "Conversaciones" },
+            { href: `/clinicas/${id}/citas`, label: "Citas" },
+            { href: `/clinicas/${id}/jobs`, label: "Jobs" },
           ].map(({ href, label }) => (
             <Link key={href} href={href} style={{
               fontSize: 13, color: "#374151", textDecoration: "none",
@@ -161,7 +162,7 @@ export default async function ClinicaDetailPage({ params }: { params: { id: stri
       {/* Acceso del cliente */}
       <div style={{ background: "white", borderRadius: 8, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", marginTop: 16 }}>
         <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>Acceso del cliente</h2>
-        <InvitacionButton clinicId={params.id} />
+        <InvitacionButton clinicId={id} />
       </div>
 
       {/* Formulario de edición */}

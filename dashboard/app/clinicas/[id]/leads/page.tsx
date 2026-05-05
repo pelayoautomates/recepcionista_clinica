@@ -17,8 +17,9 @@ async function getLeads(clinicId: string) {
   return res.json();
 }
 
-export default async function LeadsPage({ params }: { params: { id: string } }) {
-  const leads = await getLeads(params.id);
+export default async function LeadsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const leads = await getLeads(id);
 
   return (
     <div>

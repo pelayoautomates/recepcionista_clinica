@@ -14,8 +14,9 @@ const ESTADO_STYLE: Record<string, { bg: string; color: string }> = {
   resuelta: { bg: "#f3f4f6", color: "#6b7280" },
 };
 
-export default async function ConversacionesPage({ params }: { params: { id: string } }) {
-  const conversaciones = await getConversaciones(params.id);
+export default async function ConversacionesPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const conversaciones = await getConversaciones(id);
 
   return (
     <div>
@@ -32,7 +33,7 @@ export default async function ConversacionesPage({ params }: { params: { id: str
         {conversaciones.map((conv: any) => {
           const estilo = ESTADO_STYLE[conv.estado] || ESTADO_STYLE.activa;
           return (
-            <Link key={conv.id} href={`/clinicas/${params.id}/conversaciones/${conv.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+            <Link key={conv.id} href={`/clinicas/${id}/conversaciones/${conv.id}`} style={{ textDecoration: "none", color: "inherit" }}>
               <div style={{
                 background: "white",
                 borderRadius: 8,
