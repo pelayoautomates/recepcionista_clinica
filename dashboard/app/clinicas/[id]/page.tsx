@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GoogleCalendarButton from "./GoogleCalendarButton";
 import EditClinicaForm from "./EditClinicaForm";
+import InvitacionButton from "./InvitacionButton";
 
 const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -155,6 +156,12 @@ export default async function ClinicaDetailPage({ params }: { params: { id: stri
             <span style={{ fontSize: 13, color: "#9ca3af" }}>Sin horario configurado</span>
           )}
         </div>
+      </div>
+
+      {/* Acceso del cliente */}
+      <div style={{ background: "white", borderRadius: 8, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", marginTop: 16 }}>
+        <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>Acceso del cliente</h2>
+        <InvitacionButton clinicId={params.id} />
       </div>
 
       {/* Formulario de edición */}

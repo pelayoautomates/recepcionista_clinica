@@ -12,7 +12,8 @@
     "next": "^15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.47.2"
+    "@supabase/supabase-js": "^2.47.2",
+    "@supabase/ssr": "^0.5.2"
   },
   "devDependencies": {
     "@types/node": "^22.9.1",

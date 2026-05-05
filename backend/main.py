@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import admin, chat, whatsapp, vapi, auth
+from routers import admin, chat, whatsapp, vapi, auth, invitaciones
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +42,7 @@ app.include_router(whatsapp.router, prefix="/webhook/whatsapp", tags=["whatsapp"
 app.include_router(vapi.router, prefix="/vapi", tags=["vapi"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(invitaciones.router, prefix="/admin", tags=["invitaciones"])
 
 
 @app.get("/health")
