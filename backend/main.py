@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from config import settings
 from routers import admin, chat, whatsapp, vapi, auth, invitaciones
 
 logging.basicConfig(
@@ -29,10 +30,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
+_wildcard = "*" in _origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restringir en producción a dominios conocidos
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials=not _wildcard,  # credentials incompatible with wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -47,4 +50,15 @@ app.include_router(invitaciones.router, prefix="/admin", tags=["invitaciones"])
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from database.client import get_supabase
+    db_ok = False
+    try:
+        get_supabase().table("clinicas").select("id").limit(1).execute()
+        db_ok = True
+    except Exception:
+        pass
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "database": db_ok,
+        "environment": settings.environment,
+    }

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
+import { adminFetch } from "@/lib/api";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -9,14 +9,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(
-    `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`
+  const rolRes = await adminFetch(
+    `/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`
   );
   const rol = await rolRes.json();
 
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const clinicaRes = await fetch(`${BACKEND}/admin/clinicas/${rol.clinic_id}`);
+  const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`);
   const clinica = await clinicaRes.json();
 
   return (

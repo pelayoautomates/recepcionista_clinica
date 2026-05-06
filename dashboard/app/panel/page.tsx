@@ -2,8 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import GoogleCalendarButton from "@/app/clinicas/[id]/GoogleCalendarButton";
+import { adminFetch } from "@/lib/api";
 
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 const CANAL_LABEL: Record<string, string> = {
@@ -30,18 +30,18 @@ export default async function PanelPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(
-    `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
-    { cache: "no-store" }
+  const rolRes = await adminFetch(
+    `/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
+    { noStore: true }
   );
   const rol = await rolRes.json();
   const clinic_id = rol.clinic_id;
 
   const [clinicaRes, metricasRes, convsRes, leadsRes] = await Promise.all([
-    fetch(`${BACKEND}/admin/clinicas/${clinic_id}`, { cache: "no-store" }),
-    fetch(`${BACKEND}/admin/clinicas/${clinic_id}/metricas`, { cache: "no-store" }),
-    fetch(`${BACKEND}/admin/clinicas/${clinic_id}/conversaciones`, { cache: "no-store" }),
-    fetch(`${BACKEND}/admin/clinicas/${clinic_id}/leads`, { cache: "no-store" }),
+    adminFetch(`/admin/clinicas/${clinic_id}`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinic_id}/metricas`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinic_id}/conversaciones`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinic_id}/leads`, { noStore: true }),
   ]);
 
   const clinica = await clinicaRes.json();

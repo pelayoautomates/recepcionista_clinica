@@ -15,7 +15,9 @@ async def consultar_disponibilidad(clinic_id: str, fecha: str, tipo_cita: str) -
     """
     db = get_supabase()
     servicios_res = db.table("clinicas").select("servicios").eq("id", clinic_id).single().execute()
-    servicios = servicios_res.data.get("servicios", [])
+    if not servicios_res.data:
+        return {"error": f"Clínica {clinic_id} no encontrada"}
+    servicios = servicios_res.data.get("servicios") or []
 
     duracion = 60
     for s in servicios:
@@ -40,8 +42,10 @@ async def crear_cita(
     """
     db = get_supabase()
     servicios_res = db.table("clinicas").select("servicios, nombre").eq("id", clinic_id).single().execute()
-    servicios = servicios_res.data.get("servicios", [])
-    nombre_clinica = servicios_res.data.get("nombre", "Clínica")
+    if not servicios_res.data:
+        return {"error": f"Clínica {clinic_id} no encontrada"}
+    servicios = servicios_res.data.get("servicios") or []
+    nombre_clinica = servicios_res.data.get("nombre") or "Clínica"
 
     duracion = 60
     for s in servicios:

@@ -1,11 +1,14 @@
 import logging
 import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from database.client import get_supabase
+
+INVITE_TTL_HOURS = 72
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -28,12 +31,14 @@ async def crear_invitacion(clinic_id: UUID):
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
 
     token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=INVITE_TTL_HOURS)).isoformat()
     db.table("invitaciones").insert({
         "clinic_id": str(clinic_id),
         "token": token,
+        "expires_at": expires_at,
     }).execute()
 
-    return {"token": token}
+    return {"token": token, "expires_at": expires_at}
 
 
 @router.post("/invitaciones/vincular")
@@ -53,6 +58,14 @@ async def vincular_usuario(data: VincularRequest):
 
     if not inv.data:
         raise HTTPException(status_code=404, detail="Invitación no válida o ya usada")
+
+    expires_at = inv.data.get("expires_at")
+    if expires_at:
+        exp = datetime.fromisoformat(expires_at)
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > exp:
+            raise HTTPException(status_code=410, detail="Invitación expirada. Solicita un nuevo enlace.")
 
     clinic_id = inv.data["clinic_id"]
 

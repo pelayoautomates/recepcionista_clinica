@@ -33,13 +33,22 @@ class Settings(BaseSettings):
     meta_verify_token: str = "token_provisional"
     meta_access_token: str = ""
     meta_phone_number_id: str = ""
+    meta_app_secret: str = ""  # Para validar firma X-Hub-Signature-256
 
     # Vapi (opcional)
     vapi_api_key: str = ""
 
+    # Seguridad
+    admin_api_key: str = ""  # Protege endpoints /admin/* (requerido en producción)
+    # Orígenes CORS permitidos, separados por coma. "*" para dev.
+    allowed_origins: str = "*"
+
     # App
     base_url: str = "http://localhost:8000"
     environment: str = "development"
+
+    # Notificaciones (opcional)
+    notify_webhook_url: str = ""  # URL para notificar escaladas a humano (Slack/Make/etc.)
 
     @property
     def is_production(self) -> bool:

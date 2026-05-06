@@ -69,11 +69,27 @@ async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
 
     db.table("pacientes").update({"estado_lead": "requiere_humano"}).eq("id", paciente_id).execute()
 
-    # TODO: Enviar notificación real a la clínica (email, Telegram, etc.)
     logger.warning(
         "HANDOFF A HUMANO — Paciente %s | Clínica %s | Motivo: %s",
         paciente_id, clinic_id, motivo
     )
+
+    # Notificación por webhook configurable (Slack, Make, n8n, etc.)
+    from config import settings
+    if settings.notify_webhook_url:
+        try:
+            import httpx
+            payload = {
+                "tipo": "escalada_humano",
+                "clinic_id": clinic_id,
+                "paciente_id": paciente_id,
+                "conversacion_id": conv_id,
+                "motivo": motivo,
+                "resumen": resumen,
+            }
+            httpx.post(settings.notify_webhook_url, json=payload, timeout=5)
+        except Exception as e:
+            logger.error("Error enviando notificación de escalada: %s", e)
 
     return {
         "estado": "esperando_humano",

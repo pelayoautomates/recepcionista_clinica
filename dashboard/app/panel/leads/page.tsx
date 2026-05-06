@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
+import { adminFetch } from "@/lib/api";
 
 const ESTADO_COLORES: Record<string, string> = {
   nuevo: "#3b82f6",
@@ -18,11 +17,11 @@ export default async function PanelLeadsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(`${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
+  const rolRes = await adminFetch(`/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const res = await fetch(`${BACKEND}/admin/clinicas/${rol.clinic_id}/leads`, { cache: "no-store" });
+  const res = await adminFetch(`/admin/clinicas/${rol.clinic_id}/leads`, { noStore: true });
   const leads = res.ok ? await res.json() : [];
 
   return (

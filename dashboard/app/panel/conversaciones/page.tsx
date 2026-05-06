@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
+import { adminFetch } from "@/lib/api";
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string }> = {
   activa: { bg: "#dcfce7", color: "#166534" },
@@ -15,11 +14,11 @@ export default async function PanelConversacionesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(`${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
+  const rolRes = await adminFetch(`/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const res = await fetch(`${BACKEND}/admin/clinicas/${rol.clinic_id}/conversaciones`, { cache: "no-store" });
+  const res = await adminFetch(`/admin/clinicas/${rol.clinic_id}/conversaciones`, { noStore: true });
   const conversaciones = res.ok ? await res.json() : [];
 
   const esperando = conversaciones.filter((c: any) => c.estado === "esperando_humano").length;

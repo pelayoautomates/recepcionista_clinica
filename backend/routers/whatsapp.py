@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 import tempfile
 from typing import Any
@@ -28,7 +30,19 @@ async def verify_webhook(
 @router.post("")
 async def receive_message(request: Request):
     """Recibe mensajes de WhatsApp y los procesa con el agente."""
-    body: dict[str, Any] = await request.json()
+    raw_body = await request.body()
+
+    if settings.meta_app_secret:
+        signature = request.headers.get("x-hub-signature-256", "")
+        expected = "sha256=" + hmac.new(
+            settings.meta_app_secret.encode(), raw_body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            logger.warning("Firma WhatsApp inválida — posible petición falsa")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+
+    import json
+    body: dict[str, Any] = json.loads(raw_body)
 
     try:
         entry = body.get("entry", [{}])[0]
@@ -119,38 +133,42 @@ async def _get_clinic_by_phone_number_id(phone_number_id: str | None) -> str | N
 
 async def _transcribe_whatsapp_audio(audio_id: str) -> str:
     """Descarga el audio de WhatsApp y lo transcribe con Whisper."""
+    import os
     from openai import AsyncOpenAI
-    from config import settings as cfg
 
-    # Obtener URL de descarga del audio
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         media_res = await client.get(
             f"https://graph.facebook.com/v21.0/{audio_id}",
-            headers={"Authorization": f"Bearer {cfg.meta_access_token}"},
+            headers={"Authorization": f"Bearer {settings.meta_access_token}"},
         )
-        media_url = media_res.json()["url"]
+        media_res.raise_for_status()
+        media_data = media_res.json()
+        if "url" not in media_data:
+            raise ValueError(f"Meta no devolvió URL de audio: {media_data}")
+        media_url = media_data["url"]
 
         audio_res = await client.get(
             media_url,
-            headers={"Authorization": f"Bearer {cfg.meta_access_token}"},
+            headers={"Authorization": f"Bearer {settings.meta_access_token}"},
         )
+        audio_res.raise_for_status()
         audio_bytes = audio_res.content
 
     with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f:
         f.write(audio_bytes)
         tmp_path = f.name
 
-    openai = AsyncOpenAI(api_key=cfg.openai_api_key)
-    with open(tmp_path, "rb") as audio_file:
-        transcript = await openai.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file,
-            language="es",
-        )
-
-    import os
-    os.unlink(tmp_path)
-    return transcript.text
+    try:
+        openai = AsyncOpenAI(api_key=settings.openai_api_key)
+        with open(tmp_path, "rb") as audio_file:
+            transcript = await openai.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                language="es",
+            )
+        return transcript.text
+    finally:
+        os.unlink(tmp_path)
 
 
 async def _send_whatsapp_message(to: str, text: str) -> None:

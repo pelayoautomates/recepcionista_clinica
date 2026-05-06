@@ -1,13 +1,14 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from database.client import get_supabase
 from models.clinica import ClinicaCreate, ClinicaUpdate
+from security import require_admin_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_key)])
 
 
 # ─── Clínicas ───────────────────────────────────────────────────────────────

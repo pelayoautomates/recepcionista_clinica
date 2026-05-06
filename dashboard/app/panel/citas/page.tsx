@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
+import { adminFetch } from "@/lib/api";
 
 const ESTADO_COLORES: Record<string, { bg: string; color: string }> = {
   confirmada: { bg: "#dcfce7", color: "#166534" },
@@ -15,12 +14,12 @@ export default async function PanelCitasPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(`${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
+  const rolRes = await adminFetch(`/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
   const hoy = new Date().toISOString().split("T")[0];
-  const res = await fetch(`${BACKEND}/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}`, { cache: "no-store" });
+  const res = await adminFetch(`/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}`, { noStore: true });
   const citas = res.ok ? await res.json() : [];
 
   const fechaHoy = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
