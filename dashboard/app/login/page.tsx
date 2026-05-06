@@ -11,7 +11,11 @@ function LoginContent() {
 
   const handleGoogleLogin = async () => {
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback${token ? `?token=${token}` : ""}`;
+    // Guardar token en cookie para que sobreviva el redirect de OAuth
+    if (token) {
+      document.cookie = `invite_token=${token}; path=/; max-age=300; SameSite=Lax`;
+    }
+    const redirectTo = `${window.location.origin}/auth/callback`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },

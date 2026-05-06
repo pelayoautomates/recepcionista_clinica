@@ -7,7 +7,8 @@ const AGENCY_EMAIL = process.env.NEXT_PUBLIC_AGENCY_EMAIL || "";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const token = searchParams.get("token");
+  // Token puede venir por URL (legacy) o por cookie (flujo OAuth)
+  const token = searchParams.get("token") || request.cookies.get("invite_token")?.value;
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=no_code`);
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       response.headers.set("location", `${origin}/login?error=backend_timeout`);
       return response;
     }
+    response.cookies.set("invite_token", "", { maxAge: 0, path: "/" });
     response.headers.set("location", `${origin}/panel`);
     return response;
   }
