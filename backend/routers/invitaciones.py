@@ -20,6 +20,35 @@ class VincularRequest(BaseModel):
     email: str
 
 
+@router.get("/clinicas/{clinic_id}/invitacion")
+async def obtener_invitacion(clinic_id: UUID):
+    """Devuelve el token permanente existente para la clínica, si hay uno."""
+    db = get_supabase()
+    existing = db.table("invitaciones")\
+        .select("token")\
+        .eq("clinic_id", str(clinic_id))\
+        .eq("usado", False)\
+        .is_("expires_at", "null")\
+        .limit(1)\
+        .execute()
+    if existing.data:
+        return {"token": existing.data[0]["token"], "permanente": True}
+    return {"token": None}
+
+
+@router.delete("/clinicas/{clinic_id}/invitacion")
+async def regenerar_invitacion(clinic_id: UUID):
+    """Invalida el token permanente actual y genera uno nuevo."""
+    db = get_supabase()
+    db.table("invitaciones")\
+        .update({"usado": True})\
+        .eq("clinic_id", str(clinic_id))\
+        .is_("expires_at", "null")\
+        .execute()
+    # El próximo POST creará uno nuevo
+    return {"ok": True}
+
+
 @router.post("/clinicas/{clinic_id}/invitacion")
 async def crear_invitacion(clinic_id: UUID):
     """Genera un link de invitación para que una clínica acceda a su panel."""
@@ -30,15 +59,27 @@ async def crear_invitacion(clinic_id: UUID):
     if not result.data:
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
 
+    # Reutilizar token permanente si ya existe (expires_at = null)
+    existing = db.table("invitaciones")\
+        .select("token")\
+        .eq("clinic_id", str(clinic_id))\
+        .eq("usado", False)\
+        .is_("expires_at", "null")\
+        .limit(1)\
+        .execute()
+
+    if existing.data:
+        return {"token": existing.data[0]["token"], "permanente": True}
+
+    # Crear token permanente nuevo (sin expires_at)
     token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now(timezone.utc) + timedelta(hours=INVITE_TTL_HOURS)).isoformat()
     db.table("invitaciones").insert({
         "clinic_id": str(clinic_id),
         "token": token,
-        "expires_at": expires_at,
+        # expires_at omitido → permanente
     }).execute()
 
-    return {"token": token, "expires_at": expires_at}
+    return {"token": token, "permanente": True}
 
 
 @router.post("/invitaciones/vincular")
@@ -59,15 +100,19 @@ async def vincular_usuario(data: VincularRequest):
     if not inv.data:
         raise HTTPException(status_code=404, detail="Invitación no válida o ya usada")
 
-    expires_at = inv.data.get("expires_at")
-    if expires_at:
-        exp = datetime.fromisoformat(expires_at)
-        if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) > exp:
-            raise HTTPException(status_code=410, detail="Invitación expirada. Solicita un nuevo enlace.")
+    inv_data = inv.data
+    es_permanente = inv_data.get("expires_at") is None
 
-    clinic_id = inv.data["clinic_id"]
+    if not es_permanente:
+        expires_at = inv_data.get("expires_at")
+        if expires_at:
+            exp = datetime.fromisoformat(expires_at)
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > exp:
+                raise HTTPException(status_code=410, detail="Invitación expirada. Solicita un nuevo enlace.")
+
+    clinic_id = inv_data["clinic_id"]
 
     # Vincular usuario a clínica
     db.table("clinica_usuarios").upsert({
@@ -75,8 +120,9 @@ async def vincular_usuario(data: VincularRequest):
         "clinic_id": clinic_id,
     }, on_conflict="user_id,clinic_id").execute()
 
-    # Marcar invitación como usada
-    db.table("invitaciones").update({"usado": True}).eq("id", inv.data["id"]).execute()
+    # Solo marcar como usada si NO es permanente
+    if not es_permanente:
+        db.table("invitaciones").update({"usado": True}).eq("id", inv_data["id"]).execute()
 
     logger.info("Usuario %s vinculado a clínica %s", data.user_id, clinic_id)
     return {"clinic_id": clinic_id}

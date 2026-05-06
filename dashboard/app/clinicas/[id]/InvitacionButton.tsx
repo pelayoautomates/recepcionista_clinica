@@ -1,74 +1,95 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export default function InvitacionButton({ clinicId }: { clinicId: string }) {
-  const [link, setLink] = useState("");
+  const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [regenerando, setRegenerando] = useState(false);
 
-  const generar = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${BACKEND}/admin/clinicas/${clinicId}/invitacion`, { method: "POST" });
-      const data = await res.json();
-      setLink(`${SITE_URL}/login?token=${data.token}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Carga el token permanente al montar
+  useEffect(() => {
+    fetch(`${BACKEND}/admin/clinicas/${clinicId}/invitacion`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) {
+          setToken(data.token);
+        } else {
+          // No hay token aún — lo creamos automáticamente
+          return fetch(`${BACKEND}/admin/clinicas/${clinicId}/invitacion`, { method: "POST" })
+            .then(r => r.json())
+            .then(d => setToken(d.token));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [clinicId]);
+
+  const link = token ? `${SITE_URL}/login?token=${token}` : "";
 
   const copiar = () => {
+    if (!link) return;
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const regenerar = async () => {
+    if (!confirm("¿Generar un nuevo link? El link actual dejará de funcionar.")) return;
+    setRegenerando(true);
+    await fetch(`${BACKEND}/admin/clinicas/${clinicId}/invitacion`, { method: "DELETE" });
+    const res = await fetch(`${BACKEND}/admin/clinicas/${clinicId}/invitacion`, { method: "POST" });
+    const data = await res.json();
+    setToken(data.token);
+    setRegenerando(false);
+  };
+
+  if (loading) {
+    return <div style={{ fontSize: 13, color: "#9ca3af" }}>Cargando link…</div>;
+  }
+
   return (
     <div>
-      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 10px" }}>
-        Genera un link único para que el cliente acceda a su panel con Google.
-      </p>
-      {!link ? (
-        <button onClick={generar} disabled={loading} style={{
-          fontSize: 13, padding: "7px 14px", borderRadius: 6, cursor: "pointer",
-          background: "#1a1a2e", color: "white", border: "none",
-          opacity: loading ? 0.7 : 1,
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{
+          fontSize: 11, background: "#f0fdf4", color: "#166534",
+          border: "1px solid #86efac", borderRadius: 8, padding: "2px 8px", fontWeight: 600,
         }}>
-          {loading ? "Generando..." : "Generar link de acceso"}
+          Permanente
+        </span>
+        <span style={{ fontSize: 12, color: "#9ca3af" }}>
+          Este link no expira — la clínica puede guardarlo como favorito
+        </span>
+      </div>
+
+      <div style={{
+        background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8,
+        padding: "10px 12px", fontSize: 12, fontFamily: "monospace",
+        wordBreak: "break-all", marginBottom: 10, color: "#374151",
+        userSelect: "all",
+      }}>
+        {link}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={copiar} style={{
+          fontSize: 13, padding: "7px 16px", borderRadius: 6, cursor: "pointer",
+          background: copied ? "#dcfce7" : "#1a1a2e",
+          color: copied ? "#166534" : "white",
+          border: copied ? "1px solid #86efac" : "none",
+          fontWeight: 500,
+        }}>
+          {copied ? "✓ Copiado" : "Copiar link"}
         </button>
-      ) : (
-        <div>
-          <div style={{
-            background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 6,
-            padding: "8px 10px", fontSize: 12, fontFamily: "monospace",
-            wordBreak: "break-all", marginBottom: 8, color: "#374151",
-          }}>
-            {link}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={copiar} style={{
-              fontSize: 13, padding: "6px 12px", borderRadius: 6, cursor: "pointer",
-              border: "1px solid #d1d5db",
-              background: copied ? "#dcfce7" : "white",
-              color: copied ? "#166534" : "#374151",
-            }}>
-              {copied ? "✓ Copiado" : "Copiar link"}
-            </button>
-            <button onClick={generar} style={{
-              fontSize: 13, padding: "6px 12px", borderRadius: 6, cursor: "pointer",
-              border: "1px solid #d1d5db", background: "white", color: "#6b7280",
-            }}>
-              Generar otro
-            </button>
-          </div>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: "8px 0 0" }}>
-            Mándale este link al cliente. Cuando entre con su Google quedará vinculado a esta clínica.
-          </p>
-        </div>
-      )}
+        <button onClick={regenerar} disabled={regenerando} style={{
+          fontSize: 13, padding: "7px 14px", borderRadius: 6, cursor: "pointer",
+          border: "1px solid #e5e7eb", background: "white", color: "#6b7280",
+        }}>
+          {regenerando ? "Generando…" : "Regenerar"}
+        </button>
+      </div>
     </div>
   );
 }
