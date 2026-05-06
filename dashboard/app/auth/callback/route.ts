@@ -44,12 +44,20 @@ export async function GET(request: NextRequest) {
   // Token de invitación → vincular y mandar al panel de clínica
   if (token) {
     try {
-      await fetch(`${BACKEND}/admin/invitaciones/vincular`, {
+      const vinRes = await fetch(`${BACKEND}/admin/invitaciones/vincular`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, user_id: user.id, email: user.email }),
+        signal: AbortSignal.timeout(5000),
       });
-    } catch {}
+      if (!vinRes.ok) {
+        response.headers.set("location", `${origin}/login?error=invitacion_invalida`);
+        return response;
+      }
+    } catch {
+      response.headers.set("location", `${origin}/login?error=backend_timeout`);
+      return response;
+    }
     response.headers.set("location", `${origin}/panel`);
     return response;
   }

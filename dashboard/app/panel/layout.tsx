@@ -12,7 +12,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const rolRes = await fetch(`${BACKEND}/me/rol?user_id=${user.id}&email=${user.email}`);
   const rol = await rolRes.json();
 
-  if (rol.rol !== "clinica") redirect("/");
+  if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
   const clinicaRes = await fetch(`${BACKEND}/admin/clinicas/${rol.clinic_id}`);
   const clinica = await clinicaRes.json();
