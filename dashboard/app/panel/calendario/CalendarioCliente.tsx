@@ -10,241 +10,472 @@ type Cita = {
   pacientes?: { nombre?: string; telefono?: string } | null;
 };
 
-const ESTADO_COLOR: Record<string, { bg: string; color: string }> = {
-  confirmada: { bg: "#dcfce7", color: "#166534" },
-  cancelada: { bg: "#fee2e2", color: "#991b1b" },
-  completada: { bg: "#e0e7ff", color: "#3730a3" },
-  pendiente: { bg: "#fef9c3", color: "#854d0e" },
+type Vista = "dia" | "semana" | "mes";
+
+const ESTADO_COLOR: Record<string, { bg: string; color: string; border: string }> = {
+  confirmada: { bg: "#dcfce7", color: "#166534", border: "#86efac" },
+  cancelada: { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
+  completada: { bg: "#e0e7ff", color: "#3730a3", border: "#a5b4fc" },
+  pendiente: { bg: "#fef9c3", color: "#854d0e", border: "#fde047" },
 };
 
+const DIAS_CORTO = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+const HORA_INICIO = 8;
+const HORA_FIN = 21;
+const HORA_HEIGHT = 64; // px por hora
+
+function getMonday(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+function fmtHora(d: Date) {
+  return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtFechaCorta(d: Date) {
+  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
 
 export default function CalendarioCliente({ clinicId, backendUrl }: { clinicId: string; backendUrl: string }) {
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+  today.setHours(0, 0, 0, 0);
+
+  const [vista, setVista] = useState<Vista>("semana");
+  const [anchor, setAnchor] = useState<Date>(today); // base date para navegación
   const [citas, setCitas] = useState<Cita[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCita, setSelectedCita] = useState<Cita | null>(null);
 
-  const fetchCitas = useCallback(async (y: number, m: number) => {
+  // Calcular rango según vista
+  const getRango = useCallback((v: Vista, a: Date): { desde: Date; hasta: Date } => {
+    if (v === "dia") {
+      const desde = new Date(a); desde.setHours(0, 0, 0, 0);
+      const hasta = new Date(a); hasta.setHours(23, 59, 59, 999);
+      return { desde, hasta };
+    }
+    if (v === "semana") {
+      const desde = getMonday(a);
+      const hasta = addDays(desde, 6);
+      hasta.setHours(23, 59, 59, 999);
+      return { desde, hasta };
+    }
+    // mes
+    const desde = new Date(a.getFullYear(), a.getMonth(), 1);
+    const hasta = new Date(a.getFullYear(), a.getMonth() + 1, 0, 23, 59, 59);
+    return { desde, hasta };
+  }, []);
+
+  const fetchCitas = useCallback(async (v: Vista, a: Date) => {
     setLoading(true);
-    const firstDay = `${y}-${String(m + 1).padStart(2, "0")}-01T00:00:00Z`;
-    const lastDay = new Date(y, m + 1, 0);
-    const lastIso = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}T23:59:59Z`;
+    const { desde, hasta } = getRango(v, a);
+    const fi = desde.toISOString();
+    const ff = hasta.toISOString();
     try {
       const res = await fetch(
-        `${backendUrl}/admin/clinicas/${clinicId}/citas?fecha_inicio=${firstDay}&fecha_fin=${lastIso}`,
+        `${backendUrl}/admin/clinicas/${clinicId}/citas?fecha_inicio=${fi}&fecha_fin=${ff}`,
         { cache: "no-store" }
       );
       if (res.ok) setCitas(await res.json());
-    } finally {
-      setLoading(false);
-    }
-  }, [clinicId, backendUrl]);
+      else setCitas([]);
+    } catch { setCitas([]); }
+    finally { setLoading(false); }
+  }, [clinicId, backendUrl, getRango]);
 
-  useEffect(() => { fetchCitas(year, month); }, [year, month, fetchCitas]);
+  useEffect(() => { fetchCitas(vista, anchor); }, [vista, anchor, fetchCitas]);
 
-  const prevMonth = () => {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
+  const navAnterior = () => {
+    const d = new Date(anchor);
+    if (vista === "dia") d.setDate(d.getDate() - 1);
+    else if (vista === "semana") d.setDate(d.getDate() - 7);
+    else d.setMonth(d.getMonth() - 1);
+    setAnchor(d);
   };
-  const nextMonth = () => {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
+  const navSiguiente = () => {
+    const d = new Date(anchor);
+    if (vista === "dia") d.setDate(d.getDate() + 1);
+    else if (vista === "semana") d.setDate(d.getDate() + 7);
+    else d.setMonth(d.getMonth() + 1);
+    setAnchor(d);
   };
+  const irHoy = () => setAnchor(new Date(today));
 
-  // Build calendar grid (Mon-Sun)
-  const firstOfMonth = new Date(year, month, 1);
-  const firstWeekday = (firstOfMonth.getDay() + 6) % 7; // 0=Mon
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
-
-  const citasByDay: Record<number, Cita[]> = {};
-  citas.forEach((c) => {
-    const d = new Date(c.fecha_inicio);
-    if (d.getFullYear() === year && d.getMonth() === month) {
-      const day = d.getDate();
-      if (!citasByDay[day]) citasByDay[day] = [];
-      citasByDay[day].push(c);
+  // Título del periodo
+  const titulo = (() => {
+    if (vista === "dia") {
+      return anchor.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     }
-  });
+    if (vista === "semana") {
+      const { desde, hasta } = getRango("semana", anchor);
+      return `${fmtFechaCorta(desde)} — ${fmtFechaCorta(hasta)}, ${hasta.getFullYear()}`;
+    }
+    return `${MESES[anchor.getMonth()]} ${anchor.getFullYear()}`;
+  })();
 
-  const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+  const citasDelDia = (d: Date) => citas.filter(c => isSameDay(new Date(c.fecha_inicio), d));
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, margin: 0, fontWeight: 700 }}>Calendario de citas</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={prevMonth} style={navBtnStyle}>‹</button>
-          <span style={{ fontSize: 16, fontWeight: 600, minWidth: 160, textAlign: "center" }}>
-            {MESES[month]} {year}
-          </span>
-          <button onClick={nextMonth} style={navBtnStyle}>›</button>
-          <button
-            onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); }}
-            style={{
-              fontSize: 13, padding: "6px 14px", borderRadius: 6,
-              border: "1px solid #d1d5db", background: "white", cursor: "pointer", color: "#374151",
-            }}
-          >
-            Hoy
-          </button>
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 110px)" }}>
+
+      {/* Toolbar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={navAnterior} style={navBtn}>‹</button>
+          <button onClick={navSiguiente} style={navBtn}>›</button>
+          <button onClick={irHoy} style={todayBtn}>Hoy</button>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginLeft: 8 }}>{titulo}</span>
+          {loading && <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 8 }}>…</span>}
+        </div>
+        <div style={{ display: "flex", gap: 2, background: "#f3f4f6", borderRadius: 8, padding: 3 }}>
+          {(["dia", "semana", "mes"] as Vista[]).map(v => (
+            <button key={v} onClick={() => setVista(v)} style={{
+              padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 500,
+              background: vista === v ? "white" : "transparent",
+              color: vista === v ? "#111827" : "#6b7280",
+              boxShadow: vista === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            }}>
+              {v === "dia" ? "Día" : v === "semana" ? "Semana" : "Mes"}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-        {[
-          { label: "Total citas", value: citas.length },
-          { label: "Confirmadas", value: citas.filter(c => c.estado === "confirmada").length },
-          { label: "Canceladas", value: citas.filter(c => c.estado === "cancelada").length },
-        ].map(({ label, value }) => (
-          <div key={label} style={{
-            background: "white", borderRadius: 8, padding: "10px 18px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)", display: "flex", gap: 8, alignItems: "center",
-          }}>
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}>{value}</span>
-            <span style={{ fontSize: 12, color: "#6b7280" }}>{label}</span>
-          </div>
-        ))}
-        {loading && (
-          <div style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center", marginLeft: 8 }}>Cargando…</div>
+      {/* Calendar body */}
+      <div style={{ flex: 1, overflow: "hidden", background: "white", borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }}>
+        {(vista === "semana" || vista === "dia") && (
+          <VistaHoras
+            dias={vista === "semana"
+              ? Array.from({ length: 7 }, (_, i) => addDays(getMonday(anchor), i))
+              : [anchor]
+            }
+            today={today}
+            citasDelDia={citasDelDia}
+            onSelect={setSelectedCita}
+          />
+        )}
+        {vista === "mes" && (
+          <VistaMes
+            year={anchor.getFullYear()}
+            month={anchor.getMonth()}
+            today={today}
+            citasDelDia={citasDelDia}
+            onSelect={setSelectedCita}
+          />
         )}
       </div>
 
-      {/* Calendar grid */}
-      <div style={{ background: "white", borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.07)", overflow: "hidden" }}>
-        {/* Day headers */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #f3f4f6" }}>
-          {DIAS.map((d) => (
-            <div key={d} style={{
-              padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 600,
-              color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em",
-            }}>
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Day cells */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-          {Array.from({ length: totalCells }).map((_, i) => {
-            const dayNum = i - firstWeekday + 1;
-            const isCurrentMonth = dayNum >= 1 && dayNum <= daysInMonth;
-            const isToday = isCurrentMonth &&
-              dayNum === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-            const dayCitas = isCurrentMonth ? (citasByDay[dayNum] || []) : [];
-            const borderRight = (i + 1) % 7 !== 0 ? "1px solid #f3f4f6" : "none";
-            const borderBottom = i < totalCells - 7 ? "1px solid #f3f4f6" : "none";
-
-            return (
-              <div key={i} style={{
-                minHeight: 100, padding: "8px 8px 6px",
-                borderRight, borderBottom,
-                background: isToday ? "#f0fdf4" : (isCurrentMonth ? "white" : "#fafafa"),
-                verticalAlign: "top",
-              }}>
-                <div style={{
-                  fontSize: 13, fontWeight: isToday ? 700 : 400,
-                  color: isToday ? "#166534" : (isCurrentMonth ? "#374151" : "#d1d5db"),
-                  marginBottom: 4,
-                  width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
-                  borderRadius: "50%", background: isToday ? "#bbf7d0" : "transparent",
-                }}>
-                  {isCurrentMonth ? dayNum : ""}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {dayCitas.slice(0, 3).map((c) => {
-                    const est = ESTADO_COLOR[c.estado] || { bg: "#f3f4f6", color: "#374151" };
-                    const hora = new Date(c.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => setSelectedCita(c)}
-                        style={{
-                          background: est.bg, color: est.color,
-                          border: "none", borderRadius: 4, padding: "2px 5px",
-                          fontSize: 10, cursor: "pointer", textAlign: "left",
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {hora} {c.tipo_servicio || "Cita"}
-                      </button>
-                    );
-                  })}
-                  {dayCitas.length > 3 && (
-                    <span style={{ fontSize: 10, color: "#9ca3af" }}>+{dayCitas.length - 3} más</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Modal */}
+      {/* Modal detalle */}
       {selectedCita && (
-        <div
-          onClick={(e) => { if (e.target === e.currentTarget) setSelectedCita(null); }}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50,
-          }}
-        >
-          <div style={{
-            background: "white", borderRadius: 12, padding: 28,
-            width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{selectedCita.tipo_servicio || "Cita"}</h3>
-              <button onClick={() => setSelectedCita(null)} style={{
-                background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#9ca3af", lineHeight: 1,
-              }}>✕</button>
-            </div>
-            {(() => {
-              const est = ESTADO_COLOR[selectedCita.estado] || { bg: "#f3f4f6", color: "#374151" };
-              return (
-                <span style={{ fontSize: 12, background: est.bg, color: est.color, borderRadius: 10, padding: "3px 10px", fontWeight: 600 }}>
-                  {selectedCita.estado}
-                </span>
-              );
-            })()}
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-              <ModalRow label="Paciente" value={selectedCita.pacientes?.nombre || "—"} />
-              <ModalRow label="Teléfono" value={selectedCita.pacientes?.telefono || "—"} />
-              <ModalRow label="Inicio" value={fmtDT(selectedCita.fecha_inicio)} />
-              {selectedCita.fecha_fin && <ModalRow label="Fin" value={fmtDT(selectedCita.fecha_fin)} />}
-            </div>
-          </div>
-        </div>
+        <ModalCita cita={selectedCita} onClose={() => setSelectedCita(null)} />
       )}
     </div>
   );
 }
 
-function ModalRow({ label, value }: { label: string; value: string }) {
+/* ─── Vista semana / día ─────────────────────────────────────────────────── */
+
+function VistaHoras({
+  dias, today, citasDelDia, onSelect,
+}: {
+  dias: Date[];
+  today: Date;
+  citasDelDia: (d: Date) => Cita[];
+  onSelect: (c: Cita) => void;
+}) {
+  const horas = Array.from({ length: HORA_FIN - HORA_INICIO }, (_, i) => HORA_INICIO + i);
+  const totalHeight = horas.length * HORA_HEIGHT;
+  const isDay = dias.length === 1;
+
+  // Hora actual para la línea roja
+  const now = new Date();
+  const nowMinutes = (now.getHours() - HORA_INICIO) * 60 + now.getMinutes();
+  const nowTop = (nowMinutes / 60) * HORA_HEIGHT;
+  const showNowLine = nowMinutes >= 0 && nowMinutes < (HORA_FIN - HORA_INICIO) * 60;
+
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-      <span style={{ color: "#9ca3af" }}>{label}</span>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      {/* Header días */}
+      <div style={{ display: "flex", borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
+        <div style={{ width: 56, flexShrink: 0 }} />
+        {dias.map((d, i) => {
+          const isToday = isSameDay(d, today);
+          return (
+            <div key={i} style={{
+              flex: 1, textAlign: "center", padding: "10px 0",
+              borderLeft: "1px solid #f3f4f6",
+            }}>
+              <div style={{ fontSize: 11, color: isToday ? "#166534" : "#9ca3af", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {DIAS_CORTO[(d.getDay() + 6) % 7]}
+              </div>
+              <div style={{
+                fontSize: isDay ? 20 : 16, fontWeight: 700, marginTop: 2,
+                color: isToday ? "white" : "#111827",
+                background: isToday ? "#166534" : "transparent",
+                width: 32, height: 32, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "2px auto 0",
+              }}>
+                {d.getDate()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Scroll area */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ display: "flex", position: "relative" }}>
+          {/* Horas columna izquierda */}
+          <div style={{ width: 56, flexShrink: 0 }}>
+            {horas.map(h => (
+              <div key={h} style={{
+                height: HORA_HEIGHT, display: "flex", alignItems: "flex-start",
+                justifyContent: "flex-end", paddingRight: 8, paddingTop: 6,
+                fontSize: 11, color: "#9ca3af",
+              }}>
+                {String(h).padStart(2, "0")}:00
+              </div>
+            ))}
+          </div>
+
+          {/* Grid días */}
+          <div style={{ flex: 1, position: "relative" }}>
+            {/* Líneas horizontales */}
+            {horas.map(h => (
+              <div key={h} style={{
+                position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT,
+                left: 0, right: 0, height: 1, background: "#f3f4f6",
+              }} />
+            ))}
+
+            {/* Línea hora actual */}
+            {showNowLine && (
+              <div style={{
+                position: "absolute", top: nowTop, left: 0, right: 0,
+                height: 2, background: "#ef4444", zIndex: 10,
+              }}>
+                <div style={{
+                  position: "absolute", left: -6, top: -4,
+                  width: 10, height: 10, borderRadius: "50%", background: "#ef4444",
+                }} />
+              </div>
+            )}
+
+            {/* Columnas de días */}
+            <div style={{ display: "flex", height: totalHeight }}>
+              {dias.map((d, i) => {
+                const dCitas = citasDelDia(d);
+                return (
+                  <div key={i} style={{
+                    flex: 1, position: "relative", borderLeft: "1px solid #f3f4f6",
+                  }}>
+                    {dCitas.map(c => {
+                      const start = new Date(c.fecha_inicio);
+                      const end = c.fecha_fin ? new Date(c.fecha_fin) : new Date(start.getTime() + 60 * 60000);
+                      const startMin = (start.getHours() - HORA_INICIO) * 60 + start.getMinutes();
+                      const durMin = Math.max((end.getTime() - start.getTime()) / 60000, 30);
+                      const top = Math.max(0, (startMin / 60) * HORA_HEIGHT);
+                      const height = Math.max(24, (durMin / 60) * HORA_HEIGHT - 2);
+                      const est = ESTADO_COLOR[c.estado] || ESTADO_COLOR.confirmada;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => onSelect(c)}
+                          style={{
+                            position: "absolute", left: 3, right: 3,
+                            top, height,
+                            background: est.bg, color: est.color,
+                            border: `1px solid ${est.border}`,
+                            borderRadius: 5, padding: "2px 6px",
+                            fontSize: 11, fontWeight: 600,
+                            textAlign: "left", overflow: "hidden",
+                            cursor: "pointer", zIndex: 5,
+                          }}
+                        >
+                          <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {fmtHora(start)} {c.tipo_servicio || "Cita"}
+                          </div>
+                          {height > 36 && c.pacientes?.nombre && (
+                            <div style={{ fontSize: 10, opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {c.pacientes.nombre}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Vista mes ──────────────────────────────────────────────────────────── */
+
+function VistaMes({
+  year, month, today, citasDelDia, onSelect,
+}: {
+  year: number;
+  month: number;
+  today: Date;
+  citasDelDia: (d: Date) => Cita[];
+  onSelect: (c: Cita) => void;
+}) {
+  const firstOfMonth = new Date(year, month, 1);
+  const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #f3f4f6" }}>
+        {DIAS_CORTO.map(d => (
+          <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", flex: 1 }}>
+        {Array.from({ length: totalCells }).map((_, i) => {
+          const dayNum = i - firstWeekday + 1;
+          const isCurrentMonth = dayNum >= 1 && dayNum <= daysInMonth;
+          const cellDate = new Date(year, month, dayNum);
+          const isToday = isCurrentMonth && isSameDay(cellDate, today);
+          const dCitas = isCurrentMonth ? citasDelDia(cellDate) : [];
+
+          return (
+            <div key={i} style={{
+              minHeight: 90, padding: "6px 8px",
+              borderRight: (i + 1) % 7 !== 0 ? "1px solid #f3f4f6" : "none",
+              borderBottom: i < totalCells - 7 ? "1px solid #f3f4f6" : "none",
+              background: isToday ? "#f0fdf4" : (isCurrentMonth ? "white" : "#fafafa"),
+            }}>
+              {isCurrentMonth && (
+                <>
+                  <div style={{
+                    fontSize: 12, fontWeight: isToday ? 700 : 400,
+                    color: isToday ? "white" : "#374151",
+                    width: 22, height: 22, borderRadius: "50%",
+                    background: isToday ? "#166534" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    marginBottom: 4,
+                  }}>
+                    {dayNum}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {dCitas.slice(0, 3).map(c => {
+                      const est = ESTADO_COLOR[c.estado] || ESTADO_COLOR.confirmada;
+                      const hora = fmtHora(new Date(c.fecha_inicio));
+                      return (
+                        <button key={c.id} onClick={() => onSelect(c)} style={{
+                          background: est.bg, color: est.color,
+                          border: "none", borderRadius: 3, padding: "2px 5px",
+                          fontSize: 10, cursor: "pointer", textAlign: "left",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          fontWeight: 500, width: "100%",
+                        }}>
+                          {hora} {c.tipo_servicio || "Cita"}
+                        </button>
+                      );
+                    })}
+                    {dCitas.length > 3 && (
+                      <span style={{ fontSize: 10, color: "#9ca3af" }}>+{dCitas.length - 3} más</span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Modal ──────────────────────────────────────────────────────────────── */
+
+function ModalCita({ cita, onClose }: { cita: Cita; onClose: () => void }) {
+  const est = ESTADO_COLOR[cita.estado] || ESTADO_COLOR.confirmada;
+  const start = new Date(cita.fecha_inicio);
+  const end = cita.fecha_fin ? new Date(cita.fecha_fin) : null;
+  const durMin = end ? Math.round((end.getTime() - start.getTime()) / 60000) : null;
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50,
+      }}
+    >
+      <div style={{
+        background: "white", borderRadius: 12, padding: 28, width: 400,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 700 }}>{cita.tipo_servicio || "Cita"}</h3>
+            <span style={{ fontSize: 12, background: est.bg, color: est.color, borderRadius: 10, padding: "2px 10px", fontWeight: 600 }}>
+              {cita.estado}
+            </span>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af", lineHeight: 1 }}>✕</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+          <InfoRow icon="👤" label="Paciente" value={cita.pacientes?.nombre || "—"} />
+          <InfoRow icon="📞" label="Teléfono" value={cita.pacientes?.telefono || "—"} />
+          <InfoRow icon="📅" label="Fecha" value={start.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })} />
+          <InfoRow icon="🕐" label="Hora" value={`${fmtHora(start)}${end ? ` — ${fmtHora(end)}` : ""}`} />
+          {durMin && <InfoRow icon="⏱" label="Duración" value={`${durMin} min`} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+      <span style={{ fontSize: 15 }}>{icon}</span>
+      <span style={{ color: "#9ca3af", minWidth: 70 }}>{label}</span>
       <span style={{ color: "#111827", fontWeight: 500 }}>{value}</span>
     </div>
   );
 }
 
-function fmtDT(iso: string) {
-  return new Date(iso).toLocaleString("es-ES", {
-    weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-  });
-}
+/* ─── Estilos compartidos ────────────────────────────────────────────────── */
 
-const navBtnStyle: React.CSSProperties = {
-  width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-  borderRadius: 6, border: "1px solid #d1d5db", background: "white", cursor: "pointer",
-  fontSize: 18, color: "#374151", lineHeight: 1,
+const navBtn: React.CSSProperties = {
+  width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+  borderRadius: 6, border: "1px solid #e5e7eb", background: "white",
+  cursor: "pointer", fontSize: 18, color: "#374151", lineHeight: 1,
+};
+
+const todayBtn: React.CSSProperties = {
+  fontSize: 13, padding: "5px 12px", borderRadius: 6,
+  border: "1px solid #e5e7eb", background: "white", cursor: "pointer", color: "#374151",
 };
