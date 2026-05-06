@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from uuid import UUID
 
 from cryptography.fernet import Fernet
@@ -8,6 +9,9 @@ from google_auth_oauthlib.flow import Flow
 
 from config import settings
 from database.client import get_supabase
+
+# Google añade scopes extra (profile, email, openid) al callback — ignorar la diferencia
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 logger = logging.getLogger(__name__)
 
