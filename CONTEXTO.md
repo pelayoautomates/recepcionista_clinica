@@ -13,9 +13,10 @@ Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo paci
 - Gestiona citas sobre Google Calendar real (crear, mover, cancelar)
 - Guarda cada contacto como lead con estado en Supabase
 - Transcribe audios de WhatsApp con Whisper
-- Envía recordatorios automáticos antes de citas
+- Envía recordatorios automáticos antes de citas (24h y 1h)
 - Hace seguimiento de leads fríos
 - Escala a humano cuando detecta urgencia o complejidad
+- Genera resúmenes diarios por clínica
 
 **Lo que NO hace:**
 - No diagnostica ni recomienda medicamentos
@@ -29,57 +30,92 @@ Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo paci
 | Capa | Tecnología | Versión/Notas |
 |---|---|---|
 | Backend | FastAPI (Python) | Python 3.12, Railway |
-| Base de datos | Supabase (PostgreSQL) | RLS activo en todas las tablas multi-tenant |
-| LLM | OpenAI GPT-4o | Function calling para tools |
+| Base de datos | Supabase (PostgreSQL) | Proyecto: pccleqeuojcjflzagnhb |
+| LLM | OpenAI GPT-4o | Function calling para tools; gpt-4o-mini para resúmenes diarios |
 | Transcripción | Whisper (OpenAI API) | Para audios de WhatsApp |
-| Chat web | Widget React embebible | Bundle standalone, sin dependencias |
-| WhatsApp | Meta Cloud API directa | Número nuevo controlado por agencia |
-| Voz | Vapi.ai | Server URLs apuntando a nuestro backend |
+| Chat web | Endpoint POST /chat | Widget embebible pendiente de construir |
+| WhatsApp | Meta Cloud API directa | Webhook en /webhook/whatsapp |
+| Voz | Vapi.ai | Server URL apuntando a /vapi |
 | Calendario | Google Calendar API (OAuth2) | Tokens cifrados con Fernet en Supabase |
-| Scheduling | APScheduler (MVP) | Corre dentro de FastAPI en MVP |
-| Dashboard | Next.js 14 | App Router, Vercel |
+| Scheduling | APScheduler 3.10.4 (BackgroundScheduler) | Corre dentro de FastAPI; jobs cada 1 min |
+| Dashboard | Next.js 15 | App Router, Vercel |
+| Auth dashboard | Supabase Auth + Google OAuth | Dos roles: agencia_admins y clinica_usuarios |
 
 ---
 
-## Estructura del proyecto
+## URLs de producción
+
+| Servicio | URL |
+|---|---|
+| Backend API | https://recepcionista-clinica-production.up.railway.app |
+| Dashboard | https://recepcionista-clinica.vercel.app |
+| Supabase | https://pccleqeuojcjflzagnhb.supabase.co |
+| Health check | https://recepcionista-clinica-production.up.railway.app/health |
+
+---
+
+## Estructura de archivos real
 
 ```
 Recepcionista Clinicas/
 ├── CONTEXTO.md          ← Estás aquí
 ├── PROGRESO.md          ← Estado actual de implementación
-├── ARQUITECTURA.md      ← Diagramas de flujo y modelo de datos
 │
 ├── backend/
-│   ├── main.py          ← Entry point FastAPI
-│   ├── requirements.txt
-│   ├── .env.example
-│   ├── config.py        ← Settings (Pydantic BaseSettings)
+│   ├── main.py          ← Entry point FastAPI con lifespan (inicia scheduler)
+│   ├── requirements.txt ← Dependencias Python (fastapi, supabase, openai, google-auth, etc.)
+│   ├── config.py        ← Settings con Pydantic BaseSettings; lee .env desde backend/ y raíz
 │   ├── database/
-│   │   ├── client.py    ← Supabase singleton
+│   │   ├── client.py                    ← Supabase singleton (service role key)
 │   │   └── migrations/
-│   │       └── 001_schema.sql
-│   ├── models/          ← Pydantic models
-│   ├── tools/           ← Funciones que ejecuta el agente
-│   │   ├── calendario.py
-│   │   ├── pacientes.py
-│   │   └── sistema.py
+│   │       ├── 001_schema.sql           ← 5 tablas principales + RLS + índices
+│   │       └── 002_auth.sql             ← agencia_admins, clinica_usuarios, invitaciones
+│   ├── models/
+│   │   ├── clinica.py                   ← ClinicaCreate, ClinicaUpdate
+│   │   └── conversacion.py              ← ChatRequest
+│   ├── tools/
+│   │   ├── calendario.py                ← consultar_disponibilidad, crear_cita, mover_cita, cancelar_cita
+│   │   ├── pacientes.py                 ← buscar_paciente, crear_lead (con fusión), actualizar_estado_lead
+│   │   └── sistema.py                   ← programar_seguimiento, escalar_a_humano
 │   ├── agent/
-│   │   ├── core.py             ← Loop de function calling
-│   │   ├── tool_definitions.py ← JSON schemas para OpenAI
-│   │   └── prompts.py          ← System prompts
+│   │   ├── core.py                      ← Loop de function calling GPT-4o (max 10 iter); guarda historial
+│   │   ├── tool_definitions.py          ← 9 JSON schemas para OpenAI function calling
+│   │   └── prompts.py                   ← build_system_prompt(); agente se llama "Valeria"
 │   ├── google_calendar/
-│   │   ├── auth.py      ← OAuth2 flow
-│   │   └── client.py    ← Wrapper de GCal API
+│   │   ├── auth.py                      ← OAuth2 flow, Fernet encrypt/decrypt, get_credentials
+│   │   └── client.py                    ← listar_slots_libres, crear_evento, mover_evento, cancelar_evento
 │   ├── jobs/
-│   │   └── scheduler.py ← APScheduler
+│   │   └── scheduler.py                 ← APScheduler; procesa jobs cada 1 min; programa recordatorios cada 1h
 │   └── routers/
-│       ├── chat.py
-│       ├── whatsapp.py
-│       ├── vapi.py
-│       └── admin.py
+│       ├── admin.py                     ← CRUD clínicas, leads, conversaciones, citas, jobs, métricas
+│       ├── auth.py                      ← GET /auth/google/{clinic_id} y GET /auth/google/callback
+│       ├── chat.py                      ← POST /chat (chat web)
+│       ├── invitaciones.py              ← POST invitación, POST vincular, GET /admin/me/rol
+│       ├── whatsapp.py                  ← GET/POST /webhook/whatsapp (Meta Cloud API)
+│       └── vapi.py                      ← POST /vapi (Vapi.ai Server URL)
 │
-├── dashboard/           ← Next.js 14
-└── widget/              ← Chat embebible (React)
+└── dashboard/           ← Next.js 15 (App Router)
+    ├── .env.local       ← Variables de entorno del dashboard
+    ├── middleware.ts     ← Protección de rutas por email de agencia
+    ├── components/
+    │   └── ConditionalNav.tsx           ← Nav azul marino (agencia); oculta en /login, /auth, /panel
+    ├── app/
+    │   ├── layout.tsx                   ← RootLayout con ConditionalNav
+    │   ├── page.tsx                     ← / — Listado de clínicas con métricas (solo agencia)
+    │   ├── login/
+    │   │   └── page.tsx                 ← Login con Google; guarda token invitación en localStorage
+    │   ├── auth/
+    │   │   ├── callback/route.ts        ← Intercambia code, redirige por rol (agencia/clinica/completing)
+    │   │   └── completing/page.tsx      ← Client component; lee localStorage y vincula invitación al usuario
+    │   ├── panel/
+    │   │   ├── layout.tsx               ← Nav verde "Panel Clínica"; verifica rol=clinica
+    │   │   └── page.tsx                 ← Dashboard de clínica: métricas + GCal + accesos rápidos
+    │   └── clinicas/
+    │       └── [id]/
+    │           ├── page.tsx             ← Detalle de clínica: métricas, GCal, WhatsApp, servicios, horarios
+    │           ├── InvitacionButton.tsx ← Genera link de invitación con token one-time
+    │           ├── GoogleCalendarButton.tsx
+    │           └── EditClinicaForm.tsx
 ```
 
 ---
@@ -87,37 +123,78 @@ Recepcionista Clinicas/
 ## Multi-tenancy
 
 - Cada clínica tiene su `clinic_id` (UUID) en Supabase
-- **RLS** (Row Level Security) activo en todas las tablas de datos
-- El backend siempre pasa `clinic_id` en cada operación
-- Los tokens de Google Calendar están cifrados por clínica con Fernet
-- El agente recibe un system prompt personalizado por clínica
+- **RLS** activo en tablas de datos (pacientes, citas, conversaciones, jobs)
+- El backend usa **service role key** → bypass RLS
+- El dashboard usa **anon key** → RLS activo
+- Los tokens de Google Calendar están cifrados con Fernet por clínica
+- El agente recibe un system prompt personalizado por clínica (`prompt_personalizado`)
 
 ---
 
-## Modelo de datos resumido
+## Modelo de datos
 
 ```
 clinicas (1) ──< pacientes (1) ──< citas
                      │
                      └──< conversaciones
                      └──< jobs
+
+agencia_admins (roles)
+clinica_usuarios (user_id ↔ clinic_id)
+invitaciones (token one-time → clinic_id)
 ```
 
 **Estados de lead:**
 `anonimo` → `nuevo` → `contactado` → `interesado` → `cita_agendada` → `completado` / `perdido` / `requiere_humano`
 
+**Estados de conversación:** `activa` / `esperando_humano` / `resuelta`
+
+**Estados de cita:** `confirmada` / `cancelada` / `completada` / `no_asistio`
+
+**Tipos de job:** `recordatorio_24h` / `recordatorio_1h` / `seguimiento_lead` / `resumen_diario`
+
+---
+
+## Sistema de autenticación (dos paneles)
+
+### Roles
+- **agencia_admins**: tú (`pelayo.automates@gmail.com`). Accede a `/` y `/clinicas/*`
+- **clinica_usuarios**: clientes (clínicas). Acceden solo a `/panel/*`
+
+### Flujo de invitación de clínica nueva
+1. En `/clinicas/{id}` (panel agencia), click en "Generar link de acceso" → llama a `POST /admin/clinicas/{id}/invitacion` → genera token urlsafe(32) → guarda en tabla `invitaciones`
+2. El link generado es: `https://recepcionista-clinica.vercel.app/login?token=<TOKEN>`
+3. Cliente abre el link → `/login` detecta `?token` → lo guarda en `localStorage` como `pending_invite`
+4. Cliente hace click en "Entrar con Google" → Supabase OAuth con Google → redirige a `/auth/callback`
+5. `/auth/callback` intercambia el code, detecta que el email no es de agencia y no está vinculado → redirige a `/auth/completing`
+6. `/auth/completing` (client component) lee `localStorage`, llama a `POST /admin/invitaciones/vincular` → borra el token del `localStorage` → redirige a `/panel`
+7. Una vez vinculado, futuros logins del mismo usuario van directamente a `/panel`
+
+### Protección de rutas (middleware.ts)
+- Sin sesión → `/login`
+- Rutas agencia (`/` y `/clinicas/*`) + email distinto al de agencia → redirige a `/panel`
+- Rutas clínica (`/panel/*`) + email de agencia → redirige a `/`
+- `/login` y `/auth/*` son rutas públicas
+
+### Identificación de rol
+- El middleware solo protege por email de agencia
+- Los layouts de `/panel` llaman a `GET /admin/me/rol?user_id=...&email=...` para obtener el `clinic_id` del usuario
+
 ---
 
 ## Cómo funciona el agente
 
-1. Llega mensaje (por cualquier canal)
-2. Se carga el historial de la conversación desde Supabase
-3. Se llama a GPT-4o con las tools disponibles y el system prompt de la clínica
-4. Si GPT-4o llama a una tool → se ejecuta → se devuelve resultado → se vuelve a llamar GPT-4o
-5. Se guarda el historial actualizado en Supabase
-6. Se devuelve la respuesta al canal correspondiente
+1. Llega mensaje (por cualquier canal: chat web, WhatsApp, voz)
+2. Se carga la configuración de la clínica desde Supabase
+3. Se carga o crea la conversación (historial de mensajes)
+4. Si la conversación está en `esperando_humano` → se devuelve mensaje fijo sin llamar a GPT
+5. Se construye el system prompt con datos de la clínica (nombre, horarios, servicios, prompt personalizado)
+6. Se llama a GPT-4o con el historial + herramientas
+7. Si GPT-4o llama a una tool → se ejecuta → resultado → se vuelve a llamar GPT-4o (máx 10 iter)
+8. Se guarda historial actualizado en Supabase (sin el system prompt)
+9. Se devuelve la respuesta al canal correspondiente
 
-El agente **nunca toca directamente la base de datos ni el calendario**. Solo actúa a través de las tools.
+El agente se llama **Valeria** y nunca toca directamente la base de datos ni el calendario.
 
 ---
 
@@ -125,19 +202,94 @@ El agente **nunca toca directamente la base de datos ni el calendario**. Solo ac
 
 | Tool | Descripción |
 |---|---|
-| `consultar_disponibilidad` | Slots libres en Google Calendar |
-| `crear_cita` | Crea evento en GCal + registro en Supabase |
-| `mover_cita` | Mueve evento en GCal + actualiza Supabase |
-| `cancelar_cita` | Cancela en GCal + Supabase |
-| `buscar_paciente` | Busca por teléfono en Supabase |
-| `crear_lead` | Crea o fusiona paciente en Supabase |
+| `consultar_disponibilidad` | Slots libres en Google Calendar según horario de la clínica |
+| `crear_cita` | Crea evento en GCal + registro en Supabase + actualiza lead a cita_agendada |
+| `mover_cita` | Mueve evento en GCal + actualiza Supabase (mantiene duración original) |
+| `cancelar_cita` | Cancela en GCal + marca estado cancelada en Supabase |
+| `buscar_paciente` | Busca por teléfono en Supabase (para evitar duplicados) |
+| `crear_lead` | Crea o fusiona paciente (si ya existe el teléfono, actualiza datos faltantes) |
 | `actualizar_estado_lead` | Actualiza estado del funnel |
-| `programar_seguimiento` | Crea job de seguimiento en Supabase |
-| `escalar_a_humano` | Cambia estado conversación + notifica a clínica |
+| `programar_seguimiento` | Crea job de seguimiento con idempotency_key |
+| `escalar_a_humano` | Cambia estado conversación a esperando_humano + estado lead a requiere_humano |
 
 ---
 
-## Cómo correr el proyecto en local
+## Scheduler (APScheduler)
+
+Arranca con la aplicación (lifespan de FastAPI). Dos jobs recurrentes:
+
+- **Cada 1 minuto:** `_procesar_jobs_pendientes` — ejecuta jobs vencidos de la tabla `jobs`. Reintentos con backoff (5 min * intento); máx 3 intentos, luego marca `fallido`.
+- **Cada 1 hora:** `_programar_recordatorios_pendientes` — busca citas en las próximas 25h sin recordatorio y crea jobs de `recordatorio_24h` y `recordatorio_1h` con idempotency.
+
+Los jobs de recordatorio/seguimiento envían mensajes por WhatsApp (Meta API). El `resumen_diario` genera el texto con GPT-4o-mini y solo lo loguea (TODO: enviar por email o Telegram).
+
+---
+
+## Variables de entorno
+
+### Backend (`backend/.env`)
+
+```env
+# Supabase
+SUPABASE_URL=https://pccleqeuojcjflzagnhb.supabase.co
+SUPABASE_SERVICE_KEY=<service_role_key>
+SUPABASE_ANON_KEY=<anon_key>
+
+# OpenAI
+OPENAI_API_KEY=<key>
+
+# Google Calendar OAuth2
+GOOGLE_CLIENT_ID=<client_id>
+GOOGLE_CLIENT_SECRET=<client_secret>
+GOOGLE_REDIRECT_URI=https://recepcionista-clinica-production.up.railway.app/auth/google/callback
+
+# Cifrado tokens OAuth (generar con: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+FERNET_KEY=<key>
+
+# WhatsApp Meta Cloud API (opcional hasta conectar)
+META_VERIFY_TOKEN=token_provisional
+META_ACCESS_TOKEN=<token>
+META_PHONE_NUMBER_ID=<phone_number_id>
+
+# Vapi (opcional)
+VAPI_API_KEY=<key>
+
+# App
+BASE_URL=https://recepcionista-clinica-production.up.railway.app
+ENVIRONMENT=production
+```
+
+### Dashboard (`dashboard/.env.local`)
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://pccleqeuojcjflzagnhb.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon_key>
+NEXT_PUBLIC_BACKEND_URL=https://recepcionista-clinica-production.up.railway.app
+BACKEND_URL=https://recepcionista-clinica-production.up.railway.app
+NEXT_PUBLIC_AGENCY_EMAIL=pelayo.automates@gmail.com
+NEXT_PUBLIC_SITE_URL=https://recepcionista-clinica.vercel.app
+```
+
+> Nota: `BACKEND_URL` (sin `NEXT_PUBLIC_`) se usa en Server Components para llamadas server-side. `NEXT_PUBLIC_BACKEND_URL` se usa en Client Components. En `.env.local` local, `NEXT_PUBLIC_SITE_URL` debe ser `http://localhost:3000`.
+
+---
+
+## Bugs conocidos pendientes
+
+### Bug 1: Google Calendar OAuth falla al guardar tokens
+- **Síntoma:** Al completar el flujo OAuth de Google, el callback devuelve `{"detail": "Error guardando tokens: ..."}` en lugar de la página de éxito.
+- **Causa probable:** `GOOGLE_REDIRECT_URI` en Railway o en la Google Cloud Console no coincide exactamente con la URL real del callback (`https://recepcionista-clinica-production.up.railway.app/auth/google/callback`).
+- **Cómo diagnosticar:** Revisar los logs de Railway en el endpoint `/auth/google/callback` y comparar el redirect_uri configurado con el que llega en la petición OAuth de Google.
+- **Archivos relevantes:** `backend/routers/auth.py`, `backend/google_calendar/auth.py`, `backend/config.py`
+
+### Bug 2: Conflicto de rutas /auth/google/callback vs /auth/google/{clinic_id}
+- **Síntoma:** Al visitar `/auth/google/callback`, FastAPI intentaba parsear "callback" como UUID en la ruta `/{clinic_id}`, lanzando error de validación.
+- **Estado:** Corregido en código — `GET /auth/google/callback` está registrado antes que `GET /auth/google/{clinic_id}` en `routers/auth.py`. Pendiente de confirmar deploy en Railway.
+- **Archivos relevantes:** `backend/routers/auth.py`
+
+---
+
+## Cómo correr en local
 
 ```bash
 # Backend
@@ -145,20 +297,23 @@ cd backend
 python -m venv venv
 venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-cp .env.example .env           # Rellenar variables
+# Crear backend/.env con las variables de arriba
 uvicorn main:app --reload --port 8000
+```
 
+```bash
 # Dashboard
 cd dashboard
 npm install
+# .env.local ya existe (ajustar NEXT_PUBLIC_SITE_URL a http://localhost:3000 si no lo está)
 npm run dev                    # http://localhost:3000
 ```
 
-**Variables de entorno imprescindibles para desarrollo:**
-- `SUPABASE_URL` y `SUPABASE_SERVICE_KEY`
-- `OPENAI_API_KEY`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-- `FERNET_KEY` (generar con: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
+**Para añadir tu usuario como admin de agencia en Supabase:**
+```sql
+INSERT INTO agencia_admins (user_id, email)
+VALUES ('<tu_user_id_de_supabase_auth>', 'pelayo.automates@gmail.com');
+```
 
 ---
 
@@ -168,8 +323,9 @@ npm run dev                    # http://localhost:3000
 - **clinic_id** siempre como primer parámetro en tools y funciones de DB
 - **Pydantic** para validar inputs y outputs de todos los endpoints
 - **Logs** con `logging` estándar de Python, nivel INFO en producción
-- **Idempotency keys** en todos los jobs: `f"{tipo}_{paciente_id}_{fecha.date()}"`
-- Los tokens OAuth **nunca** se devuelven en responses de API
+- **Idempotency keys** en todos los jobs: `f"{tipo}_{cita_id}"` (recordatorios) o `f"seguimiento_lead_{paciente_id}_{fecha.date()}"` (seguimientos)
+- Los tokens OAuth **nunca** se devuelven en responses de API (solo se devuelve `bool` indicando si existen)
+- El backend usa **service role key** de Supabase para bypassear RLS
 
 ---
 
@@ -177,11 +333,11 @@ npm run dev                    # http://localhost:3000
 
 | Fase | Descripción | Estado |
 |---|---|---|
-| 1 | Núcleo + panel interno mínimo | Ver PROGRESO.md |
+| 1 | Núcleo + panel interno + auth con roles | Ver PROGRESO.md |
 | 2 | Chat web embebible + web demo | Ver PROGRESO.md |
-| 3 | Voz (Vapi.ai) | Pendiente |
-| 4 | WhatsApp (Meta Cloud API) | Pendiente |
-| 5 | Automatizaciones (jobs) | Pendiente |
-| 6 | Activación Express + dashboard cliente | Pendiente |
+| 3 | Voz (Vapi.ai) | Ver PROGRESO.md |
+| 4 | WhatsApp (Meta Cloud API) | Ver PROGRESO.md |
+| 5 | Automatizaciones (jobs) | Ver PROGRESO.md |
+| 6 | Activación Express + dashboard cliente | Ver PROGRESO.md |
 
 Ver [PROGRESO.md](PROGRESO.md) para el estado detallado actual.

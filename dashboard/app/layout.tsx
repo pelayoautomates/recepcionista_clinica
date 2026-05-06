@@ -10,7 +10,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f5f5f5" }}>
         <ConditionalNav />
-        {children}
+        <main style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+          {children}
+        </main>
       </body>
     </html>
   );

@@ -59,7 +59,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </button>
         </form>
       </nav>
-      <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+      <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto", minHeight: "calc(100vh - 58px)", background: "#f0fdf4" }}>
         {children}
       </main>
     </>
