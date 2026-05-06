@@ -10,17 +10,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/google/{clinic_id}")
-async def google_auth_start(clinic_id: UUID):
-    """Inicia el flujo OAuth2 con Google Calendar para una clínica."""
-    try:
-        auth_url = get_authorization_url(clinic_id)
-        return RedirectResponse(url=auth_url)
-    except Exception as e:
-        logger.error("Error iniciando OAuth Google: %s", e)
-        raise HTTPException(status_code=500, detail="Error iniciando autenticación con Google")
-
-
 @router.get("/google/callback")
 async def google_auth_callback(code: str, state: str):
     """
@@ -43,3 +32,14 @@ async def google_auth_callback(code: str, state: str):
     except Exception as e:
         logger.error("Error en callback OAuth Google: %s", e)
         raise HTTPException(status_code=500, detail="Error guardando tokens de Google")
+
+
+@router.get("/google/{clinic_id}")
+async def google_auth_start(clinic_id: UUID):
+    """Inicia el flujo OAuth2 con Google Calendar para una clínica."""
+    try:
+        auth_url = get_authorization_url(clinic_id)
+        return RedirectResponse(url=auth_url)
+    except Exception as e:
+        logger.error("Error iniciando OAuth Google: %s", e)
+        raise HTTPException(status_code=500, detail="Error iniciando autenticación con Google")
