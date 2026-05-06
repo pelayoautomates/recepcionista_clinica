@@ -30,8 +30,8 @@ async def google_auth_callback(code: str, state: str):
     except ValueError:
         raise HTTPException(status_code=400, detail="State inválido (clinic_id no reconocido)")
     except Exception as e:
-        logger.error("Error en callback OAuth Google: %s", e)
-        raise HTTPException(status_code=500, detail="Error guardando tokens de Google")
+        logger.error("Error en callback OAuth Google: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error guardando tokens: {str(e)}")
 
 
 @router.get("/google/{clinic_id}")
