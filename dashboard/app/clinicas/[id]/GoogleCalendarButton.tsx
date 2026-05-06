@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-export default function GoogleCalendarButton({ url }: { url: string }) {
+export default function GoogleCalendarButton({ url, compact }: { url: string; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -9,6 +9,18 @@ export default function GoogleCalendarButton({ url }: { url: string }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (compact) {
+    return (
+      <a href={url} style={{
+        fontSize: 12, padding: "5px 12px", borderRadius: 6, cursor: "pointer",
+        border: "none", background: "#166534", color: "white", textDecoration: "none",
+        whiteSpace: "nowrap", flexShrink: 0,
+      }}>
+        Conectar →
+      </a>
+    );
+  }
 
   return (
     <div style={{ display: "flex", gap: 8 }}>

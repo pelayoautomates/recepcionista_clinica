@@ -39,25 +39,31 @@ export default async function PanelConversacionesPage() {
         {conversaciones.map((conv: any) => {
           const estilo = ESTADO_STYLE[conv.estado] || ESTADO_STYLE.activa;
           return (
-            <div key={conv.id} style={{
-              background: "white", borderRadius: 8, padding: "14px 20px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              border: conv.estado === "esperando_humano" ? "2px solid #f59e0b" : "1px solid #e5e7eb",
-            }}>
-              <div>
-                <div style={{ fontWeight: 500, fontSize: 14 }}>Canal: {conv.canal || "—"}</div>
-                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                  {new Date(conv.updated_at).toLocaleString("es-ES")}
+            <Link key={conv.id} href={`/panel/conversaciones/${conv.id}`} style={{ textDecoration: "none" }}>
+              <div style={{
+                background: "white", borderRadius: 8, padding: "14px 20px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                border: conv.estado === "esperando_humano" ? "2px solid #f59e0b" : "1px solid #e5e7eb",
+                cursor: "pointer",
+              }}>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: 14, color: "#111827" }}>Canal: {conv.canal || "—"}</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                    {new Date(conv.updated_at).toLocaleString("es-ES")}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{
+                    background: estilo.bg, color: estilo.color,
+                    borderRadius: 12, padding: "2px 10px", fontSize: 12, fontWeight: 500,
+                  }}>
+                    {conv.estado}
+                  </span>
+                  <span style={{ color: "#9ca3af", fontSize: 16 }}>→</span>
                 </div>
               </div>
-              <span style={{
-                background: estilo.bg, color: estilo.color,
-                borderRadius: 12, padding: "2px 10px", fontSize: 12, fontWeight: 500,
-              }}>
-                {conv.estado}
-              </span>
-            </div>
+            </Link>
           );
         })}
         {conversaciones.length === 0 && (

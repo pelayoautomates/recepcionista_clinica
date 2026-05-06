@@ -96,7 +96,6 @@ async def ver_conversacion(clinic_id: UUID, conv_id: UUID):
 
 @router.patch("/clinicas/{clinic_id}/conversaciones/{conv_id}/resolver")
 async def resolver_conversacion(clinic_id: UUID, conv_id: UUID):
-    """Marca una conversación en espera de humano como resuelta."""
     db = get_supabase()
     result = db.table("conversaciones") \
         .update({"estado": "resuelta"}) \
@@ -106,17 +105,69 @@ async def resolver_conversacion(clinic_id: UUID, conv_id: UUID):
     return result.data[0]
 
 
+@router.post("/clinicas/{clinic_id}/conversaciones/{conv_id}/responder")
+async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
+    """Añade una respuesta manual del humano a la conversación."""
+    from datetime import datetime, timezone
+    db = get_supabase()
+
+    conv = db.table("conversaciones") \
+        .select("mensajes") \
+        .eq("id", str(conv_id)) \
+        .eq("clinic_id", str(clinic_id)) \
+        .single() \
+        .execute()
+
+    mensajes = conv.data.get("mensajes") or []
+    mensajes.append({
+        "role": "assistant",
+        "content": body.get("mensaje", ""),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "from_human": True,
+    })
+
+    result = db.table("conversaciones") \
+        .update({
+            "mensajes": mensajes,
+            "estado": "activa",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }) \
+        .eq("id", str(conv_id)) \
+        .eq("clinic_id", str(clinic_id)) \
+        .execute()
+    return result.data[0]
+
+
 # ─── Citas ───────────────────────────────────────────────────────────────────
 
 @router.get("/clinicas/{clinic_id}/citas")
-async def listar_citas(clinic_id: UUID, fecha: str | None = None, estado: str | None = None):
+async def listar_citas(
+    clinic_id: UUID,
+    fecha: str | None = None,
+    fecha_inicio: str | None = None,
+    fecha_fin: str | None = None,
+    estado: str | None = None,
+):
     db = get_supabase()
-    query = db.table("citas").select("*").eq("clinic_id", str(clinic_id))
+    query = db.table("citas").select("*, pacientes(nombre, telefono)").eq("clinic_id", str(clinic_id))
     if fecha:
         query = query.gte("fecha_inicio", f"{fecha}T00:00:00Z").lte("fecha_inicio", f"{fecha}T23:59:59Z")
+    if fecha_inicio:
+        query = query.gte("fecha_inicio", fecha_inicio)
+    if fecha_fin:
+        query = query.lte("fecha_inicio", fecha_fin)
     if estado:
         query = query.eq("estado", estado)
     result = query.order("fecha_inicio").execute()
+    return result.data
+
+
+@router.get("/clinicas/{clinic_id}/leads/{lead_id}")
+async def obtener_lead(clinic_id: UUID, lead_id: UUID):
+    db = get_supabase()
+    result = db.table("pacientes").select("*").eq("clinic_id", str(clinic_id)).eq("id", str(lead_id)).single().execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
     return result.data
 
 

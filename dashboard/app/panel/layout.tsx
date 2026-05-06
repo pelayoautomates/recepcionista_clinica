@@ -44,6 +44,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             { href: "/panel/conversaciones", label: "Conversaciones" },
             { href: "/panel/leads", label: "Leads" },
             { href: "/panel/citas", label: "Citas" },
+            { href: "/panel/calendario", label: "Calendario" },
           ].map(({ href, label }) => (
             <a key={href} href={href} style={{ color: "#86efac", textDecoration: "none", fontSize: 14 }}>
               {label}
