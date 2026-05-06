@@ -9,7 +9,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(`${BACKEND}/me/rol?user_id=${user.id}&email=${user.email}`);
+  const rolRes = await fetch(
+    `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`
+  );
   const rol = await rolRes.json();
 
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
@@ -18,40 +20,48 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const clinica = await clinicaRes.json();
 
   return (
-    <html lang="es">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f5f5f5" }}>
-        <nav style={{
-          background: "#0f766e", color: "white",
-          padding: "0 24px", height: 56,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>🏥 {clinica.nombre}</span>
-            <a href="/panel" style={{ color: "#99f6e4", textDecoration: "none", fontSize: 14 }}>Inicio</a>
-            <a href="/panel/conversaciones" style={{ color: "#99f6e4", textDecoration: "none", fontSize: 14 }}>Conversaciones</a>
-            <a href="/panel/leads" style={{ color: "#99f6e4", textDecoration: "none", fontSize: 14 }}>Leads</a>
-            <a href="/panel/citas" style={{ color: "#99f6e4", textDecoration: "none", fontSize: 14 }}>Citas</a>
-            <a href="/panel/configuracion" style={{ color: "#99f6e4", textDecoration: "none", fontSize: 14 }}>Configuración</a>
-          </div>
-          <LogoutButton />
-        </nav>
-        <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-          {children}
-        </main>
-      </body>
-    </html>
-  );
-}
-
-function LogoutButton() {
-  return (
-    <form action="/auth/logout" method="POST">
-      <button type="submit" style={{
-        background: "none", border: "1px solid #99f6e4", color: "#99f6e4",
-        borderRadius: 6, padding: "4px 12px", fontSize: 13, cursor: "pointer",
+    <>
+      <nav style={{
+        background: "#166534",
+        color: "white",
+        padding: "0 28px",
+        height: 58,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
       }}>
-        Cerrar sesión
-      </button>
-    </form>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontWeight: 800, fontSize: 17 }}>🏥 {clinica.nombre}</span>
+            <span style={{
+              fontSize: 11, background: "#14532d", padding: "2px 8px",
+              borderRadius: 10, color: "#86efac",
+            }}>Panel Clínica</span>
+          </div>
+          {[
+            { href: "/panel", label: "Inicio" },
+            { href: "/panel/conversaciones", label: "Conversaciones" },
+            { href: "/panel/leads", label: "Leads" },
+            { href: "/panel/citas", label: "Citas" },
+          ].map(({ href, label }) => (
+            <a key={href} href={href} style={{ color: "#86efac", textDecoration: "none", fontSize: 14 }}>
+              {label}
+            </a>
+          ))}
+        </div>
+        <form action="/auth/logout" method="POST">
+          <button type="submit" style={{
+            background: "none", border: "1px solid #4ade80", color: "#4ade80",
+            borderRadius: 6, padding: "5px 14px", fontSize: 13, cursor: "pointer",
+          }}>
+            Cerrar sesión
+          </button>
+        </form>
+      </nav>
+      <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+        {children}
+      </main>
+    </>
   );
 }

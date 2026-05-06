@@ -1,14 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 const AGENCY_EMAIL = process.env.NEXT_PUBLIC_AGENCY_EMAIL || "";
+const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  // Token puede venir por URL (legacy) o por cookie (flujo OAuth)
-  const token = searchParams.get("token") || request.cookies.get("invite_token")?.value;
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=no_code`);
@@ -21,9 +19,7 @@ export async function GET(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
@@ -42,49 +38,28 @@ export async function GET(request: NextRequest) {
 
   const user = data.user;
 
-  // Token de invitación → vincular y mandar al panel de clínica
-  if (token) {
-    try {
-      const vinRes = await fetch(`${BACKEND}/admin/invitaciones/vincular`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, user_id: user.id, email: user.email }),
-        signal: AbortSignal.timeout(5000),
-      });
-      if (!vinRes.ok) {
-        response.headers.set("location", `${origin}/login?error=invitacion_invalida`);
-        return response;
-      }
-    } catch {
-      response.headers.set("location", `${origin}/login?error=backend_timeout`);
-      return response;
-    }
-    response.cookies.set("invite_token", "", { maxAge: 0, path: "/" });
-    response.headers.set("location", `${origin}/panel`);
+  // Agencia → panel de agencia
+  if (user.email === AGENCY_EMAIL) {
+    response.headers.set("location", `${origin}/`);
     return response;
   }
 
-  // Email de agencia → panel de agencia directamente (sin llamar al backend)
-  if (user.email === AGENCY_EMAIL) {
-    return response; // redirige a /
-  }
-
-  // Resto de usuarios → comprobar rol en backend
+  // Comprobar si ya está vinculado a una clínica
   try {
     const rolRes = await fetch(
-      `${BACKEND}/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
+      `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
       { signal: AbortSignal.timeout(5000) }
     );
-    const rolData = await rolRes.json();
-    if (rolData.rol === "clinica" || rolData.rol === "agencia") {
-      const dest = rolData.rol === "clinica" ? "/panel" : "/";
-      response.headers.set("location", `${origin}${dest}`);
-    } else {
-      response.headers.set("location", `${origin}/login?error=sin_acceso`);
+    if (rolRes.ok) {
+      const rolData = await rolRes.json();
+      if (rolData.rol === "clinica") {
+        response.headers.set("location", `${origin}/panel`);
+        return response;
+      }
     }
-  } catch {
-    response.headers.set("location", `${origin}/login?error=backend_timeout`);
-  }
+  } catch {}
 
+  // No vinculado → página de completar (maneja el token de invitación client-side)
+  response.headers.set("location", `${origin}/auth/completing`);
   return response;
 }

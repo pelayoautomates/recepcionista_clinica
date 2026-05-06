@@ -11,9 +11,8 @@ function LoginContent() {
 
   const handleGoogleLogin = async () => {
     const supabase = createClient();
-    // Guardar token en cookie para que sobreviva el redirect de OAuth
     if (token) {
-      document.cookie = `invite_token=${token}; path=/; max-age=300; SameSite=Lax`;
+      localStorage.setItem("pending_invite", token);
     }
     const redirectTo = `${window.location.origin}/auth/callback`;
     await supabase.auth.signInWithOAuth({
