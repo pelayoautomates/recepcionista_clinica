@@ -134,10 +134,7 @@ export default async function PanelPage() {
                       padding: "11px 20px", borderBottom: "1px solid #f9fafb",
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       cursor: "pointer",
-                    }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#f9fafb"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ""; }}
-                    >
+                    }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 11, background: "#f3f4f6", color: "#374151", borderRadius: 4, padding: "2px 7px", fontWeight: 500 }}>
                           {CANAL_LABEL[conv.canal] || conv.canal || "—"}
