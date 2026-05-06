@@ -11,7 +11,7 @@ export default async function PanelPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const rolRes = await fetch(`${BACKEND}/me/rol?user_id=${user.id}&email=${user.email}`);
+  const rolRes = await fetch(`${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
   const rol = await rolRes.json();
   const clinic_id = rol.clinic_id;
 
