@@ -32,9 +32,9 @@ const LINKS = [
     href: "/panel/citas", label: "Citas", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <rect x="2" y="3" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M2 7H15" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M5.5 1.5V4.5M11.5 1.5V4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <rect x="3.5" y="2.5" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M6 2.5V4.5M11 2.5V4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        <path d="M6 7.5H11M6 10H11M6 12.5H9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -44,7 +44,7 @@ const LINKS = [
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <rect x="2" y="3" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
         <path d="M2 7H15M5.5 1.5V4.5M11.5 1.5V4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <rect x="5" y="10" width="2.5" height="2.5" rx="0.5" fill="currentColor" fillOpacity="0.5" />
+        <path d="M5 10.5H7M10 10.5H12M5 13H7M10 13H12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -52,8 +52,8 @@ const LINKS = [
     href: "/panel/configuracion", label: "Configuración", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8.5 2V3.5M8.5 13.5V15M2 8.5H3.5M13.5 8.5H15M3.93 3.93L5 5M12 12L13.07 13.07M3.93 13.07L5 12M12 5L13.07 3.93" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M9.6 2.5a1.1 1.1 0 00-2.2 0l-.22 1.15c-.38.1-.74.26-1.07.47l-1.02-.38a1.1 1.1 0 00-1.34 1.34l.38 1.02c-.21.33-.37.69-.47 1.07L2.5 7.4a1.1 1.1 0 000 2.2l1.15.22c.1.38.26.74.47 1.07l-.38 1.02a1.1 1.1 0 001.34 1.34l1.02-.38c.33.21.69.37 1.07.47l.22 1.15a1.1 1.1 0 002.2 0l.22-1.15c.38-.1.74-.26 1.07-.47l1.02.38a1.1 1.1 0 001.34-1.34l-.38-1.02c.21-.33.37-.69.47-1.07l1.15-.22a1.1 1.1 0 000-2.2l-1.15-.22a4 4 0 00-.47-1.07l.38-1.02a1.1 1.1 0 00-1.34-1.34l-1.02.38a4 4 0 00-1.07-.47L9.6 2.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+        <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="1.3" />
       </svg>
     ),
   },
@@ -100,38 +100,9 @@ export default function PanelSidebar({ clinicName }: Props) {
               Recepcionista IA
             </div>
             <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>
-              para clínicas
+              {clinicName}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Clinic name */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          background: "#f9fafb", border: "1px solid #e5e7eb",
-          borderRadius: 8, padding: "8px 12px",
-          cursor: "pointer",
-        }}>
-          <div style={{
-            width: 24, height: 24,
-            background: "#dbeafe",
-            borderRadius: 6,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M1 10V5.5L6 2L11 5.5V10" stroke="#2563eb" strokeWidth="1.3" strokeLinejoin="round" />
-              <rect x="4" y="6.5" width="2" height="3.5" rx="0.4" fill="#2563eb" fillOpacity="0.7" />
-            </svg>
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {clinicName}
-          </span>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="#9ca3af" strokeWidth="1.3" strokeLinecap="round" />
-          </svg>
         </div>
       </div>
 

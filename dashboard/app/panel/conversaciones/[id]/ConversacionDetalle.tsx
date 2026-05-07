@@ -64,6 +64,8 @@ export default function ConversacionDetalle({
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
+  const [resumen, setResumen] = useState<string | null>(null);
+  const [cargandoResumen, setCargandoResumen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const mensajesVisibles = normalizarMensajes(conv.mensajes);
@@ -97,6 +99,25 @@ export default function ConversacionDetalle({
       setTexto(msg);
     } finally {
       setEnviando(false);
+    }
+  };
+
+  const generarResumen = async () => {
+    if (cargandoResumen || mensajesVisibles.length === 0) return;
+    setCargandoResumen(true);
+    setResumen(null);
+    try {
+      const res = await fetch("/api/resumen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensajes: mensajesVisibles }),
+      });
+      const data = await res.json();
+      setResumen(data.resumen || data.error || "No se pudo generar el resumen.");
+    } catch {
+      setResumen("Error al conectar con el servicio de resumen.");
+    } finally {
+      setCargandoResumen(false);
     }
   };
 
@@ -147,7 +168,7 @@ export default function ConversacionDetalle({
           </div>
         )}
 
-        <div style={{ padding: "14px 16px" }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #f3f4f6" }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Estado conversacion</div>
           <span style={{
             display: "inline-block",
@@ -173,6 +194,46 @@ export default function ConversacionDetalle({
             }}>
               Marcar como resuelta
             </button>
+          )}
+        </div>
+
+        {/* Resumen con IA */}
+        <div style={{ padding: "14px 16px" }}>
+          <button
+            onClick={generarResumen}
+            disabled={cargandoResumen || mensajesVisibles.length === 0}
+            style={{
+              width: "100%",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              fontSize: 12.5, fontWeight: 600,
+              padding: "9px 12px", borderRadius: 8,
+              cursor: cargandoResumen || mensajesVisibles.length === 0 ? "not-allowed" : "pointer",
+              opacity: mensajesVisibles.length === 0 ? 0.5 : 1,
+              border: "1px solid #e0e7ff",
+              background: "#f5f3ff",
+              color: "#6d28d9",
+              fontFamily: "inherit",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M6.5 1.5L7.8 4.5H10.5L8.3 6.3L9.1 9.5L6.5 7.8L3.9 9.5L4.7 6.3L2.5 4.5H5.2L6.5 1.5Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+            </svg>
+            {cargandoResumen ? "Generando…" : "Resumen con IA"}
+          </button>
+
+          {resumen && (
+            <div style={{
+              marginTop: 10,
+              padding: "10px 12px",
+              background: "#faf5ff",
+              border: "1px solid #e9d5ff",
+              borderRadius: 8,
+              fontSize: 12,
+              color: "#374151",
+              lineHeight: 1.65,
+            }}>
+              {resumen}
+            </div>
           )}
         </div>
       </aside>

@@ -56,7 +56,62 @@ function fmtFechaCorta(d: Date) {
   return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
-export default function CalendarioCliente({ clinicId, backendUrl }: { clinicId: string; backendUrl: string }) {
+export default function CalendarioCliente({ clinicId, backendUrl, tieneCalendario, googleAuthUrl }: {
+  clinicId: string;
+  backendUrl: string;
+  tieneCalendario: boolean;
+  googleAuthUrl: string;
+}) {
+  if (!tieneCalendario) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 24 }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: 16,
+          background: "#f0fdf4", border: "1px solid #bbf7d0",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect x="3" y="5" width="26" height="24" rx="3" stroke="#166534" strokeWidth="2" />
+            <path d="M3 12H29M10 2V7M22 2V7" stroke="#166534" strokeWidth="2" strokeLinecap="round" />
+            <rect x="7" y="16" width="5" height="5" rx="1" fill="#166534" fillOpacity="0.3" />
+          </svg>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "#111827" }}>
+            Conecta tu Google Calendar
+          </h2>
+          <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6b7280", maxWidth: 380 }}>
+            Para ver y gestionar citas desde el calendario, conecta tu cuenta de Google Calendar.
+            La recepcionista IA podrá consultar disponibilidad y agendar citas automáticamente.
+          </p>
+          <a
+            href={googleAuthUrl}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              background: "white",
+              color: "#374151",
+              border: "1px solid #d1d5db",
+              borderRadius: 10,
+              padding: "11px 20px",
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+            }}
+          >
+            {/* Google logo */}
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
+              <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853" />
+              <path d="M3.964 10.706A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05" />
+              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
+            </svg>
+            Conectar con Google Calendar
+          </a>
+        </div>
+      </div>
+    );
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 

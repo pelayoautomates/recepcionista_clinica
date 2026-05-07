@@ -103,7 +103,7 @@ export default async function PanelPage() {
 
   const tieneCalendario = !!clinica.google_tokens_enc;
   const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${clinic_id}`;
-  const esperando = metricas.conversaciones_esperando_humano ?? 0;
+  const esperando: number = metricas.conversaciones_esperando_humano ?? 0;
 
   return (
     <div>
@@ -172,13 +172,12 @@ export default async function PanelPage() {
           trend="+12% vs ayer" trendUp
         />
         <MetricCard
-          label="Escaladas a humano"
-          value={esperando}
-          icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3.5 4C3.5 4 3 7 5 9C5 9 3 11 3 14H17C17 11 15 9 15 9C17 7 16.5 4 16.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M7 4C7 2.9 7.9 2 9 2H11C12.1 2 13 2.9 13 4" stroke="currentColor" strokeWidth="1.5" /></svg>}
-          iconBg="#fed7aa" iconColor="#c2410c"
-          trend={esperando > 0 ? `${esperando} pendiente${esperando > 1 ? "s" : ""}` : "Sin pendientes"}
-          trendUp={false}
-          alert={esperando > 0}
+          label="Leads captados hoy"
+          value={leadsHoy.length}
+          icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5" /><path d="M3 17C3 13.69 6.13 11 10 11C13.87 11 17 13.69 17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M14 4L16 6L20 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          iconBg="#ede9fe" iconColor="#7c3aed"
+          trend={leadsHoy.length > 0 ? `${leadsHoy.length} nuevo${leadsHoy.length > 1 ? "s" : ""}` : "Sin leads hoy"}
+          trendUp={leadsHoy.length > 0}
         />
       </div>
 
@@ -401,7 +400,7 @@ export default async function PanelPage() {
 function MetricCard({ label, value, icon, iconBg, iconColor, trend, trendUp, alert }: {
   label: string; value: number; icon: React.ReactNode;
   iconBg: string; iconColor: string;
-  trend: string; trendUp: boolean; alert?: boolean;
+  trend: string; trendUp?: boolean; alert?: boolean;
 }) {
   return (
     <div style={{

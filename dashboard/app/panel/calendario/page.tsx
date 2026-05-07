@@ -15,7 +15,19 @@ export default async function CalendarioPage() {
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`, { noStore: true });
+  const clinica = clinicaRes.ok ? await clinicaRes.json() : {};
 
-  return <CalendarioCliente clinicId={rol.clinic_id} backendUrl={backendUrl} />;
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  const tieneCalendario = !!clinica.google_tokens_enc;
+  const googleAuthUrl = `${backendUrl}/auth/google/${rol.clinic_id}`;
+
+  return (
+    <CalendarioCliente
+      clinicId={rol.clinic_id}
+      backendUrl={backendUrl}
+      tieneCalendario={tieneCalendario}
+      googleAuthUrl={googleAuthUrl}
+    />
+  );
 }

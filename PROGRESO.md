@@ -1,6 +1,6 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-07
+Última actualización: 2026-05-08
 
 ---
 
@@ -54,7 +54,7 @@
 |---|---|---|---|
 | B1 | Google Calendar OAuth: "Error guardando tokens" | 🔄 Pendiente de fix | GOOGLE_REDIRECT_URI mal configurado en Railway o Google Console |
 | B2 | Conflicto rutas /auth/google/callback vs /{clinic_id} | 🔄 Corregido en código, pendiente deploy | El orden de rutas en auth.py ya es correcto; verificar que Railway tiene el último deploy |
-| B3 | CEO no puede entrar a panel agencia | ✅ Corregido en código | Middleware ahora usa `AGENCY_EMAIL` o `NEXT_PUBLIC_AGENCY_EMAIL` con fallback seguro y soporte multi-email |
+| B3 | CEO no puede entrar a panel agencia | ✅ Corregido | Middleware usa `AGENCY_EMAIL`/`NEXT_PUBLIC_AGENCY_EMAIL`; `DEFAULT_AGENCY_EMAIL` corregido a `pelayo.negueruela@gmail.com` |
 
 ---
 
@@ -130,9 +130,9 @@
 |---|---|---|---|
 | 6.1 | Flujo de invitación (link único + OAuth + vinculación) | ✅ | Completo e implementado |
 | 6.2 | Panel cliente: página inicio con métricas | ✅ | /panel/page.tsx |
-| 6.3 | Panel cliente: conversaciones | ⬜ | |
-| 6.4 | Panel cliente: leads | ⬜ | |
-| 6.5 | Panel cliente: citas | ⬜ | |
+| 6.3 | Panel cliente: conversaciones | ✅ | Lista con canal/estado + detalle con burbujas de chat + Resumen con IA (llama /api/resumen → OpenAI) |
+| 6.4 | Panel cliente: leads | ✅ | Tabla con filas expandibles; muestra info, resumen e historial del paciente |
+| 6.5 | Panel cliente: citas | ✅ | Lista con click-to-detail; modal muestra paciente, teléfono, hora, duración, canal |
 | 6.6 | Panel cliente: configuración editable | ✅ | Info extraída editable + regeneración automática de prompt + modo avanzado |
 | 6.7 | Formulario de alta de clínica nueva (/clinicas/nueva) | ⬜ | El link existe en la UI pero la página no está implementada |
 | 6.8 | Proceso de onboarding documentado y repetible | 🔄 | El flujo técnico funciona; falta documentar pasos para el operador |
@@ -159,6 +159,31 @@
 | 2026-05-05 | Next.js 15 con params async | Requisito del framework; `params` es Promise en Next.js 15 |
 
 ---
+
+## Registro de cambios recientes (2026-05-08)
+
+- **Bug fix: routing CEO redirigía al panel clínica**
+  - `dashboard/middleware.ts`: `DEFAULT_AGENCY_EMAIL` corregido a `pelayo.negueruela@gmail.com`
+
+- **Panel sidebar — rediseño UX**
+  - `dashboard/components/PanelSidebar.tsx`: eliminado el selector de clínica (solo queda nombre en logo); icono Configuración corregido a rueda dentada real; icono Citas cambiado a clipboard/lista (distinto al de Calendario)
+
+- **Panel inicio — métricas mejoradas**
+  - `dashboard/app/panel/page.tsx`: eliminada métrica "Escaladas a humano", reemplazada por "Leads captados hoy" con ícono de persona + check
+
+- **Panel citas — detalle en modal**
+  - `dashboard/app/panel/citas/CitasClient.tsx` (nuevo): componente cliente con cards clickables + modal con paciente, teléfono, fecha, hora, duración y canal de origen
+
+- **Panel leads — filas expandibles**
+  - `dashboard/app/panel/leads/LeadsClient.tsx` (nuevo): tabla con rows expandibles que muestran info completa del paciente, resumen e historial, y link a conversaciones
+
+- **Panel conversaciones — resumen con IA**
+  - `dashboard/app/panel/conversaciones/[id]/ConversacionDetalle.tsx`: añadido botón "Resumen con IA" en el sidebar; llama a `/api/resumen` y muestra el resultado en un bloque violeta
+  - `dashboard/app/api/resumen/route.ts` (nuevo): ruta POST que llama OpenAI gpt-4o-mini para resumir los mensajes (requiere `OPENAI_API_KEY` en Vercel)
+
+- **Calendario — botón conectar si no hay GCal**
+  - `dashboard/app/panel/calendario/page.tsx`: pasa `tieneCalendario` y `googleAuthUrl` al cliente
+  - `dashboard/app/panel/calendario/CalendarioCliente.tsx`: si no hay Google Calendar conectado, muestra pantalla de conexión con botón oficial de Google
 
 ## Registro de cambios recientes (2026-05-07)
 
