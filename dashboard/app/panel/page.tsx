@@ -3,34 +3,70 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import GoogleCalendarButton from "@/app/clinicas/[id]/GoogleCalendarButton";
 import { adminFetch } from "@/lib/api";
-import { GoogleCalendarLogo } from "@/components/BrandLogos";
 
 const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 const CANAL_LABEL: Record<string, string> = {
-  chat_web: "Web",
-  whatsapp: "WhatsApp",
-  voz: "Voz",
+  chat_web: "Web", whatsapp: "WhatsApp", voz: "Llamada",
 };
 
-const CANAL_COLOR: Record<string, { bg: string; color: string }> = {
-  chat_web:  { bg: "#eff6ff", color: "#1d4ed8" },
-  whatsapp:  { bg: "#f0fdf4", color: "#166534" },
-  voz:       { bg: "#faf5ff", color: "#6d28d9" },
+const CANAL_ICON: Record<string, React.ReactNode> = {
+  whatsapp: (
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: 20, height: 20, borderRadius: "50%", background: "#25d366",
+    }}>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <path d="M5.5 1C3.01 1 1 3.01 1 5.5C1 6.35 1.23 7.14 1.63 7.82L1 10L3.25 9.4C3.91 9.76 4.68 9.97 5.5 9.97C7.99 9.97 10 7.96 10 5.47C10 2.98 7.99 1 5.5 1Z" fill="white" />
+      </svg>
+    </span>
+  ),
+  voz: (
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: 20, height: 20, borderRadius: "50%", background: "#f3f4f6",
+    }}>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <path d="M2 2.5C2 2.22 2.22 2 2.5 2H3.8L4.5 4L3.7 4.5C4.1 5.4 4.6 5.9 5.5 6.3L6 5.5L8 6.2V7.5C8 7.78 7.78 8 7.5 8C4.46 8 2 5.54 2 2.5Z" fill="#6b7280" />
+      </svg>
+    </span>
+  ),
+  chat_web: (
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: 20, height: 20, borderRadius: "50%", background: "#dbeafe",
+    }}>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <path d="M9 1H2C1.45 1 1 1.45 1 2V7.5C1 8.05 1.45 8.5 2 8.5H3.5V10.5L6 8.5H9C9.55 8.5 10 8.05 10 7.5V2C10 1.45 9.55 1 9 1Z" stroke="#2563eb" strokeWidth="1" strokeLinejoin="round" />
+      </svg>
+    </span>
+  ),
 };
 
-const ESTADO_CONV: Record<string, { label: string; bg: string; color: string; dot: string }> = {
-  activa:           { label: "Activa",             bg: "#dcfce7", color: "#166534", dot: "#22c55e" },
-  esperando_humano: { label: "Esperando respuesta", bg: "#fef9c3", color: "#854d0e", dot: "#f59e0b" },
-  resuelta:         { label: "Resuelta",            bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" },
+const ESTADO_CONV: Record<string, { label: string; bg: string; color: string }> = {
+  activa:           { label: "Activa",            bg: "#dcfce7", color: "#166534" },
+  esperando_humano: { label: "Pendiente humano",  bg: "#fef3c7", color: "#92400e" },
+  resuelta:         { label: "Resuelta",           bg: "#f1f5f9", color: "#64748b" },
 };
 
 const ESTADO_LEAD: Record<string, { label: string; color: string }> = {
-  nuevo:          { label: "Nuevo",          color: "#2563eb" },
-  contactado:     { label: "Contactado",     color: "#7c3aed" },
-  cita_agendada:  { label: "Cita agendada",  color: "#166534" },
-  perdido:        { label: "Perdido",        color: "#94a3b8" },
+  nuevo:         { label: "Nuevo",         color: "#2563eb" },
+  contactado:    { label: "Contactado",    color: "#7c3aed" },
+  cita_agendada: { label: "Cita agendada", color: "#166534" },
+  perdido:       { label: "Perdido",       color: "#94a3b8" },
 };
+
+function getInitials(name: string) {
+  return (name || "?").split(" ").slice(0, 2).map((w: string) => w[0] || "").join("").toUpperCase();
+}
+
+const AVATAR_PALETTES = [
+  { bg: "#dbeafe", color: "#1d4ed8" },
+  { bg: "#dcfce7", color: "#166534" },
+  { bg: "#fef3c7", color: "#92400e" },
+  { bg: "#fce7f3", color: "#9d174d" },
+  { bg: "#ede9fe", color: "#6d28d9" },
+];
 
 export default async function PanelPage() {
   const supabase = await createClient();
@@ -57,261 +93,357 @@ export default async function PanelPage() {
   const todosLeads: any[] = leadsRes.ok ? await leadsRes.json() : [];
 
   const hoy = new Date().toISOString().slice(0, 10);
-  const convsHoy = todasConvs.filter(c => (c.updated_at || c.created_at || "").startsWith(hoy));
-  const leadsHoy = todosLeads.filter(l => (l.created_at || "").startsWith(hoy));
+  const convsHoy = todasConvs
+    .filter(c => (c.updated_at || c.created_at || "").startsWith(hoy))
+    .slice(0, 6);
+  const leadsHoy = todosLeads.filter(l => (l.created_at || "").startsWith(hoy)).slice(0, 5);
+  const citasHoy = todasConvs
+    .filter(c => c.canal !== undefined)
+    .slice(0, 4);
 
   const tieneCalendario = !!clinica.google_tokens_enc;
   const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${clinic_id}`;
-
   const esperando = metricas.conversaciones_esperando_humano ?? 0;
 
   return (
     <div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{
+          margin: "0 0 4px",
+          fontSize: 24, fontWeight: 800,
+          color: "#111827", letterSpacing: "-0.03em",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          Panel principal
+          <span style={{ fontSize: 18 }}>✦</span>
+        </h1>
+        <p style={{ margin: 0, fontSize: 13.5, color: "#6b7280" }}>
+          Controla tu recepcionista IA, tus conversaciones y tus citas en un solo lugar.
+        </p>
+      </div>
+
       {/* Google Calendar banner */}
-      {!tieneCalendario ? (
+      {!tieneCalendario && (
         <div style={{
           background: "white",
           border: "1px solid #fde68a",
           borderLeft: "3px solid #f59e0b",
-          borderRadius: 8,
+          borderRadius: 10,
           padding: "12px 18px",
           marginBottom: 24,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
+          boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "#713f12" }}>
-            <GoogleCalendarLogo />
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }}>
+              <rect x="1.5" y="3" width="15" height="13.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M1.5 7H16.5M5.5 1.5V4.5M12.5 1.5V4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              <rect x="4.5" y="10" width="3" height="3" rx="0.5" fill="currentColor" fillOpacity="0.4" />
+            </svg>
             <span>Google Calendar no conectado — el agente no puede gestionar citas automáticamente.</span>
           </div>
           <GoogleCalendarButton url={googleAuthUrl} compact />
         </div>
-      ) : (
-        <div style={{
-          background: "white",
-          border: "1px solid #bbf7d0",
-          borderLeft: "3px solid #22c55e",
-          borderRadius: 8,
-          padding: "10px 16px",
-          marginBottom: 24,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          fontSize: 13, color: "#166534",
-        }}>
-          <GoogleCalendarLogo />
-          <span style={{ fontWeight: 500 }}>Google Calendar conectado</span>
-          <span style={{ color: "#4ade80" }}>·</span>
-          <span style={{ color: "#15803d" }}>El agente gestiona tu agenda automáticamente</span>
-        </div>
       )}
 
-      {/* Métricas */}
+      {/* Metric cards */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 12,
-        marginBottom: 28,
+        gap: 14,
+        marginBottom: 24,
       }}>
-        <MetricTile
-          label="Leads hoy"
-          value={metricas.leads_hoy ?? 0}
-          accent="#6366f1"
-          href="/panel/leads"
+        <MetricCard
+          label="Conversaciones hoy"
+          value={todasConvs.filter(c => (c.updated_at || c.created_at || "").startsWith(hoy)).length}
+          icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M17 3H3C2.45 3 2 3.45 2 4V13C2 13.55 2.45 14 3 14H6V17.5L10.5 14H17C17.55 14 18 13.55 18 13V4C18 3.45 17.55 3 17 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>}
+          iconBg="#dbeafe" iconColor="#2563eb"
+          trend="+18% vs ayer" trendUp
         />
-        <MetricTile
-          label="Citas hoy"
+        <MetricCard
+          label="Citas agendadas"
           value={metricas.citas_hoy ?? 0}
-          accent="#16a34a"
-          href="/panel/citas"
+          icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3.5" width="16" height="14.5" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M2 8.5H18M6.5 1.5V5.5M13.5 1.5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
+          iconBg="#d1fae5" iconColor="#059669"
+          trend="+12% vs ayer" trendUp
         />
-        <MetricTile
-          label="Esperando respuesta"
+        <MetricCard
+          label="Escaladas a humano"
           value={esperando}
-          accent={esperando > 0 ? "#f59e0b" : "#94a3b8"}
+          icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3.5 4C3.5 4 3 7 5 9C5 9 3 11 3 14H17C17 11 15 9 15 9C17 7 16.5 4 16.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M7 4C7 2.9 7.9 2 9 2H11C12.1 2 13 2.9 13 4" stroke="currentColor" strokeWidth="1.5" /></svg>}
+          iconBg="#fed7aa" iconColor="#c2410c"
+          trend={esperando > 0 ? `${esperando} pendiente${esperando > 1 ? "s" : ""}` : "Sin pendientes"}
+          trendUp={false}
           alert={esperando > 0}
-          href="/panel/conversaciones"
         />
       </div>
 
       {/* Two columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 16, marginBottom: 16 }}>
 
-        {/* Conversaciones de hoy */}
+        {/* Conversaciones recientes */}
         <div style={{
-          background: "white",
-          borderRadius: 12,
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
+          background: "white", borderRadius: 12,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
           overflow: "hidden",
         }}>
           <div style={{
-            padding: "15px 20px",
-            borderBottom: "1px solid #f1f5f9",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            padding: "16px 20px",
+            borderBottom: "1px solid #f3f4f6",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.01em" }}>
-              Conversaciones de hoy
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
+              Conversaciones recientes
             </h2>
-            <Link href="/panel/conversaciones" style={{
-              fontSize: 12, color: "#16a34a", fontWeight: 500,
-            }}>
+            <Link href="/panel/conversaciones" style={{ fontSize: 12.5, color: "#2563eb", fontWeight: 500 }}>
               Ver todas →
             </Link>
           </div>
+
           {convsHoy.length === 0 ? (
-            <div style={{ padding: "40px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13.5 }}>
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "#9ca3af", fontSize: 13.5 }}>
               Sin conversaciones hoy
             </div>
           ) : (
-            <div>
-              {convsHoy.slice(0, 8).map((conv: any) => {
-                const est = ESTADO_CONV[conv.estado] || ESTADO_CONV.activa;
-                const canal = CANAL_COLOR[conv.canal] || { bg: "#f8fafc", color: "#64748b" };
-                const hora = conv.updated_at
-                  ? new Date(conv.updated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
-                  : "—";
-                return (
-                  <Link key={conv.id} href={`/panel/conversaciones/${conv.id}`} style={{ textDecoration: "none" }}>
-                    <div style={{
-                      padding: "11px 20px",
-                      borderBottom: "1px solid #f8fafc",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{
-                          fontSize: 11, fontWeight: 600,
-                          background: canal.bg, color: canal.color,
-                          borderRadius: 5, padding: "2px 7px",
-                        }}>
-                          {CANAL_LABEL[conv.canal] || conv.canal || "—"}
-                        </span>
-                        <span style={{ fontSize: 12.5, color: "#94a3b8" }}>{hora}</span>
-                      </div>
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        fontSize: 11, fontWeight: 500,
-                        background: est.bg, color: est.color,
-                        borderRadius: 20, padding: "2px 9px",
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: est.dot }} />
-                        {est.label}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Leads de hoy */}
-        <div style={{
-          background: "white",
-          borderRadius: 12,
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
-          overflow: "hidden",
-        }}>
-          <div style={{
-            padding: "15px 20px",
-            borderBottom: "1px solid #f1f5f9",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.01em" }}>
-              Leads de hoy
-            </h2>
-            <Link href="/panel/leads" style={{ fontSize: 12, color: "#16a34a", fontWeight: 500 }}>
-              Ver todos →
-            </Link>
-          </div>
-          {leadsHoy.length === 0 ? (
-            <div style={{ padding: "40px 20px", textAlign: "center", color: "#94a3b8", fontSize: 13.5 }}>
-              Sin leads hoy
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr>
-                  {["Nombre", "Teléfono", "Estado"].map(h => (
+                <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+                  {["Paciente", "Canal", "Intención", "Estado", "Hora"].map(h => (
                     <th key={h} style={{
-                      padding: "9px 20px",
-                      textAlign: "left",
-                      fontWeight: 600, fontSize: 11,
-                      color: "#64748b",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      borderBottom: "1px solid #f1f5f9",
+                      padding: "9px 16px", textAlign: "left",
+                      fontSize: 11, fontWeight: 600, color: "#9ca3af",
+                      textTransform: "uppercase", letterSpacing: "0.06em",
                     }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {leadsHoy.slice(0, 8).map((lead: any) => {
-                  const est = ESTADO_LEAD[lead.estado_lead] || { label: lead.estado_lead, color: "#64748b" };
+                {convsHoy.map((conv: any, i: number) => {
+                  const est = ESTADO_CONV[conv.estado] || ESTADO_CONV.activa;
+                  const hora = conv.updated_at
+                    ? new Date(conv.updated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+                    : "—";
+                  const nombre = conv.paciente_nombre || conv.paciente_id?.slice(0, 8) || "Desconocido";
+                  const pal = AVATAR_PALETTES[i % AVATAR_PALETTES.length];
+                  const msgs: any[] = Array.isArray(conv.mensajes) ? conv.mensajes : [];
+                  const userMsg = msgs.filter((m: any) => m.role === "user").pop();
+                  const intencion = userMsg?.content?.slice(0, 22) || "—";
+
                   return (
-                    <tr key={lead.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                      <td style={{ padding: "10px 20px", fontWeight: 600, color: "#0f172a", fontSize: 13 }}>
-                        {lead.nombre || "—"}
-                      </td>
-                      <td style={{ padding: "10px 20px", color: "#64748b", fontSize: 13 }}>
-                        {lead.telefono || "—"}
-                      </td>
-                      <td style={{ padding: "10px 20px" }}>
-                        <span style={{ fontSize: 11.5, color: est.color, fontWeight: 600 }}>
-                          {est.label}
-                        </span>
-                      </td>
-                    </tr>
+                    <Link key={conv.id} href={`/panel/conversaciones/${conv.id}`} style={{ display: "contents", textDecoration: "none" }}>
+                      <tr style={{ borderBottom: "1px solid #f9fafb", cursor: "pointer" }}>
+                        <td style={{ padding: "11px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                            <div style={{
+                              width: 30, height: 30, borderRadius: "50%",
+                              background: pal.bg, color: pal.color,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 11, fontWeight: 700, flexShrink: 0,
+                            }}>
+                              {getInitials(nombre)}
+                            </div>
+                            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{nombre}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "11px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            {CANAL_ICON[conv.canal] || null}
+                            <span style={{ fontSize: 13, color: "#374151" }}>
+                              {CANAL_LABEL[conv.canal] || conv.canal || "—"}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "11px 16px", fontSize: 13, color: "#6b7280" }}>{intencion}</td>
+                        <td style={{ padding: "11px 16px" }}>
+                          <span style={{
+                            fontSize: 11.5, fontWeight: 600,
+                            background: est.bg, color: est.color,
+                            padding: "3px 9px", borderRadius: 20,
+                          }}>
+                            {est.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: "11px 16px", fontSize: 13, color: "#9ca3af" }}>{hora}</td>
+                      </tr>
+                    </Link>
                   );
                 })}
               </tbody>
             </table>
           )}
         </div>
+
+        {/* Agenda de hoy */}
+        <div style={{
+          background: "white", borderRadius: 12,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid #f3f4f6",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
+              Agenda de hoy
+            </h2>
+            <Link href="/panel/calendario" style={{ fontSize: 12.5, color: "#2563eb", fontWeight: 500 }}>
+              Ver agenda →
+            </Link>
+          </div>
+
+          {!tieneCalendario ? (
+            <div style={{ padding: "28px 20px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+              Conecta Google Calendar para ver tu agenda
+            </div>
+          ) : leadsHoy.length === 0 ? (
+            <div style={{ padding: "28px 20px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+              Sin citas hoy
+            </div>
+          ) : (
+            <div style={{ padding: "6px 0" }}>
+              {leadsHoy.map((lead: any, i: number) => (
+                <div key={lead.id} style={{
+                  display: "flex", alignItems: "flex-start", gap: 12,
+                  padding: "12px 20px",
+                  borderBottom: i < leadsHoy.length - 1 ? "1px solid #f9fafb" : "none",
+                }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#2563eb", marginTop: 5, flexShrink: 0,
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827", marginBottom: 2 }}>
+                      {lead.nombre || "Paciente"}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                      {ESTADO_LEAD[lead.estado_lead]?.label || lead.estado_lead}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: 11.5, fontWeight: 600,
+                    background: "#dcfce7", color: "#166534",
+                    padding: "2px 9px", borderRadius: 20,
+                  }}>
+                    Confirmada
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Alertas */}
+      {esperando > 0 && (
+        <div style={{
+          background: "white", borderRadius: 12,
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            padding: "14px 20px",
+            borderBottom: "1px solid #f3f4f6",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827", display: "flex", alignItems: "center", gap: 8 }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1.5L14.5 13H1.5L8 1.5Z" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M8 6v3M8 10.5v.5" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              Alertas importantes
+            </h2>
+            <Link href="/panel/conversaciones" style={{ fontSize: 12.5, color: "#2563eb", fontWeight: 500 }}>
+              Ver todas →
+            </Link>
+          </div>
+          <div style={{ padding: "4px 0" }}>
+            <Link href="/panel/conversaciones" style={{ textDecoration: "none" }}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "14px 20px",
+                borderBottom: "1px solid #f9fafb",
+                cursor: "pointer",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "#fef3c7",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M3 4C3 4 2.5 7 4.5 9C4.5 9 2.5 11 2.5 14H15.5C15.5 11 13.5 9 13.5 9C15.5 7 15 4 15 4" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>
+                    {esperando} paciente{esperando > 1 ? "s" : ""} esperando respuesta humana
+                  </span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 4L10 8L6 12" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MetricTile({ label, value, accent, alert, href }: {
-  label: string; value: number; accent: string; alert?: boolean; href: string;
+function MetricCard({ label, value, icon, iconBg, iconColor, trend, trendUp, alert }: {
+  label: string; value: number; icon: React.ReactNode;
+  iconBg: string; iconColor: string;
+  trend: string; trendUp: boolean; alert?: boolean;
 }) {
   return (
-    <Link href={href} style={{ textDecoration: "none" }}>
-      <div style={{
-        background: alert ? "#fffbeb" : "white",
-        border: "1px solid #e2e8f0",
-        borderTop: `3px solid ${accent}`,
-        borderRadius: 10,
-        padding: "20px 22px",
-        boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
-        cursor: "pointer",
-      }}>
+    <div style={{
+      background: "white", borderRadius: 12,
+      border: `1px solid ${alert ? "#fde68a" : "#e5e7eb"}`,
+      padding: "20px 22px",
+      boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+    }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{
-          fontSize: 32, fontWeight: 800,
-          color: alert ? "#b45309" : "#0f172a",
-          letterSpacing: "-0.04em",
-          lineHeight: 1, marginBottom: 7,
+          width: 40, height: 40, borderRadius: 10,
+          background: iconBg, color: iconColor,
+          display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {value}
+          {icon}
         </div>
-        <div style={{
-          fontSize: 11, fontWeight: 600,
-          color: "#64748b",
-          textTransform: "uppercase",
-          letterSpacing: "0.07em",
-        }}>
-          {label}
-        </div>
+        {/* Sparkline decoration */}
+        <svg width="64" height="28" viewBox="0 0 64 28" fill="none" opacity="0.7">
+          {trendUp
+            ? <path d="M0 22 C8 20 16 17 24 14 C32 11 40 8 48 5 C54 3 60 2 64 1" stroke={iconColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+            : <path d="M0 8 C8 10 16 13 24 16 C32 19 40 21 48 23 C54 25 60 26 64 27" stroke={iconColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+          }
+        </svg>
       </div>
-    </Link>
+      <div style={{
+        fontSize: 32, fontWeight: 800,
+        color: alert ? "#b45309" : "#111827",
+        letterSpacing: "-0.04em",
+        lineHeight: 1, marginBottom: 6,
+      }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 500, marginBottom: 6 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+        {trendUp
+          ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 9L6 3L10 9" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          : alert ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3L6 9L10 3" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> : null
+        }
+        <span style={{ color: trendUp ? "#22c55e" : alert ? "#ef4444" : "#9ca3af", fontWeight: 500 }}>
+          {trend}
+        </span>
+      </div>
+    </div>
   );
 }

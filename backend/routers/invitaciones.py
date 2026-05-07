@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from postgrest.exceptions import APIError
 
 from database.client import get_supabase
 
@@ -12,6 +13,30 @@ INVITE_TTL_HOURS = 72
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _is_missing_expires_at_error(exc: Exception) -> bool:
+    if not isinstance(exc, APIError):
+        return False
+    message = str(exc)
+    return "invitaciones.expires_at" in message and "does not exist" in message
+
+
+def _obtener_token_activo(db, clinic_id: UUID):
+    """Compatibilidad: funciona con y sin columna expires_at."""
+    def _build_query():
+        return db.table("invitaciones")\
+            .select("token")\
+            .eq("clinic_id", str(clinic_id))\
+            .eq("usado", False)\
+            .limit(1)
+
+    try:
+        return _build_query().is_("expires_at", "null").execute()
+    except Exception as exc:
+        if _is_missing_expires_at_error(exc):
+            return _build_query().execute()
+        raise
 
 
 class VincularRequest(BaseModel):
@@ -24,13 +49,7 @@ class VincularRequest(BaseModel):
 async def obtener_invitacion(clinic_id: UUID):
     """Devuelve el token permanente existente para la clínica, si hay uno."""
     db = get_supabase()
-    existing = db.table("invitaciones")\
-        .select("token")\
-        .eq("clinic_id", str(clinic_id))\
-        .eq("usado", False)\
-        .is_("expires_at", "null")\
-        .limit(1)\
-        .execute()
+    existing = _obtener_token_activo(db, clinic_id)
     if existing.data:
         return {"token": existing.data[0]["token"], "permanente": True}
     return {"token": None}
@@ -40,11 +59,18 @@ async def obtener_invitacion(clinic_id: UUID):
 async def regenerar_invitacion(clinic_id: UUID):
     """Invalida el token permanente actual y genera uno nuevo."""
     db = get_supabase()
-    db.table("invitaciones")\
-        .update({"usado": True})\
-        .eq("clinic_id", str(clinic_id))\
-        .is_("expires_at", "null")\
-        .execute()
+    def _build_query():
+        return db.table("invitaciones")\
+            .update({"usado": True})\
+            .eq("clinic_id", str(clinic_id))
+
+    try:
+        _build_query().is_("expires_at", "null").execute()
+    except Exception as exc:
+        if _is_missing_expires_at_error(exc):
+            _build_query().execute()
+        else:
+            raise
     # El próximo POST creará uno nuevo
     return {"ok": True}
 
@@ -60,13 +86,7 @@ async def crear_invitacion(clinic_id: UUID):
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
 
     # Reutilizar token permanente si ya existe (expires_at = null)
-    existing = db.table("invitaciones")\
-        .select("token")\
-        .eq("clinic_id", str(clinic_id))\
-        .eq("usado", False)\
-        .is_("expires_at", "null")\
-        .limit(1)\
-        .execute()
+    existing = _obtener_token_activo(db, clinic_id)
 
     if existing.data:
         return {"token": existing.data[0]["token"], "permanente": True}

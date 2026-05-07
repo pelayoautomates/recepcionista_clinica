@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { adminFetch } from "@/lib/api";
-import PanelNavLinks from "@/components/PanelNavLinks";
+import PanelSidebar from "@/components/PanelSidebar";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -19,76 +19,83 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`);
   const clinica = await clinicaRes.json();
 
+  const userName = user.email?.split("@")[0] ?? "Usuario";
+
   return (
-    <div style={{ minHeight: "100vh", background: "#f6f7f9" }}>
-      <nav style={{
-        background: "#ffffff",
-        height: 62,
-        padding: "0 24px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        borderBottom: "1px solid #e5e7eb",
-      }}>
-        {/* Left: brand + links */}
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <div style={{
-                width: 32, height: 32,
-                background: "#eef2ff",
-                borderRadius: 8,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M2 14V6l6-4 6 4v8" stroke="#4f46e5" strokeWidth="1.4" strokeLinejoin="round" strokeOpacity="0.92" />
-                  <rect x="6" y="9" width="2.5" height="5" rx="0.5" fill="#4f46e5" fillOpacity="0.9" />
-                  <rect x="9.5" y="8" width="2.5" height="2.5" rx="0.5" fill="#6366f1" fillOpacity="0.8" />
-                </svg>
-              </div>
-              <div style={{ lineHeight: 1.2 }}>
-                <div style={{ fontWeight: 700, fontSize: 14.5, color: "#111827", letterSpacing: "-0.01em" }}>
-                  {clinica.nombre}
-                </div>
-                <div style={{
-                  fontSize: 10, color: "#9ca3af",
-                  fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase",
-                }}>
-                  Panel Clínica
-              </div>
-            </div>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f6f7f9" }}>
+      {/* Sidebar */}
+      <PanelSidebar clinicName={clinica.nombre} />
+
+      {/* Main area */}
+      <div style={{ flex: 1, marginLeft: 240, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        {/* Top bar */}
+        <header style={{
+          height: 60,
+          background: "white",
+          borderBottom: "1px solid #e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 28px",
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          gap: 16,
+        }}>
+          {/* Search */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "#f9fafb",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "7px 14px",
+            flex: 1, maxWidth: 420,
+          }}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="#9ca3af" strokeWidth="1.3" />
+              <path d="M10.5 10.5L13.5 13.5" stroke="#9ca3af" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            <span style={{ fontSize: 13, color: "#9ca3af" }}>
+              Buscar conversaciones, pacientes, citas…
+            </span>
           </div>
 
-          <PanelNavLinks />
-        </div>
+          {/* Right side */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {/* Notifications */}
+            <div style={{ position: "relative", cursor: "pointer" }}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2.5C7.24 2.5 5 4.74 5 7.5V11L3 13H17L15 11V7.5C15 4.74 12.76 2.5 10 2.5Z" stroke="#6b7280" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M8.5 15C8.5 15.83 9.17 16.5 10 16.5C10.83 16.5 11.5 15.83 11.5 15" stroke="#6b7280" strokeWidth="1.5" />
+              </svg>
+            </div>
 
-        {/* Right: logout */}
-        <form action="/auth/logout" method="POST">
-          <button type="submit" style={{
-            fontSize: 13, fontWeight: 500,
-            background: "#ffffff",
-            border: "1px solid #d1d5db",
-            color: "#374151",
-            borderRadius: 7,
-            padding: "6px 14px",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}>
-            Salir
-          </button>
-        </form>
-      </nav>
+            {/* Avatar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <div style={{
+                width: 32, height: 32,
+                background: "linear-gradient(135deg, #2563eb, #4f46e5)",
+                borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "white", fontSize: 12, fontWeight: 700,
+              }}>
+                {userName.slice(0, 2).toUpperCase()}
+              </div>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
+                {clinica.nombre}
+              </span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="#9ca3af" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        </header>
 
-      <main style={{
-        maxWidth: 1200,
-        margin: "0 auto",
-        padding: "24px 20px",
-        minHeight: "calc(100vh - 60px)",
-      }}>
-        {children}
-      </main>
+        {/* Page content */}
+        <main style={{ flex: 1, padding: "28px 32px" }}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -35,8 +35,9 @@ class Settings(BaseSettings):
     meta_phone_number_id: str = ""
     meta_app_secret: str = ""  # Para validar firma X-Hub-Signature-256
 
-    # Vapi (opcional)
-    vapi_api_key: str = ""
+    # Retell AI (voz)
+    retell_api_key: str = ""   # API key de Retell — también usada para validar firmas
+    retell_agent_id: str = ""  # ID del agente en Retell (para crear llamadas salientes)
 
     # Seguridad
     admin_api_key: str = ""  # Protege endpoints /admin/* (requerido en producción)

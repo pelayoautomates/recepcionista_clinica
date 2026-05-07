@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import admin, chat, whatsapp, vapi, auth, invitaciones, configuracion
+from routers import admin, chat, whatsapp, retell, auth, invitaciones, configuracion
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +42,7 @@ app.add_middleware(
 
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(whatsapp.router, prefix="/webhook/whatsapp", tags=["whatsapp"])
-app.include_router(vapi.router, prefix="/vapi", tags=["vapi"])
+app.include_router(retell.router, prefix="/retell", tags=["retell"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(invitaciones.router, prefix="/admin", tags=["invitaciones"])
