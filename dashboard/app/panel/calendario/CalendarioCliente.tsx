@@ -200,6 +200,22 @@ export default function CalendarioCliente({ clinicId, backendUrl, tieneCalendari
           <span style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginLeft: 8 }}>{titulo}</span>
           {loading && <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 8 }}>…</span>}
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* GCal connected badge */}
+          <a
+            href="https://calendar.google.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "#f0fdf4", border: "1px solid #bbf7d0",
+              borderRadius: 20, padding: "4px 12px 4px 8px",
+              textDecoration: "none",
+            }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#166534" }}>Google Calendar conectado</span>
+          </a>
         <div style={{ display: "flex", gap: 2, background: "#f3f4f6", borderRadius: 8, padding: 3 }}>
           {(["dia", "semana", "mes"] as Vista[]).map(v => (
             <button key={v} onClick={() => setVista(v)} style={{
@@ -211,6 +227,7 @@ export default function CalendarioCliente({ clinicId, backendUrl, tieneCalendari
               {v === "dia" ? "Día" : v === "semana" ? "Semana" : "Mes"}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

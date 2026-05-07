@@ -35,31 +35,13 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           borderBottom: "1px solid #e5e7eb",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
           padding: "0 28px",
           position: "sticky",
           top: 0,
           zIndex: 30,
           gap: 16,
         }}>
-          {/* Search */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: "7px 14px",
-            flex: 1, maxWidth: 420,
-          }}>
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-              <circle cx="6.5" cy="6.5" r="4.5" stroke="#9ca3af" strokeWidth="1.3" />
-              <path d="M10.5 10.5L13.5 13.5" stroke="#9ca3af" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-            <span style={{ fontSize: 13, color: "#9ca3af" }}>
-              Buscar conversaciones, pacientes, citas…
-            </span>
-          </div>
-
           {/* Right side */}
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             {/* Notifications */}

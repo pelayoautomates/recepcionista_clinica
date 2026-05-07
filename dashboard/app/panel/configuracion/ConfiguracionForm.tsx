@@ -1,14 +1,13 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import { useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 type Clinica = {
   id: string;
   nombre: string;
   telefono?: string;
-  email_contacto?: string;
-  horarios?: Record<string, { start?: string; end?: string } | string>;
-  servicios?: Array<{ nombre: string; duracion_min?: number; precio_orientativo?: number | string | null }>;
+  servicios?: any;
+  horarios?: any;
   prompt_personalizado?: string;
 };
 
@@ -26,33 +25,82 @@ type IAResult = {
   prompt_generado?: string;
 };
 
-type ServicioExtraido = {
-  nombre: string;
-  descripcion: string;
-  precio: string;
-  duracionMin: number;
-};
+type Vista = "generar" | "info";
 
-type Faq = { pregunta: string; respuesta: string };
+function getInitialDoc(clinica: Clinica): string {
+  // New format: servicios._doc
+  const s = clinica.servicios;
+  if (s && !Array.isArray(s) && typeof s === "object" && s._doc) {
+    return s._doc as string;
+  }
+  // Old format: build from structured data
+  const parts: string[] = [];
+  if (Array.isArray(s) && s.length > 0) {
+    parts.push("Servicios:");
+    s.forEach((sv: any) => {
+      let line = `- ${sv.nombre}`;
+      if (sv.duracion_min) line += ` (${sv.duracion_min} min)`;
+      if (sv.precio_orientativo) line += `, ${sv.precio_orientativo}€`;
+      parts.push(line);
+    });
+  }
+  if (clinica.horarios && Object.keys(clinica.horarios).length > 0) {
+    parts.push("\nHorarios:");
+    Object.entries(clinica.horarios).forEach(([dia, h]: [string, any]) => {
+      if (typeof h === "string" && h) parts.push(`- ${dia}: ${h}`);
+      else if (h?.start && h?.end) parts.push(`- ${dia}: ${h.start}–${h.end}`);
+    });
+  }
+  return parts.join("\n");
+}
 
-type Extraido = {
-  resumen: string;
-  ubicacion: string;
-  telefono: string;
-  web: string;
-  tono: string;
-  especialidadesTexto: string;
-  horarios: Record<string, string>;
-  servicios: ServicioExtraido[];
-  faqs: Faq[];
-};
+function iaResultToDoc(ia: IAResult, nombre: string): string {
+  const lines: string[] = [];
+  if (nombre) lines.push(`Clínica: ${nombre}`);
+  if (ia.resumen) lines.push(`\n${ia.resumen}`);
+  if (ia.ubicacion) lines.push(`\nUbicación: ${ia.ubicacion}`);
+  if (ia.telefono) lines.push(`Teléfono: ${ia.telefono}`);
+  if (ia.web) lines.push(`Web: ${ia.web}`);
+  if (ia.tono) lines.push(`Tono: ${ia.tono}`);
+  if (ia.especialidades?.length) {
+    lines.push(`\nEspecialidades:`);
+    ia.especialidades.forEach(e => lines.push(`- ${e}`));
+  }
+  if (ia.servicios?.length) {
+    lines.push(`\nServicios:`);
+    ia.servicios.forEach(s => {
+      let line = `- ${s.nombre}`;
+      if (s.precio) line += ` (${s.precio})`;
+      if (s.descripcion) line += `: ${s.descripcion}`;
+      lines.push(line);
+    });
+  }
+  if (ia.horarios && Object.keys(ia.horarios).length > 0) {
+    lines.push(`\nHorarios:`);
+    Object.entries(ia.horarios).forEach(([dia, h]) => lines.push(`- ${dia}: ${h}`));
+  }
+  if (ia.faqs?.length) {
+    lines.push(`\nPreguntas frecuentes:`);
+    ia.faqs.forEach(f => lines.push(`- ${f.pregunta}\n  ${f.respuesta}`));
+  }
+  return lines.join("\n");
+}
 
-type Tab = "info" | "ia" | "avanzado";
+function generarPromptDesdeDoc(nombre: string, doc: string): string {
+  return `Eres la recepcionista virtual de ${nombre}. Responde siempre en español, con un tono amigable y profesional.
 
-const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
+INFORMACIÓN VERIFICADA DE LA CLÍNICA:
+${doc}
+
+INSTRUCCIONES:
+- Si el paciente quiere agendar una cita, usa las herramientas disponibles para consultar disponibilidad y crear la cita.
+- Si no sabes algo con certeza, dilo claramente y ofrece derivar a un humano.
+- Nunca inventes precios, horarios ni servicios que no estén en la información proporcionada.
+- Cuando detectes interés real en agendar, pide nombre, teléfono, servicio y fecha preferida.`;
+}
 
 export default function ConfiguracionForm({
-  clinica: initial,
+  clinica,
   clinicId,
   backendUrl,
 }: {
@@ -60,85 +108,64 @@ export default function ConfiguracionForm({
   clinicId: string;
   backendUrl: string;
 }) {
-  const [tab, setTab] = useState<Tab>("info");
+  const initialDoc = getInitialDoc(clinica);
+  const [vista, setVista] = useState<Vista>(initialDoc ? "info" : "generar");
+  const [doc, setDoc] = useState(initialDoc);
+  const [prompt, setPrompt] = useState(clinica.prompt_personalizado || "");
+  const [editarPrompt, setEditarPrompt] = useState(false);
+  const [mostrarAvanzado, setMostrarAvanzado] = useState(false);
   const [url, setUrl] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
   const [procesando, setProcesando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState("");
-  const [iaResult, setIaResult] = useState<IAResult | null>(null);
-  const [extraido, setExtraido] = useState<Extraido>(() => construirDesdeClinica(initial));
-  const [prompt, setPrompt] = useState(initial.prompt_personalizado || "");
-  const [editarPromptManual, setEditarPromptManual] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editarPromptManual) return;
-    setPrompt(generarPromptDesdeInfo(initial.nombre, extraido));
-  }, [extraido, initial.nombre, editarPromptManual]);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    setArchivos((prev) => [...prev, ...files]);
-  };
 
   const generarConIA = async () => {
     if (!url.trim() && archivos.length === 0) {
-      setError("Pega la URL de tu clinica o sube al menos un documento.");
+      setError("Pega la URL de tu clínica o sube al menos un documento.");
       return;
     }
-
     setProcesando(true);
     setError("");
-
     const form = new FormData();
     if (url.trim()) form.append("url", url.trim());
-    archivos.forEach((f) => form.append("archivos", f));
-
+    archivos.forEach(f => form.append("archivos", f));
     try {
-      const res = await fetch(`${backendUrl}/admin/clinicas/${clinicId}/configuracion/extraer`, { method: "POST", body: form });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Error del servidor");
-      }
+      const res = await fetch(`${backendUrl}/admin/clinicas/${clinicId}/configuracion/extraer`, {
+        method: "POST", body: form,
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || "Error del servidor");
       const data: IAResult = await res.json();
-      setIaResult(data);
-      setExtraido((prev) => combinarExtraido(prev, data));
-      setEditarPromptManual(false);
-      setTab("info");
+      const newDoc = iaResultToDoc(data, clinica.nombre);
+      setDoc(newDoc);
+      if (!editarPrompt) setPrompt(generarPromptDesdeDoc(clinica.nombre, newDoc));
+      setVista("info");
     } catch (e: any) {
-      setError(e.message || "Error generando configuracion");
+      setError(e.message || "Error generando configuración");
     } finally {
       setProcesando(false);
     }
   };
 
-  const guardarConfiguracion = async () => {
+  const guardar = async () => {
     setGuardando(true);
     setGuardado(false);
     setError("");
-
-    const payload: any = {
-      prompt_personalizado: prompt,
-      horarios: convertirHorarios(extraido.horarios),
-      servicios: extraido.servicios
-        .filter((s) => s.nombre.trim())
-        .map((s) => ({
-          nombre: s.nombre.trim(),
-          duracion_min: Number.isFinite(s.duracionMin) ? s.duracionMin : 60,
-          precio_orientativo: parsePrecio(s.precio),
-        })),
-    };
-
+    const promptFinal = editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc);
     try {
       const res = await fetch(`${backendUrl}/admin/clinicas/${clinicId}/configuracion/guardar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          prompt_personalizado: promptFinal,
+          servicios: { _doc: doc },
+          horarios: {},
+        }),
       });
       if (!res.ok) throw new Error("Error al guardar");
+      if (!editarPrompt) setPrompt(promptFinal);
       setGuardado(true);
       setTimeout(() => setGuardado(false), 2500);
     } catch (e: any) {
@@ -149,28 +176,32 @@ export default function ConfiguracionForm({
   };
 
   return (
-    <div style={{ maxWidth: 980 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 23, margin: "0 0 4px", fontWeight: 700, color: "#111827" }}>Configuracion del agente</h1>
-        <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
-          Enfocate en revisar la informacion extraida. El prompt tecnico se genera automaticamente a partir de esos datos.
-        </p>
+    <div style={{ maxWidth: 820 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1 style={{ fontSize: 24, margin: "0 0 4px", fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
+            Configuración del agente
+          </h1>
+          <p style={{ margin: 0, fontSize: 13.5, color: "#6b7280" }}>
+            Define la información y comportamiento de tu recepcionista IA.
+          </p>
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        {([ ["info", "Info extraida"], ["ia", "Generar con IA"], ["avanzado", "Avanzado"] ] as [Tab, string][]).map(([t, label]) => (
+      {/* Tab pills */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f3f4f6", borderRadius: 10, padding: 3, width: "fit-content" }}>
+        {([["generar", "Generar con IA"], ["info", "Información del bot"]] as [Vista, string][]).map(([v, label]) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={v}
+            onClick={() => setVista(v)}
             style={{
-              padding: "7px 12px",
-              borderRadius: 8,
-              border: tab === t ? "1px solid #d1d5db" : "1px solid #e5e7eb",
-              background: tab === t ? "#ffffff" : "#f9fafb",
-              color: tab === t ? "#111827" : "#6b7280",
-              fontWeight: tab === t ? 600 : 500,
-              fontSize: 13,
-              cursor: "pointer",
+              padding: "7px 16px", borderRadius: 7, border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: vista === v ? 600 : 500,
+              background: vista === v ? "white" : "transparent",
+              color: vista === v ? "#111827" : "#6b7280",
+              boxShadow: vista === v ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              transition: "all 0.12s",
             }}
           >
             {label}
@@ -179,405 +210,249 @@ export default function ConfiguracionForm({
       </div>
 
       {error && (
-        <div style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 16 }}>
           {error}
         </div>
       )}
 
-      {tab === "info" && (
+      {/* ── Generar con IA ── */}
+      {vista === "generar" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Card title="Datos principales">
-            <Field label="Resumen">
-              <textarea value={extraido.resumen} onChange={(e) => setExtraido((p) => ({ ...p, resumen: e.target.value }))} rows={4} style={inputStyle} />
-            </Field>
-            <Inline2>
-              <Field label="Telefono">
-                <input value={extraido.telefono} onChange={(e) => setExtraido((p) => ({ ...p, telefono: e.target.value }))} style={inputStyle} />
-              </Field>
-              <Field label="Web">
-                <input value={extraido.web} onChange={(e) => setExtraido((p) => ({ ...p, web: e.target.value }))} style={inputStyle} />
-              </Field>
-            </Inline2>
-            <Inline2>
-              <Field label="Ubicacion">
-                <input value={extraido.ubicacion} onChange={(e) => setExtraido((p) => ({ ...p, ubicacion: e.target.value }))} style={inputStyle} />
-              </Field>
-              <Field label="Tono">
-                <input value={extraido.tono} onChange={(e) => setExtraido((p) => ({ ...p, tono: e.target.value }))} placeholder="cercano y profesional" style={inputStyle} />
-              </Field>
-            </Inline2>
-            <Field label="Especialidades (separadas por coma)">
-              <input value={extraido.especialidadesTexto} onChange={(e) => setExtraido((p) => ({ ...p, especialidadesTexto: e.target.value }))} style={inputStyle} />
-            </Field>
-          </Card>
-
-          <Card title="Servicios">
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {extraido.servicios.map((s, i) => (
-                <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10 }}>
-                  <Inline3>
-                    <input value={s.nombre} onChange={(e) => editarServicio(i, "nombre", e.target.value)} placeholder="Nombre" style={inputStyle} />
-                    <input value={s.precio} onChange={(e) => editarServicio(i, "precio", e.target.value)} placeholder="Precio" style={inputStyle} />
-                    <input value={String(s.duracionMin)} onChange={(e) => editarServicio(i, "duracionMin", Number(e.target.value) || 60)} placeholder="Min" style={inputStyle} />
-                  </Inline3>
-                  <textarea value={s.descripcion} onChange={(e) => editarServicio(i, "descripcion", e.target.value)} rows={2} placeholder="Descripcion" style={{ ...inputStyle, marginTop: 8 }} />
-                  <div style={{ marginTop: 8 }}>
-                    <button onClick={() => setExtraido((p) => ({ ...p, servicios: p.servicios.filter((_, idx) => idx !== i) }))} style={softBtn}>
-                      Eliminar servicio
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button onClick={() => setExtraido((p) => ({ ...p, servicios: [...p.servicios, { nombre: "", descripcion: "", precio: "", duracionMin: 60 }] }))} style={softBtn}>
-                + Anadir servicio
-              </button>
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            <div style={{ padding: "13px 16px", borderBottom: "1px solid #f3f4f6", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              Web de la clínica
             </div>
-          </Card>
-
-          <Card title="Horarios">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-              {DIAS.map((dia) => (
-                <Field key={dia} label={capitalizar(dia)}>
-                  <input
-                    value={extraido.horarios[dia] || ""}
-                    onChange={(e) => setExtraido((p) => ({ ...p, horarios: { ...p.horarios, [dia]: e.target.value } }))}
-                    placeholder="09:00-14:00, 16:00-20:00"
-                    style={inputStyle}
-                  />
-                </Field>
-              ))}
+            <div style={{ padding: 16 }}>
+              <input
+                type="url"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder="https://miclinica.com"
+                style={inputSt}
+              />
+              <p style={{ fontSize: 12, color: "#9ca3af", margin: "8px 0 0" }}>
+                La IA analizará la web y extraerá servicios, horarios, precios y toda la información relevante.
+              </p>
             </div>
-          </Card>
-
-          <Card title="FAQs (opcional)">
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {extraido.faqs.map((faq, i) => (
-                <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10 }}>
-                  <input value={faq.pregunta} onChange={(e) => editarFaq(i, "pregunta", e.target.value)} placeholder="Pregunta" style={{ ...inputStyle, marginBottom: 8 }} />
-                  <textarea value={faq.respuesta} onChange={(e) => editarFaq(i, "respuesta", e.target.value)} placeholder="Respuesta" rows={2} style={inputStyle} />
-                  <div style={{ marginTop: 8 }}>
-                    <button onClick={() => setExtraido((p) => ({ ...p, faqs: p.faqs.filter((_, idx) => idx !== i) }))} style={softBtn}>
-                      Eliminar FAQ
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button onClick={() => setExtraido((p) => ({ ...p, faqs: [...p.faqs, { pregunta: "", respuesta: "" }] }))} style={softBtn}>
-                + Anadir FAQ
-              </button>
-            </div>
-          </Card>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
-              Cada cambio en info extraida actualiza el prompt tecnico automaticamente.
-            </div>
-            <button onClick={guardarConfiguracion} disabled={guardando} style={primaryBtn(guardado)}>
-              {guardado ? "Guardado" : guardando ? "Guardando..." : "Guardar configuracion"}
-            </button>
           </div>
+
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            <div style={{ padding: "13px 16px", borderBottom: "1px solid #f3f4f6", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              Documentos adicionales
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>PDF, DOCX, TXT, CSV, XLSX</span>
+            </div>
+            <div style={{ padding: 16 }}>
+              <div
+                onDrop={e => { e.preventDefault(); setArchivos(p => [...p, ...Array.from(e.dataTransfer.files)]); }}
+                onDragOver={e => e.preventDefault()}
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  border: "2px dashed #e5e7eb", borderRadius: 10, padding: "24px 20px",
+                  textAlign: "center", cursor: "pointer",
+                  transition: "border-color 0.1s",
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ margin: "0 auto", display: "block" }}>
+                    <path d="M26 21v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4M21 11l-5-5-5 5M16 6v16" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, color: "#374151", marginBottom: 4 }}>Arrastra archivos o haz clic para seleccionar</div>
+                <div style={{ fontSize: 12, color: "#9ca3af" }}>Tarifas, menú de servicios, horarios, FAQs…</div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt,.csv,.xlsx,.md"
+                  style={{ display: "none" }}
+                  onChange={e => setArchivos(p => [...p, ...Array.from(e.target.files || [])])}
+                />
+              </div>
+              {archivos.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                  {archivos.map((f, i) => (
+                    <span key={i} style={{
+                      background: "#f3f4f6", borderRadius: 20, padding: "4px 10px",
+                      fontSize: 12, color: "#374151", display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      {f.name}
+                      <button onClick={() => setArchivos(p => p.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 13, padding: 0, lineHeight: 1 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={generarConIA}
+            disabled={procesando || (!url.trim() && archivos.length === 0)}
+            style={{
+              background: procesando ? "#9ca3af" : "#111827",
+              color: "white", border: "none", borderRadius: 10,
+              padding: "12px 20px", fontSize: 14, fontWeight: 600,
+              cursor: procesando ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: 8, width: "fit-content",
+            }}
+          >
+            {procesando ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: "spin 1s linear infinite" }}>
+                  <circle cx="8" cy="8" r="6" stroke="white" strokeWidth="1.5" strokeDasharray="28" strokeDashoffset="10" strokeLinecap="round" />
+                </svg>
+                Analizando con IA…
+              </>
+            ) : (
+              <>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                  <path d="M7.5 1.5L8.8 4.5H11.5L9.3 6.3L10.1 9.5L7.5 7.8L4.9 9.5L5.7 6.3L3.5 4.5H6.2L7.5 1.5Z" stroke="white" strokeWidth="1.1" strokeLinejoin="round"/>
+                </svg>
+                Analizar y generar información
+              </>
+            )}
+          </button>
         </div>
       )}
 
-      {tab === "ia" && (
+      {/* ── Información del bot ── */}
+      {vista === "info" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Card title="Web de la clinica">
-            <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://clinicatuweb.com" style={inputStyle} />
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: "7px 0 0" }}>
-              Tambien puedes combinar URL + documentos para mejorar la extraccion.
-            </p>
-          </Card>
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            {/* Toolbar */}
+            <div style={{
+              padding: "12px 16px", borderBottom: "1px solid #f3f4f6",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Información del bot</div>
+                <div style={{ fontSize: 11.5, color: "#9ca3af", marginTop: 2 }}>
+                  Edita libremente. Al guardar se regenera el system prompt automáticamente.
+                </div>
+              </div>
+              {/* Three dots */}
+              <button
+                onClick={() => setMostrarAvanzado(p => !p)}
+                title="Opciones avanzadas"
+                style={{
+                  background: mostrarAvanzado ? "#f3f4f6" : "transparent",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 7, padding: "5px 10px",
+                  cursor: "pointer", fontSize: 16, color: "#6b7280",
+                  display: "flex", alignItems: "center", gap: 4,
+                  fontWeight: 700, letterSpacing: 2,
+                }}
+              >
+                ···
+              </button>
+            </div>
 
-          <Card title="Documentos">
-            <div
-              onDrop={handleDrop}
-              onDragOver={(e) => e.preventDefault()}
-              onClick={() => fileRef.current?.click()}
-              style={{ border: "2px dashed #d1d5db", borderRadius: 10, padding: 22, textAlign: "center", cursor: "pointer" }}
-            >
-              <div style={{ fontSize: 14, color: "#374151", marginBottom: 4 }}>Arrastra archivos o haz clic para seleccionar</div>
-              <div style={{ fontSize: 12, color: "#9ca3af" }}>PDF, DOCX, TXT, CSV, XLSX, MD</div>
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept=".pdf,.docx,.txt,.csv,.xlsx,.md"
-                style={{ display: "none" }}
-                onChange={(e) => setArchivos((prev) => [...prev, ...Array.from(e.target.files || [])])}
+            <div style={{ padding: 16 }}>
+              <textarea
+                value={doc}
+                onChange={e => setDoc(e.target.value)}
+                rows={18}
+                placeholder={"Clínica: Nombre de la clínica\n\nResumen: Descripción de la clínica...\n\nServicios:\n- Limpieza dental (60 min, 80€)\n- Ortodoncia...\n\nHorarios:\n- Lunes a viernes: 9:00–20:00\n- Sábados: 10:00–14:00\n\nTeléfono: +34 600 000 000"}
+                style={{
+                  ...inputSt,
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  fontSize: 13,
+                  lineHeight: 1.7,
+                  minHeight: 360,
+                  resize: "vertical",
+                }}
               />
             </div>
-            {archivos.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                {archivos.map((f, i) => (
-                  <span key={i} style={{ background: "#f3f4f6", borderRadius: 999, padding: "5px 10px", fontSize: 12, color: "#374151" }}>
-                    {f.name}
+
+            {/* Avanzado: system prompt */}
+            {mostrarAvanzado && (
+              <div style={{ borderTop: "1px solid #f3f4f6", padding: 16, background: "#fafafa" }}>
+                <div style={{
+                  background: "#fef9c3", border: "1px solid #fde047",
+                  borderRadius: 8, padding: "10px 14px", fontSize: 12.5,
+                  color: "#713f12", marginBottom: 12,
+                  display: "flex", gap: 8, alignItems: "flex-start",
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <path d="M8 1.5L14.5 13H1.5L8 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                    <path d="M8 6v3M8 10.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                  <span>
+                    <strong>Recomendamos no modificar el system prompt directamente.</strong> Si lo editas manualmente puede quedar desactualizado respecto a la información del bot. Los cambios en "Información del bot" no actualizarán el prompt si está en modo manual.
                   </span>
-                ))}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>System prompt</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={editarPrompt}
+                      onChange={e => setEditarPrompt(e.target.checked)}
+                    />
+                    Editar manualmente
+                  </label>
+                </div>
+
+                <textarea
+                  value={editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc)}
+                  onChange={e => setPrompt(e.target.value)}
+                  disabled={!editarPrompt}
+                  rows={14}
+                  style={{
+                    ...inputSt,
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: 12,
+                    lineHeight: 1.65,
+                    background: editarPrompt ? "white" : "#f9fafb",
+                    color: editarPrompt ? "#111827" : "#6b7280",
+                    resize: "vertical",
+                  }}
+                />
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
+                  {(editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc)).length} caracteres
+                </div>
               </div>
             )}
-          </Card>
+          </div>
 
-          <button onClick={generarConIA} disabled={procesando || (!url.trim() && archivos.length === 0)} style={primaryBtn(false)}>
-            {procesando ? "Analizando con IA..." : "Analizar y actualizar info"}
-          </button>
-
-          {iaResult && (
-            <div style={{ background: "#ecfeff", border: "1px solid #bae6fd", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#0c4a6e" }}>
-              Analisis completado. Revisa "Info extraida" y guarda cuando este correcto.
-            </div>
-          )}
+          {/* Save button */}
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={guardar}
+              disabled={guardando}
+              style={{
+                background: guardado ? "#dcfce7" : "#111827",
+                color: guardado ? "#166534" : "white",
+                border: guardado ? "1px solid #86efac" : "none",
+                borderRadius: 10, padding: "10px 22px",
+                fontSize: 14, fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 7,
+              }}
+            >
+              {guardado ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="#166534" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Guardado
+                </>
+              ) : guardando ? "Guardando…" : "Guardar configuración"}
+            </button>
+          </div>
         </div>
       )}
 
-      {tab === "avanzado" && (
-        <Card title="System prompt (tecnico)">
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "#374151", marginBottom: 10 }}>
-            <input type="checkbox" checked={editarPromptManual} onChange={(e) => setEditarPromptManual(e.target.checked)} />
-            Editar prompt manualmente
-          </label>
-          {!editarPromptManual && (
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>
-              Modo automatico activo: el prompt se genera desde la informacion extraida.
-            </div>
-          )}
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={20}
-            disabled={!editarPromptManual}
-            style={{ ...inputStyle, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5, lineHeight: 1.6 }}
-          />
-          <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>{prompt.length} caracteres</span>
-            <button onClick={guardarConfiguracion} disabled={guardando} style={primaryBtn(guardado)}>
-              {guardado ? "Guardado" : guardando ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-
-  function editarServicio<K extends keyof ServicioExtraido>(idx: number, key: K, value: ServicioExtraido[K]) {
-    setExtraido((prev) => ({
-      ...prev,
-      servicios: prev.servicios.map((s, i) => (i === idx ? { ...s, [key]: value } : s)),
-    }));
-  }
-
-  function editarFaq<K extends keyof Faq>(idx: number, key: K, value: Faq[K]) {
-    setExtraido((prev) => ({
-      ...prev,
-      faqs: prev.faqs.map((s, i) => (i === idx ? { ...s, [key]: value } : s)),
-    }));
-  }
-}
-
-function Card({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div style={{ background: "#ffffff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-      <div style={{ padding: "12px 14px", borderBottom: "1px solid #f3f4f6", fontSize: 13, fontWeight: 700, color: "#374151" }}>{title}</div>
-      <div style={{ padding: 14 }}>{children}</div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Inline2({ children }: { children: ReactNode }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>;
-}
-
-function Inline3({ children }: { children: ReactNode }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 88px", gap: 8 }}>{children}</div>;
-}
-
-const inputStyle: CSSProperties = {
+const inputSt: CSSProperties = {
   width: "100%",
   border: "1px solid #d1d5db",
   borderRadius: 8,
-  padding: "8px 10px",
-  fontSize: 13,
+  padding: "9px 11px",
+  fontSize: 13.5,
   outline: "none",
   boxSizing: "border-box",
   fontFamily: "inherit",
+  color: "#111827",
 };
-
-const softBtn: CSSProperties = {
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#374151",
-  borderRadius: 7,
-  padding: "6px 10px",
-  fontSize: 12,
-  cursor: "pointer",
-};
-
-function primaryBtn(done: boolean): CSSProperties {
-  return {
-    border: done ? "1px solid #86efac" : "none",
-    background: done ? "#dcfce7" : "#111827",
-    color: done ? "#166534" : "#ffffff",
-    borderRadius: 8,
-    padding: "9px 14px",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-  };
-}
-
-function construirDesdeClinica(clinica: Clinica): Extraido {
-  const horarios: Record<string, string> = {};
-  DIAS.forEach((dia) => {
-    const h = clinica.horarios?.[dia];
-    if (!h) {
-      horarios[dia] = "";
-      return;
-    }
-
-    if (typeof h === "string") {
-      horarios[dia] = h;
-      return;
-    }
-
-    if (typeof h === "object" && h.start && h.end) {
-      horarios[dia] = `${h.start}-${h.end}`;
-      return;
-    }
-
-    horarios[dia] = "";
-  });
-
-  return {
-    resumen: "",
-    ubicacion: "",
-    telefono: clinica.telefono || "",
-    web: "",
-    tono: "cercano y profesional",
-    especialidadesTexto: "",
-    horarios,
-    servicios: (clinica.servicios || []).map((s) => ({
-      nombre: s.nombre || "",
-      descripcion: "",
-      precio: s.precio_orientativo != null ? String(s.precio_orientativo) : "",
-      duracionMin: s.duracion_min || 60,
-    })),
-    faqs: [],
-  };
-}
-
-function combinarExtraido(actual: Extraido, ia: IAResult): Extraido {
-  const serviciosIA = (ia.servicios || []).map((s) => ({
-    nombre: s.nombre || "",
-    descripcion: s.descripcion || "",
-    precio: s.precio || "",
-    duracionMin: 60,
-  }));
-
-  const horariosActualizados = { ...actual.horarios };
-  if (ia.horarios) {
-    for (const [k, v] of Object.entries(ia.horarios)) {
-      const key = normalizarDia(k);
-      if (key) horariosActualizados[key] = v || "";
-    }
-  }
-
-  return {
-    resumen: ia.resumen || actual.resumen,
-    ubicacion: ia.ubicacion || actual.ubicacion,
-    telefono: ia.telefono || actual.telefono,
-    web: ia.web || actual.web,
-    tono: ia.tono || actual.tono,
-    especialidadesTexto: ia.especialidades?.join(", ") || actual.especialidadesTexto,
-    horarios: horariosActualizados,
-    servicios: serviciosIA.length > 0 ? serviciosIA : actual.servicios,
-    faqs: ia.faqs && ia.faqs.length > 0 ? ia.faqs : actual.faqs,
-  };
-}
-
-function convertirHorarios(horarios: Record<string, string>) {
-  const out: Record<string, { start: string; end: string }> = {};
-  for (const [dia, valor] of Object.entries(horarios)) {
-    const t = valor.trim();
-    if (!t) continue;
-    const [startRaw, endRaw] = t.split("-");
-    const start = (startRaw || "").trim();
-    const end = (endRaw || "").trim();
-    if (!start || !end) continue;
-    out[dia] = { start, end };
-  }
-  return out;
-}
-
-function parsePrecio(input: string): number | null {
-  if (!input) return null;
-  const clean = input.replace(/[^\d.,]/g, "").replace(",", ".");
-  const num = Number(clean);
-  return Number.isFinite(num) ? num : null;
-}
-
-function capitalizar(texto: string) {
-  return texto.charAt(0).toUpperCase() + texto.slice(1);
-}
-
-function normalizarDia(texto: string): string | null {
-  const t = texto.toLowerCase().trim();
-  if (t.startsWith("lun")) return "lunes";
-  if (t.startsWith("mar")) return "martes";
-  if (t.startsWith("mie") || t.startsWith("mié")) return "miercoles";
-  if (t.startsWith("jue")) return "jueves";
-  if (t.startsWith("vie")) return "viernes";
-  if (t.startsWith("sab") || t.startsWith("sáb")) return "sabado";
-  if (t.startsWith("dom")) return "domingo";
-  return null;
-}
-
-function generarPromptDesdeInfo(nombreClinica: string, info: Extraido) {
-  const servicios = info.servicios
-    .filter((s) => s.nombre.trim())
-    .map((s) => `- ${s.nombre.trim()} (${s.duracionMin || 60} min${s.precio ? `, precio orientativo ${s.precio}` : ""})${s.descripcion ? `: ${s.descripcion}` : ""}`)
-    .join("\n");
-
-  const horarios = Object.entries(info.horarios)
-    .filter(([, v]) => v.trim())
-    .map(([dia, v]) => `- ${capitalizar(dia)}: ${v.trim()}`)
-    .join("\n");
-
-  const especialidades = info.especialidadesTexto
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .map((x) => `- ${x}`)
-    .join("\n");
-
-  const faqs = info.faqs
-    .filter((f) => f.pregunta.trim() && f.respuesta.trim())
-    .map((f) => `- P: ${f.pregunta.trim()}\n  R: ${f.respuesta.trim()}`)
-    .join("\n");
-
-  return [
-    `Eres la recepcionista virtual de ${nombreClinica}.`,
-    "",
-    "Usa esta informacion verificada de la clinica para responder:",
-    info.resumen ? `Resumen: ${info.resumen}` : "",
-    info.ubicacion ? `Ubicacion: ${info.ubicacion}` : "",
-    info.telefono ? `Telefono: ${info.telefono}` : "",
-    info.web ? `Web: ${info.web}` : "",
-    info.tono ? `Tono preferido: ${info.tono}` : "",
-    servicios ? `\nServicios:\n${servicios}` : "",
-    horarios ? `\nHorarios:\n${horarios}` : "",
-    especialidades ? `\nEspecialidades:\n${especialidades}` : "",
-    faqs ? `\nFAQs:\n${faqs}` : "",
-    "",
-    "Si falta informacion para confirmar algo importante, pidela antes de inventar.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
