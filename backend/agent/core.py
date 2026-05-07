@@ -125,12 +125,24 @@ async def run_agent(
         respuesta = "Lo siento, ha ocurrido un error procesando tu consulta. Por favor, llama directamente a la clínica."
         logger.error("Loop de function calling superó el máximo de iteraciones")
 
-    # Guardar historial actualizado (sin el system prompt)
+    # Guardar historial actualizado (sin system/tool ni payloads técnicos)
     nuevo_historial = messages[1:]  # Excluir system
-    # Añadir timestamp a los mensajes nuevos
     nuevo_historial_guardado = []
     for m in nuevo_historial:
+        role = m.get("role")
+        if role not in {"user", "assistant"}:
+            continue
+
+        content = m.get("content")
+        if not isinstance(content, str):
+            continue
+
+        texto = content.strip()
+        if not texto or texto.lower() in {"null", "none", "undefined"}:
+            continue
+
         m_copy = dict(m)
+        m_copy["content"] = texto
         if "timestamp" not in m_copy:
             m_copy["timestamp"] = datetime.now(timezone.utc).isoformat()
         nuevo_historial_guardado.append(m_copy)

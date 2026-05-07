@@ -1,6 +1,6 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-06
+Última actualización: 2026-05-07
 
 ---
 
@@ -25,13 +25,13 @@
 | 1.13 | tools/sistema.py | ✅ | programar_seguimiento + escalar_a_humano |
 | 1.14 | agent/tool_definitions.py (JSON schemas OpenAI) | ✅ | 9 tools definidas |
 | 1.15 | agent/prompts.py | ✅ | System prompt parametrizable; agente = "Valeria" |
-| 1.16 | agent/core.py (loop function calling GPT-4o) | ✅ | Max 10 iteraciones; guarda historial sin system |
+| 1.16 | agent/core.py (loop function calling GPT-4o) | ✅ | Max 10 iteraciones; guarda historial limpio (solo user/assistant) |
 | 1.17 | routers/chat.py (POST /chat) | ✅ | |
 | 1.18 | routers/admin.py (APIs panel interno) | ✅ | CRUD clínicas, leads, conversaciones, citas, jobs, métricas |
 | 1.19 | routers/auth.py (OAuth Google Calendar) | ✅ | GET /auth/google/{clinic_id} y /auth/google/callback |
 | 1.20 | routers/invitaciones.py | ✅ | Crear invitación, vincular usuario, obtener rol |
 | 1.21 | routers/whatsapp.py (webhook Meta) | ✅ | Texto + audio (Whisper) |
-| 1.22 | routers/vapi.py (Server URL Vapi) | ✅ | Maneja assistant-request, user-message, end-of-call-report |
+| 1.22 | routers/retell.py (WebSocket + webhook Retell) | ✅ | Maneja response_required, reminder_required, call_ended/call_analyzed |
 | 1.23 | jobs/scheduler.py (APScheduler) | ✅ | Procesa jobs cada 1 min; programa recordatorios cada 1h; backoff 3 intentos |
 | 1.24 | Dashboard: scaffold Next.js 15 | ✅ | App Router, Vercel |
 | 1.25 | Dashboard: auth Google OAuth con Supabase | ✅ | Login page, /auth/callback, /auth/completing |
@@ -40,8 +40,8 @@
 | 1.28 | Dashboard: panel clínica (nav verde) | ✅ | /panel/layout.tsx con badge "Panel Clínica" y nombre |
 | 1.29 | Dashboard: listado de clínicas con métricas | ✅ | Cards con badges GCal y WhatsApp |
 | 1.30 | Dashboard: detalle clínica | ✅ | Métricas, GCal, WhatsApp, servicios, horarios, formulario edición |
-| 1.31 | Dashboard: generación de links de invitación | ✅ | Token one-time, link copiable |
-| 1.32 | Dashboard: panel clínica — página inicio | ✅ | Métricas + GCal connect + accesos rápidos |
+| 1.31 | Dashboard: generación de links de invitación | ✅ | Token permanente estático (expires_at=null), sin expiración |
+| 1.32 | Dashboard: panel clínica — página inicio | ✅ | Métricas + GCal connect + convs/leads de hoy |
 | 1.33 | Deploy backend en Railway | ✅ | https://recepcionista-clinica-production.up.railway.app |
 | 1.34 | Deploy dashboard en Vercel | ✅ | https://recepcionista-clinica.vercel.app |
 | 1.35 | Test de aceptación Fase 1 | 🔄 | **Bloqueado por Bug 1 (GCal OAuth)** |
@@ -54,6 +54,7 @@
 |---|---|---|---|
 | B1 | Google Calendar OAuth: "Error guardando tokens" | 🔄 Pendiente de fix | GOOGLE_REDIRECT_URI mal configurado en Railway o Google Console |
 | B2 | Conflicto rutas /auth/google/callback vs /{clinic_id} | 🔄 Corregido en código, pendiente deploy | El orden de rutas en auth.py ya es correcto; verificar que Railway tiene el último deploy |
+| B3 | CEO no puede entrar a panel agencia | ✅ Corregido en código | Middleware ahora usa `AGENCY_EMAIL` o `NEXT_PUBLIC_AGENCY_EMAIL` con fallback seguro y soporte multi-email |
 
 ---
 
@@ -75,14 +76,14 @@
 
 ---
 
-## Fase 3 — Voz (Vapi.ai)
+## Fase 3 — Voz (Retell AI)
 
 **Objetivo:** Paciente llama → habla → cita agendada.
 
 | # | Tarea | Estado | Notas |
 |---|---|---|---|
-| 3.1 | routers/vapi.py (Server URL Vapi) | ✅ | Maneja todos los tipos de mensaje de Vapi |
-| 3.2 | Configurar assistant en Vapi con clinic_id en metadata | ⬜ | El router ya está; falta configurar el assistant en el dashboard de Vapi |
+| 3.1 | routers/retell.py (Custom LLM WebSocket + webhook) | ✅ | Maneja protocolo Retell + persistencia de resumen |
+| 3.2 | Configurar agent en Retell con clinic_id en metadata | ⬜ | El router ya está; falta configurar el agent y numero en dashboard Retell |
 | 3.3 | Resumen post-llamada guardado en Supabase | ✅ | end-of-call-report lo guarda como conversación resuelta |
 | 3.4 | Número de prueba activo | ⬜ | |
 | 3.5 | Test de aceptación Fase 3 | ⬜ | Llamada real → cita en GCal |
@@ -132,7 +133,7 @@
 | 6.3 | Panel cliente: conversaciones | ⬜ | |
 | 6.4 | Panel cliente: leads | ⬜ | |
 | 6.5 | Panel cliente: citas | ⬜ | |
-| 6.6 | Panel cliente: configuración editable | ⬜ | |
+| 6.6 | Panel cliente: configuración editable | ✅ | Info extraída editable + regeneración automática de prompt + modo avanzado |
 | 6.7 | Formulario de alta de clínica nueva (/clinicas/nueva) | ⬜ | El link existe en la UI pero la página no está implementada |
 | 6.8 | Proceso de onboarding documentado y repetible | 🔄 | El flujo técnico funciona; falta documentar pasos para el operador |
 | 6.9 | Test de aceptación Fase 6 | ⬜ | Onboarding completo sin tocar código |
@@ -149,15 +150,44 @@
 | 2026-05-05 | Número WhatsApp nuevo (no migrar el actual del cliente) | Evitar riesgos con el número productivo del cliente |
 | 2026-05-05 | Auth dashboard: Supabase Auth + Google OAuth | Sin contraseñas; flujo limpio para la agencia y para los clientes |
 | 2026-05-05 | Dos paneles distintos (agencia azul / clínica verde) | Separación clara de contexto; middleware por email de agencia |
-| 2026-05-05 | Invitaciones con token one-time en localStorage | Funciona sin magic links de email; compatible con OAuth de Google |
+| 2026-05-06 | Invitaciones permanentes (expires_at=null) | Clínica tiene link fijo que puede guardar como favorito, sin regenerar |
+| 2026-05-06 | Migración Vapi → Retell AI (voz) | GDPR nativo, precio transparente ($0.07/min), mejor latencia, voces ES mejor |
+| 2026-05-06 | Seguridad: X-Admin-Key en todos los /admin/* | Sin esta protección cualquiera podía leer/modificar datos de todas las clínicas |
+| 2026-05-06 | Config IA: GPT-4o extrae info de web/docs → genera prompt | Onboarding sin fricción; `POST /admin/clinicas/{id}/configuracion/extraer` |
+| 2026-05-07 | Rediseño UI: Plus Jakarta Sans, nuevo sistema de diseño | Minimalista, ejecutivo para agencia; médico-profesional para clínica |
+| 2026-05-07 | Configuración centrada en info extraída (sin migración DB) | Reducir complejidad para recepcionista y mantener persistencia en campos existentes |
 | 2026-05-05 | Next.js 15 con params async | Requisito del framework; `params` es Promise en Next.js 15 |
+
+---
+
+## Registro de cambios recientes (2026-05-07)
+
+- **Conversaciones limpias para recepcionista**
+  - `backend/agent/core.py`: el historial persistido ahora excluye mensajes técnicos y valores vacíos (`tool/system/null`).
+  - `dashboard/app/panel/conversaciones/[id]/ConversacionDetalle.tsx`: renderiza solo mensajes legibles (`user`/`assistant`) y oculta payloads JSON técnicos.
+
+- **Configuración de agente orientada a operación**
+  - `dashboard/app/panel/configuracion/ConfiguracionForm.tsx`: rediseño completo con tres pestañas (`Info extraída`, `Generar con IA`, `Avanzado`).
+  - `Info extraída` ahora es editable (servicios, horarios, resumen, FAQs, tono, etc.).
+  - El `prompt_personalizado` se regenera automáticamente desde la info editada, salvo si se activa edición manual en modo avanzado.
+  - Persistencia sin migraciones: se guarda en `servicios`, `horarios` y `prompt_personalizado`.
+
+- **Rediseño visual minimalista del panel clínica**
+  - `dashboard/app/panel/layout.tsx` y `dashboard/components/PanelNavLinks.tsx`: navegación y topbar más limpias, mejor jerarquía visual.
+
+- **Credibilidad en integraciones (Google/WhatsApp)**
+  - Nuevo componente: `dashboard/components/BrandLogos.tsx`.
+  - Integración en `dashboard/app/panel/page.tsx`, `dashboard/app/clinicas/[id]/page.tsx` y `dashboard/app/clinicas/[id]/GoogleCalendarButton.tsx`.
+
+- **Acceso CEO/agencia corregido**
+  - `dashboard/middleware.ts`: normaliza email de usuario, soporta múltiples correos de agencia separados por coma y evita fallo por variable vacía en Vercel.
 
 ---
 
 ## Próximas acciones prioritarias
 
-1. **Fix Bug B1:** Verificar y corregir `GOOGLE_REDIRECT_URI` en Railway y Google Cloud Console
-2. **Confirmar Bug B2 resuelto:** Verificar que Railway tiene el deploy con el orden correcto de rutas en `auth.py`
+1. **Retell: terminar configuración** — Webhook Settings en dashboard Retell + metadata clinic_id + RETELL_API_KEY en Railway
+2. **Fix Bug B1:** Verificar y corregir `GOOGLE_REDIRECT_URI` en Railway y Google Cloud Console
 3. **Implementar subpáginas del panel clínica:** `/panel/conversaciones`, `/panel/leads`, `/panel/citas`, `/panel/configuracion`
 4. **Implementar `/clinicas/nueva`:** Formulario de alta de clínica
 5. **Conectar número WhatsApp real:** Configurar Meta Business y probar end-to-end

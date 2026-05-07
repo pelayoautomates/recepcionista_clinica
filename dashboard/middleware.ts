@@ -1,7 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const AGENCY_EMAIL = process.env.NEXT_PUBLIC_AGENCY_EMAIL || "";
+const DEFAULT_AGENCY_EMAIL = "pelayo.automates@gmail.com";
+const AGENCY_EMAILS = (process.env.AGENCY_EMAIL || process.env.NEXT_PUBLIC_AGENCY_EMAIL || DEFAULT_AGENCY_EMAIL)
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -25,6 +29,8 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
+  const userEmail = (user?.email || "").trim().toLowerCase();
+  const esAgencia = AGENCY_EMAILS.includes(userEmail);
 
   // Rutas públicas
   if (path.startsWith("/login") || path.startsWith("/auth")) {
@@ -38,13 +44,13 @@ export async function middleware(request: NextRequest) {
 
   // Rutas de agencia (/ y /clinicas/*) → solo el email de agencia
   const esRutaAgencia = path === "/" || path.startsWith("/clinicas");
-  if (esRutaAgencia && user.email !== AGENCY_EMAIL) {
+  if (esRutaAgencia && !esAgencia) {
     return NextResponse.redirect(new URL("/panel", request.url));
   }
 
   // Rutas de clínica (/panel/*) → cualquier usuario autenticado menos la agencia
   const esRutaClinica = path.startsWith("/panel");
-  if (esRutaClinica && user.email === AGENCY_EMAIL) {
+  if (esRutaClinica && esAgencia) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

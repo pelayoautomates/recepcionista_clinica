@@ -2,6 +2,7 @@ import Link from "next/link";
 import GoogleCalendarButton from "./GoogleCalendarButton";
 import EditClinicaForm from "./EditClinicaForm";
 import InvitacionButton from "./InvitacionButton";
+import { GoogleCalendarLogo, WhatsAppLogo } from "@/components/BrandLogos";
 
 const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -78,10 +79,12 @@ export default async function ClinicaDetailPage({ params }: { params: Promise<{ 
 
         {/* Google Calendar */}
         <div style={{ background: "white", borderRadius: 8, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>Google Calendar</h2>
+          <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <GoogleCalendarLogo /> Google Calendar
+          </h2>
           {tieneCalendario ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 18 }}>✅</span>
+              <GoogleCalendarLogo />
               <span style={{ fontSize: 14, color: "#166534" }}>Conectado</span>
             </div>
           ) : (
@@ -104,11 +107,13 @@ export default async function ClinicaDetailPage({ params }: { params: Promise<{ 
 
         {/* WhatsApp */}
         <div style={{ background: "white", borderRadius: 8, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>WhatsApp</h2>
+          <h2 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <WhatsAppLogo /> WhatsApp
+          </h2>
           {clinica.whatsapp_number ? (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 18 }}>✅</span>
+                <WhatsAppLogo />
                 <span style={{ fontSize: 14, color: "#166534" }}>Configurado</span>
               </div>
               <div style={{ fontSize: 12, color: "#9ca3af", fontFamily: "monospace" }}>

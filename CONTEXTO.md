@@ -35,7 +35,7 @@ Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo paci
 | Transcripción | Whisper (OpenAI API) | Para audios de WhatsApp |
 | Chat web | Endpoint POST /chat | Widget embebible pendiente de construir |
 | WhatsApp | Meta Cloud API directa | Webhook en /webhook/whatsapp |
-| Voz | Vapi.ai | Server URL apuntando a /vapi |
+| Voz | Retell AI | Custom LLM WebSocket en /retell/llm-websocket |
 | Calendario | Google Calendar API (OAuth2) | Tokens cifrados con Fernet en Supabase |
 | Scheduling | APScheduler 3.10.4 (BackgroundScheduler) | Corre dentro de FastAPI; jobs cada 1 min |
 | Dashboard | Next.js 15 | App Router, Vercel |
@@ -51,6 +51,17 @@ Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo paci
 | Dashboard | https://recepcionista-clinica.vercel.app |
 | Supabase | https://pccleqeuojcjflzagnhb.supabase.co |
 | Health check | https://recepcionista-clinica-production.up.railway.app/health |
+
+---
+
+## Actualizaciones recientes (2026-05-07)
+
+- Conversaciones del panel clínica ahora muestran solo mensajes legibles para recepción (sin `tool/system`, sin `null`, sin JSON técnico).
+- El backend persiste historial conversacional limpio (`user`/`assistant`) para evitar ruido operativo en soporte manual.
+- Configuración del agente rediseñada con foco en **Info extraída** editable; cada cambio regenera automáticamente el prompt técnico.
+- El **System Prompt** queda en modo **Avanzado** para usuarios técnicos.
+- Integraciones Google/WhatsApp usan iconografía de marca en el dashboard para mayor credibilidad visual.
+- Fix de acceso CEO/agencia: middleware usa `AGENCY_EMAIL` (server) o `NEXT_PUBLIC_AGENCY_EMAIL` con fallback y soporte para varios emails separados por coma.
 
 ---
 
@@ -92,13 +103,15 @@ Recepcionista Clinicas/
 │       ├── chat.py                      ← POST /chat (chat web)
 │       ├── invitaciones.py              ← POST invitación, POST vincular, GET /admin/me/rol
 │       ├── whatsapp.py                  ← GET/POST /webhook/whatsapp (Meta Cloud API)
-│       └── vapi.py                      ← POST /vapi (Vapi.ai Server URL)
+│       └── retell.py                    ← WS /retell/llm-websocket + POST /retell/webhook
 │
 └── dashboard/           ← Next.js 15 (App Router)
     ├── .env.local       ← Variables de entorno del dashboard
     ├── middleware.ts     ← Protección de rutas por email de agencia
     ├── components/
-    │   └── ConditionalNav.tsx           ← Nav azul marino (agencia); oculta en /login, /auth, /panel
+    │   ├── ConditionalNav.tsx           ← Nav azul marino (agencia); oculta en /login, /auth, /panel
+    │   ├── PanelNavLinks.tsx            ← Navegación superior del panel clínica (estados activos)
+    │   └── BrandLogos.tsx               ← Iconos de marca Google Calendar / WhatsApp
     ├── app/
     │   ├── layout.tsx                   ← RootLayout con ConditionalNav
     │   ├── page.tsx                     ← / — Listado de clínicas con métricas (solo agencia)
@@ -108,8 +121,10 @@ Recepcionista Clinicas/
     │   │   ├── callback/route.ts        ← Intercambia code, redirige por rol (agencia/clinica/completing)
     │   │   └── completing/page.tsx      ← Client component; lee localStorage y vincula invitación al usuario
     │   ├── panel/
-    │   │   ├── layout.tsx               ← Nav verde "Panel Clínica"; verifica rol=clinica
-    │   │   └── page.tsx                 ← Dashboard de clínica: métricas + GCal + accesos rápidos
+    │   │   ├── layout.tsx               ← Nav clínica minimalista; verifica rol=clinica
+    │   │   ├── page.tsx                 ← Dashboard de clínica: métricas + GCal + accesos rápidos
+    │   │   ├── conversaciones/[id]/ConversacionDetalle.tsx ← Vista chat legible para recepción
+    │   │   └── configuracion/ConfiguracionForm.tsx         ← Info extraída editable + prompt avanzado
     │   └── clinicas/
     │       └── [id]/
     │           ├── page.tsx             ← Detalle de clínica: métricas, GCal, WhatsApp, servicios, horarios
@@ -191,7 +206,7 @@ invitaciones (token one-time → clinic_id)
 5. Se construye el system prompt con datos de la clínica (nombre, horarios, servicios, prompt personalizado)
 6. Se llama a GPT-4o con el historial + herramientas
 7. Si GPT-4o llama a una tool → se ejecuta → resultado → se vuelve a llamar GPT-4o (máx 10 iter)
-8. Se guarda historial actualizado en Supabase (sin el system prompt)
+8. Se guarda historial actualizado en Supabase (sin system prompt ni mensajes técnicos de tool calling)
 9. Se devuelve la respuesta al canal correspondiente
 
 El agente se llama **Valeria** y nunca toca directamente la base de datos ni el calendario.
@@ -251,8 +266,9 @@ META_VERIFY_TOKEN=token_provisional
 META_ACCESS_TOKEN=<token>
 META_PHONE_NUMBER_ID=<phone_number_id>
 
-# Vapi (opcional)
-VAPI_API_KEY=<key>
+# Retell (voz)
+RETELL_API_KEY=<key>
+RETELL_AGENT_ID=<agent_id>
 
 # App
 BASE_URL=https://recepcionista-clinica-production.up.railway.app
@@ -266,11 +282,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://pccleqeuojcjflzagnhb.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon_key>
 NEXT_PUBLIC_BACKEND_URL=https://recepcionista-clinica-production.up.railway.app
 BACKEND_URL=https://recepcionista-clinica-production.up.railway.app
+AGENCY_EMAIL=pelayo.automates@gmail.com
 NEXT_PUBLIC_AGENCY_EMAIL=pelayo.automates@gmail.com
 NEXT_PUBLIC_SITE_URL=https://recepcionista-clinica.vercel.app
 ```
 
-> Nota: `BACKEND_URL` (sin `NEXT_PUBLIC_`) se usa en Server Components para llamadas server-side. `NEXT_PUBLIC_BACKEND_URL` se usa en Client Components. En `.env.local` local, `NEXT_PUBLIC_SITE_URL` debe ser `http://localhost:3000`.
+> Nota: `BACKEND_URL` (sin `NEXT_PUBLIC_`) se usa en Server Components para llamadas server-side. `NEXT_PUBLIC_BACKEND_URL` se usa en Client Components. Para permisos de agencia en middleware, usar preferentemente `AGENCY_EMAIL` (admite lista separada por comas). En `.env.local` local, `NEXT_PUBLIC_SITE_URL` debe ser `http://localhost:3000`.
 
 ---
 
@@ -335,7 +352,7 @@ VALUES ('<tu_user_id_de_supabase_auth>', 'pelayo.automates@gmail.com');
 |---|---|---|
 | 1 | Núcleo + panel interno + auth con roles | Ver PROGRESO.md |
 | 2 | Chat web embebible + web demo | Ver PROGRESO.md |
-| 3 | Voz (Vapi.ai) | Ver PROGRESO.md |
+| 3 | Voz (Retell AI) | Ver PROGRESO.md |
 | 4 | WhatsApp (Meta Cloud API) | Ver PROGRESO.md |
 | 5 | Automatizaciones (jobs) | Ver PROGRESO.md |
 | 6 | Activación Express + dashboard cliente | Ver PROGRESO.md |

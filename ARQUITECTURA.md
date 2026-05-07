@@ -9,7 +9,7 @@ PACIENTE
    │
    ├── Chat Web ──────────────────────┐
    ├── WhatsApp (Meta Cloud API) ─────┤
-   └── Llamada (Vapi.ai) ─────────────┤
+   └── Llamada (Retell AI) ───────────┤
                                       │
                                       ▼
                               ┌───────────────┐
@@ -29,6 +29,7 @@ PACIENTE
                               │     tools     │
                               │  4. Guarda    │
                               │     historial │
+                              │     limpio    │
                               └──────┬────────┘
                                      │
                ┌─────────────────────┼─────────────────────┐
@@ -45,7 +46,7 @@ PACIENTE
 ## Flujo detallado — Function Calling con GPT-4o
 
 ```
-1. Mensaje entra al router (chat/whatsapp/vapi)
+1. Mensaje entra al router (chat/whatsapp/retell)
    │
 2. Router llama agent/core.py → run_agent(clinic_id, conversacion_id, mensaje)
    │
@@ -60,7 +61,7 @@ PACIENTE
    │
 5. ¿Respuesta tiene tool_calls?
    │
-   ├── NO → Devolver texto al canal. Guardar en historial. FIN.
+   ├── NO → Devolver texto al canal. Guardar en historial limpio. FIN.
    │
    └── SÍ → Para cada tool_call:
               │
@@ -185,7 +186,8 @@ Request llega con clinic_id
 POST /chat                    ← Chat web (widget)
 POST /webhook/whatsapp        ← Meta Cloud API webhook
 GET  /webhook/whatsapp        ← Verificación webhook Meta
-POST /vapi                    ← Server URL de Vapi.ai
+WS   /retell/llm-websocket    ← Custom LLM WebSocket de Retell
+POST /retell/webhook          ← Eventos HTTP de Retell
 
 GET  /admin/clinicas          ← Lista de clínicas
 GET  /admin/clinicas/{id}/leads
@@ -199,6 +201,13 @@ GET  /auth/google/callback             ← Callback OAuth
 
 ---
 
+## Notas operativas de UI (2026-05-07)
+
+- Vista de conversación en panel clínica filtra mensajes técnicos (`tool/system`) y payloads JSON para mostrar solo el hilo entendible por recepción.
+- La configuración del agente se centra en "Info extraída" editable; el system prompt se deriva de esos datos y queda en modo avanzado para usuarios técnicos.
+
+---
+
 ## Diagrama de despliegue
 
 ```
@@ -206,7 +215,7 @@ Internet
    │
    ├── Widget embebido en web clínica ──► POST /chat ──► Railway (FastAPI)
    ├── Meta Cloud API ──────────────────► POST /webhook/whatsapp
-   └── Vapi.ai ─────────────────────────► POST /vapi
+   └── Retell AI ───────────────────────► WS /retell/llm-websocket
                                                │
                                           Railway (FastAPI)
                                                │
