@@ -37,6 +37,17 @@ def _extract_clinic_id(call: dict, message: dict | None = None) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
 
+    # Fallback: look up clinic by the called number (to_number)
+    to_number = call.get("to_number") or call.get("to")
+    if to_number:
+        try:
+            from database.client import get_supabase
+            db = get_supabase()
+            res = db.table("clinicas").select("id").eq("telefono", to_number).limit(1).execute()
+            if res.data:
+                return res.data[0]["id"]
+        except Exception:
+            pass
     return None
 
 

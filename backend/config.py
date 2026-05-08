@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     retell_api_key: str = ""   # API key de Retell — también usada para validar firmas
     retell_agent_id: str = ""  # ID del agente en Retell (para crear llamadas salientes)
 
+    # Telnyx (números de teléfono)
+    telnyx_api_key: str = ""
+    telnyx_sip_connection_id: str = ""  # ID of the Telnyx SIP connection
+    telnyx_sip_subdomain: str = "retell-clinica.sip.telnyx.com"  # termination URI for Retell
+
     # Seguridad
     admin_api_key: str = ""  # Protege endpoints /admin/* (requerido en producción)
     # Orígenes CORS permitidos, separados por coma. "*" para dev.

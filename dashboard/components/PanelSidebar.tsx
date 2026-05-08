@@ -49,6 +49,18 @@ const LINKS = [
     ),
   },
   {
+    href: "/panel/canales", label: "Canales", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path d="M3.5 13.5C3.5 13.5 2 12 2 8.5C2 5 3.5 3.5 3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M5.5 11.5C5.5 11.5 4.5 10.5 4.5 8.5C4.5 6.5 5.5 5.5 5.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+        <path d="M11.5 5.5C11.5 5.5 12.5 6.5 12.5 8.5C12.5 10.5 11.5 11.5 11.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M13.5 3.5C13.5 3.5 15 5 15 8.5C15 12 13.5 13.5 13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/configuracion", label: "Configuración", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
