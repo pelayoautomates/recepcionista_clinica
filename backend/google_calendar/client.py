@@ -34,7 +34,11 @@ def listar_slots_libres(clinic_id: UUID, fecha: str, duracion_min: int = 60) -> 
     horario_dia = horarios.get(dia_key)
 
     if not horario_dia:
-        return []  # Clínica cerrada ese día
+        # Si no hay horarios configurados para ningún día, usar horario por defecto
+        if not horarios:
+            horario_dia = {"start": "09:00", "end": "19:00"}
+        else:
+            return []  # Clínica cerrada ese día concreto
 
     hora_inicio = datetime.strptime(f"{fecha} {horario_dia['start']}", "%Y-%m-%d %H:%M").replace(
         tzinfo=timezone.utc
