@@ -54,21 +54,26 @@ Cuando escales, di exactamente: "Voy a pasarte con el equipo de la clínica, te 
 def build_system_prompt(clinica: dict) -> str:
     servicios = clinica.get("servicios", [])
     servicios_texto = ""
-    if servicios:
+    if isinstance(servicios, dict):
+        # Free-form text saved under _doc key
+        servicios_texto = servicios.get("_doc", "").strip()
+    elif isinstance(servicios, list) and servicios:
         servicios_texto = "Servicios disponibles:\n" + "\n".join(
             f"- {s['nombre']}: {s.get('duracion_min', 60)} min"
             + (f", precio orientativo {s['precio_orientativo']}€" if s.get("precio_orientativo") else "")
             for s in servicios
+            if isinstance(s, dict)
         )
 
     horarios = clinica.get("horarios", {})
     dias_map = {"lun": "Lunes", "mar": "Martes", "mie": "Miércoles", "jue": "Jueves",
                 "vie": "Viernes", "sab": "Sábado", "dom": "Domingo"}
     horarios_texto = ""
-    if horarios:
+    if isinstance(horarios, dict) and horarios:
         horarios_texto = "Horario de atención:\n" + "\n".join(
             f"- {dias_map.get(dia, dia)}: {h['start']} - {h['end']}"
             for dia, h in horarios.items()
+            if isinstance(h, dict) and "start" in h and "end" in h
         )
 
     info_clinica = "\n".join(filter(None, [

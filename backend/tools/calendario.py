@@ -18,10 +18,12 @@ async def consultar_disponibilidad(clinic_id: str, fecha: str, tipo_cita: str) -
     if not servicios_res.data:
         return {"error": f"Clínica {clinic_id} no encontrada"}
     servicios = servicios_res.data.get("servicios") or []
+    if isinstance(servicios, dict):
+        servicios = []
 
     duracion = 60
     for s in servicios:
-        if s.get("nombre", "").lower() == tipo_cita.lower():
+        if isinstance(s, dict) and s.get("nombre", "").lower() == tipo_cita.lower():
             duracion = s.get("duracion_min", 60)
             break
 
@@ -45,11 +47,13 @@ async def crear_cita(
     if not servicios_res.data:
         return {"error": f"Clínica {clinic_id} no encontrada"}
     servicios = servicios_res.data.get("servicios") or []
+    if isinstance(servicios, dict):
+        servicios = []
     nombre_clinica = servicios_res.data.get("nombre") or "Clínica"
 
     duracion = 60
     for s in servicios:
-        if s.get("nombre", "").lower() == tipo_cita.lower():
+        if isinstance(s, dict) and s.get("nombre", "").lower() == tipo_cita.lower():
             duracion = s.get("duracion_min", 60)
             break
 
