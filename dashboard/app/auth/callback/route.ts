@@ -38,13 +38,7 @@ export async function GET(request: NextRequest) {
 
   const user = data.user;
 
-  // Agencia → panel de agencia
-  if (user.email === AGENCY_EMAIL) {
-    response.headers.set("location", `${origin}/`);
-    return response;
-  }
-
-  // Comprobar si ya está vinculado a una clínica
+  // Comprobar rol via backend
   try {
     const rolRes = await fetch(
       `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
@@ -52,12 +46,22 @@ export async function GET(request: NextRequest) {
     );
     if (rolRes.ok) {
       const rolData = await rolRes.json();
+      if (rolData.rol === "agencia") {
+        response.headers.set("location", `${origin}/`);
+        return response;
+      }
       if (rolData.rol === "clinica") {
         response.headers.set("location", `${origin}/panel`);
         return response;
       }
     }
   } catch {}
+
+  // Fallback agencia por email (si backend no responde)
+  if (AGENCY_EMAIL && user.email === AGENCY_EMAIL) {
+    response.headers.set("location", `${origin}/`);
+    return response;
+  }
 
   // No vinculado → página de completar (maneja el token de invitación client-side)
   response.headers.set("location", `${origin}/auth/completing`);
