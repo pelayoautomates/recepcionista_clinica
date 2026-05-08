@@ -126,6 +126,7 @@ async def run_agent(
         else:
             # Respuesta final
             respuesta = msg.content or ""
+            messages.append({"role": "assistant", "content": respuesta})
             break
     else:
         respuesta = "Lo siento, ha ocurrido un error procesando tu consulta. Por favor, llama directamente a la clínica."
