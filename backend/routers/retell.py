@@ -243,7 +243,7 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                     canal="voz",
                 )
             except Exception as e:
-                logger.error("Error in agent - call=%s: %s", call_id, e)
+                logger.error("Error in agent - call=%s: %s", call_id, e, exc_info=True)
                 respuesta = "Disculpa, ha ocurrido un problema. Puedes repetir lo que necesitas?"
 
             await websocket.send_text(

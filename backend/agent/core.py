@@ -88,10 +88,16 @@ async def run_agent(
     if conversacion.get("estado") == "esperando_humano":
         return "Un miembro del equipo de la clínica se pondrá en contacto contigo en breve.", conversacion_id
 
-    # Construir messages para OpenAI
+    # Construir messages para OpenAI (solo role+content, sin campos extra como timestamp)
     system_prompt = build_system_prompt(clinica)
     messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(historial)
+    for h in (historial if isinstance(historial, list) else []):
+        if not isinstance(h, dict):
+            continue
+        role = h.get("role")
+        content = h.get("content")
+        if role in {"user", "assistant"} and isinstance(content, str):
+            messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_message})
 
     # Loop de function calling
