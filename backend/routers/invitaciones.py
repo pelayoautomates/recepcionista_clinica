@@ -134,11 +134,27 @@ async def vincular_usuario(data: VincularRequest):
 
     clinic_id = inv_data["clinic_id"]
 
-    # Vincular usuario a clínica
-    db.table("clinica_usuarios").upsert({
+    # Comprobar si la clínica ya tiene un usuario registrado
+    existing = db.table("clinica_usuarios")\
+        .select("user_id")\
+        .eq("clinic_id", clinic_id)\
+        .limit(1)\
+        .execute()
+
+    if existing.data:
+        existing_user_id = existing.data[0]["user_id"]
+        if existing_user_id == data.user_id:
+            # El mismo usuario vuelve a usar el link (nuevo dispositivo, etc.) → OK
+            return {"clinic_id": clinic_id}
+        else:
+            # Otro usuario intenta registrarse en una clínica ya ocupada → rechazar
+            raise HTTPException(status_code=403, detail="Esta clínica ya tiene un usuario registrado. Contacta con el administrador.")
+
+    # Primera vez: vincular usuario a clínica
+    db.table("clinica_usuarios").insert({
         "user_id": data.user_id,
         "clinic_id": clinic_id,
-    }, on_conflict="user_id,clinic_id").execute()
+    }).execute()
 
     # Solo marcar como usada si NO es permanente
     if not es_permanente:
