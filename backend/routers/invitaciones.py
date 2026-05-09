@@ -167,18 +167,10 @@ async def vincular_usuario(data: VincularRequest):
 @router.get("/me/rol")
 async def obtener_rol(user_id: str, email: str):
     """
-    Devuelve el rol del usuario: 'agencia' | 'clinica' | None
+    Devuelve el rol del usuario: 'clinica' | None
     El dashboard lo llama justo después del login.
     """
     db = get_supabase()
-
-    # ¿Es admin de agencia?
-    admin = db.table("agencia_admins")\
-        .select("user_id")\
-        .eq("user_id", user_id)\
-        .execute()
-    if admin.data:
-        return {"rol": "agencia"}
 
     # ¿Está vinculado a una clínica?
     clinica_user = db.table("clinica_usuarios")\
@@ -187,6 +179,25 @@ async def obtener_rol(user_id: str, email: str):
         .limit(1)\
         .execute()
     if clinica_user.data:
-        return {"rol": "clinica", "clinic_id": clinica_user.data[0]["clinic_id"]}
+        clinic_id = clinica_user.data[0]["clinic_id"]
+        clinica = db.table("clinicas")\
+            .select("trial_expires_at, plan, onboarding_ok")\
+            .eq("id", clinic_id)\
+            .single()\
+            .execute()
+        trial_expires_at = None
+        plan = "trial"
+        onboarding_ok = False
+        if clinica.data:
+            trial_expires_at = clinica.data.get("trial_expires_at")
+            plan = clinica.data.get("plan", "trial")
+            onboarding_ok = clinica.data.get("onboarding_ok", False)
+        return {
+            "rol": "clinica",
+            "clinic_id": clinic_id,
+            "trial_expires_at": trial_expires_at,
+            "plan": plan,
+            "onboarding_ok": onboarding_ok,
+        }
 
     return {"rol": None}

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAccess } from "@/lib/auth-utils";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const throttle = enforceRateLimit(req, "resumen", 30, 60_000);
+  if (throttle) return throttle;
+
+  const access = await requireAccess();
+  if (access instanceof NextResponse) return access;
+
   const OPENAI_KEY = process.env.OPENAI_API_KEY;
   if (!OPENAI_KEY) {
     return NextResponse.json({ error: "OPENAI_API_KEY no configurada en Vercel" }, { status: 500 });

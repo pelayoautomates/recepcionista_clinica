@@ -56,9 +56,8 @@ function fmtFechaCorta(d: Date) {
   return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
-export default function CalendarioCliente({ clinicId, backendUrl, tieneCalendario, googleAuthUrl }: {
+export default function CalendarioCliente({ clinicId, tieneCalendario, googleAuthUrl }: {
   clinicId: string;
-  backendUrl: string;
   tieneCalendario: boolean;
   googleAuthUrl: string;
 }) {
@@ -143,18 +142,15 @@ export default function CalendarioCliente({ clinicId, backendUrl, tieneCalendari
   const fetchCitas = useCallback(async (v: Vista, a: Date) => {
     setLoading(true);
     const { desde, hasta } = getRango(v, a);
-    const fi = desde.toISOString();
-    const ff = hasta.toISOString();
-    try {
-      const res = await fetch(
-        `${backendUrl}/admin/clinicas/${clinicId}/citas?fecha_inicio=${fi}&fecha_fin=${ff}`,
-        { cache: "no-store" }
-      );
-      if (res.ok) setCitas(await res.json());
-      else setCitas([]);
-    } catch { setCitas([]); }
-    finally { setLoading(false); }
-  }, [clinicId, backendUrl, getRango]);
+      const fi = desde.toISOString();
+      const ff = hasta.toISOString();
+      try {
+        const res = await fetch(`/api/clinicas/${clinicId}/citas?fecha_inicio=${encodeURIComponent(fi)}&fecha_fin=${encodeURIComponent(ff)}`);
+        if (res.ok) setCitas(await res.json());
+        else setCitas([]);
+      } catch { setCitas([]); }
+      finally { setLoading(false); }
+  }, [clinicId, getRango]);
 
   useEffect(() => { fetchCitas(vista, anchor); }, [vista, anchor, fetchCitas]);
 
@@ -281,7 +277,8 @@ function VistaHoras({
   const now = new Date();
   const nowMinutes = (now.getHours() - HORA_INICIO) * 60 + now.getMinutes();
   const nowTop = (nowMinutes / 60) * HORA_HEIGHT;
-  const showNowLine = nowMinutes >= 0 && nowMinutes < (HORA_FIN - HORA_INICIO) * 60;
+  const includesToday = dias.some((d) => isSameDay(d, today));
+  const showNowLine = includesToday && nowMinutes >= 0 && nowMinutes < (HORA_FIN - HORA_INICIO) * 60;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>

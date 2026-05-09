@@ -62,6 +62,8 @@ Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo paci
 - El **System Prompt** queda en modo **Avanzado** para usuarios técnicos.
 - Integraciones Google/WhatsApp usan iconografía de marca en el dashboard para mayor credibilidad visual.
 - Fix de acceso CEO/agencia: middleware usa `AGENCY_EMAIL` (server) o `NEXT_PUBLIC_AGENCY_EMAIL` con fallback y soporte para varios emails separados por coma.
+- Nueva landing comercial pública en `/landing` para captar clientes (sin tocar backend ni auth flow interno).
+- La landing se rediseno con enfoque de conversion (claridad de propuesta, reduccion de friccion de decision, riesgo bajo y estructura de pricing orientada a accion).
 
 ---
 
@@ -114,6 +116,7 @@ Recepcionista Clinicas/
     │   └── BrandLogos.tsx               ← Iconos de marca Google Calendar / WhatsApp
     ├── app/
     │   ├── layout.tsx                   ← RootLayout con ConditionalNav
+    │   ├── landing/page.tsx             ← Landing comercial pública de Atiende360 (pricing + FAQ + CTA)
     │   ├── page.tsx                     ← / — Listado de clínicas con métricas (solo agencia)
     │   ├── login/
     │   │   └── page.tsx                 ← Login con Google; guarda token invitación en localStorage
@@ -288,6 +291,12 @@ NEXT_PUBLIC_SITE_URL=https://recepcionista-clinica.vercel.app
 ```
 
 > Nota: `BACKEND_URL` (sin `NEXT_PUBLIC_`) se usa en Server Components para llamadas server-side. `NEXT_PUBLIC_BACKEND_URL` se usa en Client Components. Para permisos de agencia en middleware, usar preferentemente `AGENCY_EMAIL` (admite lista separada por comas). En `.env.local` local, `NEXT_PUBLIC_SITE_URL` debe ser `http://localhost:3000`.
+
+### Rutas públicas actuales
+
+- `/login`
+- `/auth/*`
+- `/landing`
 
 ---
 

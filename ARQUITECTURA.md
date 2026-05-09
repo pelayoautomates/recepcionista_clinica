@@ -201,6 +201,19 @@ GET  /auth/google/callback             ← Callback OAuth
 
 ---
 
+## Rutas frontend de marketing
+
+```
+GET /landing  ← Landing comercial pública de Atiende360
+```
+
+Notas:
+- `/landing` no depende de backend ni autenticación de usuario.
+- Se mantiene separada del dashboard de agencia (`/`) y del panel de clínica (`/panel/*`).
+- `/landing` aplica estructura de conversion con pricing, comparativa, add-ons, garantia y FAQ en una sola ruta.
+
+---
+
 ## Notas operativas de UI (2026-05-07)
 
 - Vista de conversación en panel clínica filtra mensajes técnicos (`tool/system`) y payloads JSON para mostrar solo el hilo entendible por recepción.

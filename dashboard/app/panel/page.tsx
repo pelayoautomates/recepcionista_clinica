@@ -56,6 +56,14 @@ const ESTADO_LEAD: Record<string, { label: string; color: string }> = {
   perdido:       { label: "Perdido",       color: "#94a3b8" },
 };
 
+function getLocalDateISO() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function getInitials(name: string) {
   return (name || "?").split(" ").slice(0, 2).map((w: string) => w[0] || "").join("").toUpperCase();
 }
@@ -92,7 +100,7 @@ export default async function PanelPage() {
   const todasConvs: any[] = convsRes.ok ? await convsRes.json() : [];
   const todosLeads: any[] = leadsRes.ok ? await leadsRes.json() : [];
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = getLocalDateISO();
   const convsHoy = todasConvs
     .filter(c => (c.updated_at || c.created_at || "").startsWith(hoy))
     .slice(0, 6);

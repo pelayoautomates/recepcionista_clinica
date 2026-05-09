@@ -134,9 +134,12 @@
 | 6.4 | Panel cliente: leads | ✅ | Tabla con filas expandibles; muestra info, resumen e historial del paciente |
 | 6.5 | Panel cliente: citas | ✅ | Lista con click-to-detail; modal muestra paciente, teléfono, hora, duración, canal |
 | 6.6 | Panel cliente: configuración editable | ✅ | Info extraída editable + regeneración automática de prompt + modo avanzado |
-| 6.7 | Formulario de alta de clínica nueva (/clinicas/nueva) | ⬜ | El link existe en la UI pero la página no está implementada |
-| 6.8 | Proceso de onboarding documentado y repetible | 🔄 | El flujo técnico funciona; falta documentar pasos para el operador |
-| 6.9 | Test de aceptación Fase 6 | ⬜ | Onboarding completo sin tocar código |
+| 6.7 | Wizard de alta self-service (/onboarding) | ✅ | 3 pasos: datos → extracción IA → listo. Crea clínica + vincula usuario + arranca trial |
+| 6.8 | Trial 7 días con bloqueo automático | ✅ | trial_expires_at en DB; panel redirige a /suscripcion al expirar; banner si quedan ≤3 días |
+| 6.9 | Página /suscripcion (paywall) | ✅ | Muestra plan Starter + CTA a pricing |
+| 6.10 | Checklist flotante en panel | ✅ | 4 pasos: clínica / agente / GCal / teléfono. Desaparece al completar |
+| 6.11 | Test de aceptación Fase 6 | ⬜ | Onboarding completo sin tocar código |
+| 6.12 | Landing comercial pública de Atiende360 (`/landing`) | ✅ | Hero + problema + solución + pasos + beneficios + casos + producto + pricing + add-ons + comparativa + garantía + FAQ + CTA |
 
 ---
 
@@ -157,6 +160,41 @@
 | 2026-05-07 | Rediseño UI: Plus Jakarta Sans, nuevo sistema de diseño | Minimalista, ejecutivo para agencia; médico-profesional para clínica |
 | 2026-05-07 | Configuración centrada en info extraída (sin migración DB) | Reducir complejidad para recepcionista y mantener persistencia en campos existentes |
 | 2026-05-05 | Next.js 15 con params async | Requisito del framework; `params` es Promise en Next.js 15 |
+
+---
+
+## Registro de cambios recientes (2026-05-09)
+
+- **Pivote a SaaS self-service — panel CEO eliminado**
+  - Eliminados: `/agencia`, `/clinicas/*`, `/chat` (panel de agencia)
+  - Eliminados: `/api/admin/clinicas`, `/api/chat` (API routes solo agencia)
+  - `dashboard/middleware.ts`: simplificado, sin lógica de email de agencia
+  - `dashboard/app/auth/callback/route.ts`: routing sin rol agencia; sin clínica → `/onboarding`
+  - `dashboard/lib/auth-utils.ts`: `enforceClinicScope` elimina check agencia
+
+- **Wizard de onboarding self-service** (`/onboarding`)
+  - 3 pasos: datos clínica → entrena agente (extracción IA de URL) → listo
+  - Crea la clínica y la vincula al usuario automáticamente
+  - Arranca el trial de 7 días desde el primer login
+
+- **Trial 7 días**
+  - `backend/database/migrations/003_trial.sql`: columnas `trial_expires_at`, `plan`, `url_web`, `especialidad`, `onboarding_step`, `onboarding_ok`
+  - `backend/routers/registro.py`: endpoint `POST /saas/clinicas/registro`
+  - `backend/routers/invitaciones.py`: `/me/rol` devuelve `trial_expires_at`, `plan`, `onboarding_ok`
+  - `dashboard/app/panel/layout.tsx`: redirige a `/suscripcion` si trial expirado; banner amarillo/rojo si quedan ≤3 días
+
+- **Página de suscripción** (`/suscripcion`)
+  - Paywall limpio cuando el trial ha expirado
+
+- **Checklist flotante de onboarding** (`OnboardingChecklist.tsx`)
+  - Widget en esquina inferior derecha del panel
+  - Muestra: Clínica configurada / Agente entrenado / Google Calendar / Número de teléfono
+  - Desaparece cuando todos los pasos están completos; se puede minimizar o cerrar
+
+- **Actualización de planes (minutos)**
+  - Starter: 150 min → **300 min**
+  - Pro: 400 min → **750 min**
+  - Growth: 900 min → **1.800 min**
 
 ---
 
@@ -206,6 +244,19 @@
 
 - **Acceso CEO/agencia corregido**
   - `dashboard/middleware.ts`: normaliza email de usuario, soporta múltiples correos de agencia separados por coma y evita fallo por variable vacía en Vercel.
+
+- **Landing comercial completa de Atiende360**
+  - `dashboard/app/landing/page.tsx`: nueva landing pública orientada a conversión con estructura SaaS completa.
+  - `dashboard/middleware.ts`: `/landing` pasa a ser ruta pública (sin login obligatorio).
+  - `dashboard/components/ConditionalNav.tsx` y `dashboard/components/AgencyWrapper.tsx`: se ocultan wrappers/nav internos en `/landing` para layout de marketing full-width.
+
+- **Landing v2 optimizada a conversion**
+  - Rediseno total de `dashboard/app/landing/page.tsx` con enfoque CRO y persuasivo:
+    - Hero mas claro orientado a resultado.
+    - Bloque de perdida potencial (loss aversion) con calculadora visual.
+    - Menor friccion de decision (Hick's Law): CTAs principales consistentes.
+    - Pricing con arquitectura de eleccion y plan recomendado.
+    - Refuerzo de riesgo bajo (prueba 7 dias) en multiples puntos.
 
 ---
 

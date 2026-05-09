@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import admin, chat, whatsapp, retell, auth, invitaciones, configuracion, canales
+from routers import admin, chat, whatsapp, retell, auth, invitaciones, configuracion, canales, registro
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +48,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(invitaciones.router, prefix="/admin", tags=["invitaciones"])
 app.include_router(configuracion.router, prefix="/admin", tags=["configuracion"])
 app.include_router(canales.router, prefix="/admin", tags=["canales"])
+app.include_router(registro.router, prefix="/saas", tags=["registro"])
 
 
 @app.get("/health")

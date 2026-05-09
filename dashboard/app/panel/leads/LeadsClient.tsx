@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 
 const CANAL_LABEL: Record<string, string> = {
@@ -92,9 +92,8 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
               const isOpen = expanded === lead.id;
 
               return (
-                <>
+                <Fragment key={lead.id}>
                   <tr
-                    key={lead.id}
                     onClick={() => toggle(lead.id)}
                     style={{
                       borderBottom: isOpen ? "none" : "1px solid #f3f4f6",
@@ -150,7 +149,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
 
                   {/* Expanded detail row */}
                   {isOpen && (
-                    <tr key={`${lead.id}-expanded`} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
                       <td colSpan={6} style={{ padding: "0 16px 16px 56px", background: "#fafafa" }}>
                         <div style={{
                           display: "grid",
@@ -214,7 +213,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>

@@ -102,11 +102,9 @@ INSTRUCCIONES:
 export default function ConfiguracionForm({
   clinica,
   clinicId,
-  backendUrl,
 }: {
   clinica: Clinica;
   clinicId: string;
-  backendUrl: string;
 }) {
   const initialDoc = getInitialDoc(clinica);
   const [vista, setVista] = useState<Vista>(initialDoc ? "info" : "generar");
@@ -133,7 +131,7 @@ export default function ConfiguracionForm({
     if (url.trim()) form.append("url", url.trim());
     archivos.forEach(f => form.append("archivos", f));
     try {
-      const res = await fetch(`${backendUrl}/admin/clinicas/${clinicId}/configuracion/extraer`, {
+      const res = await fetch(`/api/clinicas/${clinicId}/configuracion/extraer`, {
         method: "POST", body: form,
       });
       if (!res.ok) throw new Error((await res.json()).detail || "Error del servidor");
@@ -155,13 +153,13 @@ export default function ConfiguracionForm({
     setError("");
     const promptFinal = editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc);
     try {
-      const res = await fetch(`${backendUrl}/admin/clinicas/${clinicId}/configuracion/guardar`, {
+      const res = await fetch(`/api/clinicas/${clinicId}/configuracion/guardar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt_personalizado: promptFinal,
           servicios: { _doc: doc },
-          horarios: {},
+          horarios: clinica.horarios || {},
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");

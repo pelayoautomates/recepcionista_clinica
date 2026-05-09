@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const AGENCY_EMAIL = process.env.NEXT_PUBLIC_AGENCY_EMAIL || "";
 const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
@@ -12,7 +11,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=no_code`);
   }
 
-  const response = NextResponse.redirect(`${origin}/`);
+  const response = NextResponse.redirect(`${origin}/panel`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   const user = data.user;
 
-  // Comprobar rol via backend
+  // Comprobar si el usuario ya tiene clínica vinculada
   try {
     const rolRes = await fetch(
       `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
@@ -46,24 +45,22 @@ export async function GET(request: NextRequest) {
     );
     if (rolRes.ok) {
       const rolData = await rolRes.json();
-      if (rolData.rol === "agencia") {
-        response.headers.set("location", `${origin}/`);
-        return response;
-      }
       if (rolData.rol === "clinica") {
+        // Trial expirado → suscripción
+        if (rolData.trial_expires_at && rolData.plan === "trial") {
+          const expires = new Date(rolData.trial_expires_at);
+          if (expires < new Date()) {
+            response.headers.set("location", `${origin}/suscripcion`);
+            return response;
+          }
+        }
         response.headers.set("location", `${origin}/panel`);
         return response;
       }
     }
   } catch {}
 
-  // Fallback agencia por email (si backend no responde)
-  if (AGENCY_EMAIL && user.email === AGENCY_EMAIL) {
-    response.headers.set("location", `${origin}/`);
-    return response;
-  }
-
-  // No vinculado → página de completar (maneja el token de invitación client-side)
-  response.headers.set("location", `${origin}/auth/completing`);
+  // Sin clínica → onboarding
+  response.headers.set("location", `${origin}/onboarding`);
   return response;
 }

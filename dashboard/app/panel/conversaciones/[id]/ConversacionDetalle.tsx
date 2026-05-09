@@ -53,12 +53,12 @@ export default function ConversacionDetalle({
   conv: initialConv,
   paciente,
   clinic_id,
-  backendUrl,
+  backHref = "/panel/conversaciones",
 }: {
   conv: Conv;
   paciente: Paciente | null;
   clinic_id: string;
-  backendUrl: string;
+  backHref?: string;
 }) {
   const [conv, setConv] = useState<Conv>(initialConv);
   const [texto, setTexto] = useState("");
@@ -83,14 +83,11 @@ export default function ConversacionDetalle({
     setEnviando(true);
     setError("");
     try {
-      const res = await fetch(
-        `${backendUrl}/admin/clinicas/${clinic_id}/conversaciones/${conv.id}/responder`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mensaje: msg }),
-        }
-      );
+      const res = await fetch(`/api/clinicas/${clinic_id}/conversaciones/${conv.id}/responder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: msg }),
+      });
       if (!res.ok) throw new Error("Error al enviar");
       const updated = await res.json();
       setConv((prev) => ({ ...prev, mensajes: updated.mensajes, estado: updated.estado }));
@@ -122,11 +119,15 @@ export default function ConversacionDetalle({
   };
 
   const resolverConversacion = async () => {
-    const res = await fetch(
-      `${backendUrl}/admin/clinicas/${clinic_id}/conversaciones/${conv.id}/resolver`,
-      { method: "PATCH" }
-    );
-    if (res.ok) setConv((prev) => ({ ...prev, estado: "resuelta" }));
+    setError("");
+    const res = await fetch(`/api/clinicas/${clinic_id}/conversaciones/${conv.id}/resolver`, {
+      method: "PATCH",
+    });
+    if (res.ok) {
+      setConv((prev) => ({ ...prev, estado: "resuelta" }));
+      return;
+    }
+    setError("No se pudo marcar la conversacion como resuelta.");
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -247,7 +248,7 @@ export default function ConversacionDetalle({
           justifyContent: "space-between",
         }}>
           <div>
-            <a href="/panel/conversaciones" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none", marginRight: 12 }}>Volver</a>
+            <a href={backHref} style={{ fontSize: 12, color: "#6b7280", textDecoration: "none", marginRight: 12 }}>Volver</a>
             <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
               Conversacion - {CANAL_LABEL[conv.canal || ""] || conv.canal || "-"}
             </span>

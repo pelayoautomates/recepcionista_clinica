@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceClinicScope, requireAccess } from "@/lib/auth-utils";
 
 const BACKEND = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 const ADMIN_KEY = process.env.ADMIN_SECRET || "";
@@ -26,6 +27,10 @@ async function proxy(method: "GET" | "POST" | "DELETE", clinicId: string) {
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const access = await requireAccess();
+    if (access instanceof NextResponse) return access;
+    const scopeError = enforceClinicScope(access, id);
+    if (scopeError) return scopeError;
     return await proxy("GET", id);
   } catch {
     return NextResponse.json({ detail: "Error consultando invitacion" }, { status: 500 });
@@ -35,6 +40,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const access = await requireAccess();
+    if (access instanceof NextResponse) return access;
+    const scopeError = enforceClinicScope(access, id);
+    if (scopeError) return scopeError;
     return await proxy("POST", id);
   } catch {
     return NextResponse.json({ detail: "Error creando invitacion" }, { status: 500 });
@@ -44,6 +53,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const access = await requireAccess();
+    if (access instanceof NextResponse) return access;
+    const scopeError = enforceClinicScope(access, id);
+    if (scopeError) return scopeError;
     return await proxy("DELETE", id);
   } catch {
     return NextResponse.json({ detail: "Error regenerando invitacion" }, { status: 500 });

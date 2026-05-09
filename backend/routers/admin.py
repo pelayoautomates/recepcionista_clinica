@@ -29,7 +29,11 @@ async def listar_clinicas():
 async def obtener_clinica(clinic_id: UUID):
     db = get_supabase()
     result = db.table("clinicas").select(
-        "id, nombre, telefono, whatsapp_number, email_contacto, horarios, servicios, prompt_personalizado, google_tokens_enc, created_at"
+        "id, nombre, telefono, telefono_ia, telnyx_number_id, whatsapp_number, "
+        "email_contacto, horarios, servicios, prompt_personalizado, google_tokens_enc, "
+        "url_web, especialidad, agente_nombre, notif_email, "
+        "plan, trial_expires_at, minutos_incluidos, minutos_usados_mes, "
+        "retell_agent_id, onboarding_ok, created_at"
     ).eq("id", str(clinic_id)).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")

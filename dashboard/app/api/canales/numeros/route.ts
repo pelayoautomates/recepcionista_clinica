@@ -1,7 +1,15 @@
 import { adminFetch } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAccess } from "@/lib/auth-utils";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
+  const throttle = enforceRateLimit(req, "canales-numeros", 60, 60_000);
+  if (throttle) return throttle;
+
+  const access = await requireAccess();
+  if (access instanceof NextResponse) return access;
+
   const { searchParams } = new URL(req.url);
   const pais = searchParams.get("pais") || "ES";
   const area_code = searchParams.get("area_code") || "";

@@ -18,13 +18,10 @@ export default async function ConfiguracionPage() {
   const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`, { noStore: true });
   const clinica = await clinicaRes.json();
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
   return (
     <ConfiguracionForm
       clinica={clinica}
       clinicId={rol.clinic_id}
-      backendUrl={backendUrl}
     />
   );
 }

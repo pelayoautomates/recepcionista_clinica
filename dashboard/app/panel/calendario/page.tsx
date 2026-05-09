@@ -25,7 +25,6 @@ export default async function CalendarioPage() {
   return (
     <CalendarioCliente
       clinicId={rol.clinic_id}
-      backendUrl={backendUrl}
       tieneCalendario={tieneCalendario}
       googleAuthUrl={googleAuthUrl}
     />

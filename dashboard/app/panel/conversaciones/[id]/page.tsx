@@ -31,14 +31,11 @@ export default async function ConversacionDetallePage({ params }: { params: Prom
     if (pRes.ok) paciente = await pRes.json();
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
   return (
     <ConversacionDetalle
       conv={conv}
       paciente={paciente}
       clinic_id={clinic_id}
-      backendUrl={backendUrl}
     />
   );
 }

@@ -1,14 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const DEFAULT_AGENCY_EMAIL = "pelayo.automates@gmail.com";
-const AGENCY_EMAILS = (process.env.AGENCY_EMAIL || process.env.NEXT_PUBLIC_AGENCY_EMAIL || DEFAULT_AGENCY_EMAIL)
-  .split(",")
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
+// Rutas completamente públicas (sin sesión)
+const PUBLIC_PATHS = ["/", "/login", "/landing", "/pricing"];
+const PUBLIC_PREFIXES = ["/auth", "/api"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
+
+  const path = request.nextUrl.pathname;
+
+  // Rutas públicas — pasan sin comprobación
+  if (
+    PUBLIC_PATHS.includes(path) ||
+    PUBLIC_PREFIXES.some((p) => path.startsWith(p))
+  ) {
+    return response;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,35 +36,30 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const path = request.nextUrl.pathname;
-  const userEmail = (user?.email || "").trim().toLowerCase();
-  const esAgencia = AGENCY_EMAILS.includes(userEmail);
-
-  // Rutas públicas
-  if (path.startsWith("/login") || path.startsWith("/auth")) {
-    return response;
-  }
 
   // Sin sesión → login
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Rutas de agencia (/ y /clinicas/*) → solo el email de agencia
-  const esRutaAgencia = path === "/" || path.startsWith("/clinicas");
-  if (esRutaAgencia && !esAgencia) {
-    return NextResponse.redirect(new URL("/panel", request.url));
+  // /onboarding → requiere auth, no necesita clínica
+  if (path.startsWith("/onboarding")) {
+    return response;
   }
 
-  // Rutas de clínica (/panel/*) → cualquier usuario autenticado menos la agencia
-  const esRutaClinica = path.startsWith("/panel");
-  if (esRutaClinica && esAgencia) {
-    return NextResponse.redirect(new URL("/", request.url));
+  // /suscripcion → requiere auth
+  if (path.startsWith("/suscripcion")) {
+    return response;
+  }
+
+  // /panel → requiere auth (el layout verifica clínica y trial)
+  if (path.startsWith("/panel")) {
+    return response;
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

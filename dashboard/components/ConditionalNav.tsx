@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 const NAV_LINKS = [
-  { href: "/", label: "Clínicas", exact: true },
+  { href: "/agencia", label: "Clínicas", exact: true },
   { href: "/chat", label: "Probar agente", exact: false },
 ];
 
@@ -11,9 +11,12 @@ export default function ConditionalNav() {
   const pathname = usePathname();
 
   if (
+    pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/panel")
+    pathname.startsWith("/panel") ||
+    pathname.startsWith("/landing") ||
+    pathname.startsWith("/pricing")
   ) return null;
 
   return (

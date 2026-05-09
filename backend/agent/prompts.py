@@ -84,7 +84,7 @@ def build_system_prompt(clinica: dict) -> str:
 
     return BASE_SYSTEM_PROMPT.format(
         nombre_clinica=clinica.get("nombre", "la clínica"),
-        nombre_agente="Valeria",
+        nombre_agente=clinica.get("agente_nombre") or "Valeria",
         fecha_hora_actual=datetime.now(timezone.utc).strftime("%A %d de %B de %Y, %H:%M UTC"),
         tono="cercano pero profesional",
         info_clinica=info_clinica,
