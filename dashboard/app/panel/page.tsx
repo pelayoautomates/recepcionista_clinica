@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import GoogleCalendarButton from "@/app/clinicas/[id]/GoogleCalendarButton";
+import GoogleCalendarButton from "@/components/GoogleCalendarButton";
 import { adminFetch } from "@/lib/api";
 
 const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";

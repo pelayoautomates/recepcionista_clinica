@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
 type Step = 1 | 2 | 3;
@@ -406,13 +406,13 @@ export default function OnboardingPage() {
   );
 }
 
-const labelStyle: React.CSSProperties = {
+const labelStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
   color: "#374151",
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: CSSProperties = {
   padding: "10px 14px",
   border: "1px solid #d1d5db",
   borderRadius: 8,
@@ -424,7 +424,7 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-const btnPrimary: React.CSSProperties = {
+const btnPrimary: CSSProperties = {
   background: "linear-gradient(135deg, #2563eb, #4f46e5)",
   color: "white",
   border: "none",
@@ -436,7 +436,7 @@ const btnPrimary: React.CSSProperties = {
   width: "100%",
 };
 
-const btnSecondary: React.CSSProperties = {
+const btnSecondary: CSSProperties = {
   background: "white",
   color: "#374151",
   border: "1px solid #d1d5db",
@@ -448,7 +448,7 @@ const btnSecondary: React.CSSProperties = {
   flex: 1,
 };
 
-const errorStyle: React.CSSProperties = {
+const errorStyle: CSSProperties = {
   marginTop: 10,
   padding: "10px 14px",
   background: "#fef2f2",

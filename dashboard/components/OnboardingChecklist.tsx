@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 
 type ChecklistItem = {
@@ -172,7 +172,7 @@ export default function OnboardingChecklist({ items, trialDiasRestantes }: Props
   );
 }
 
-const iconBtn: React.CSSProperties = {
+const iconBtn: CSSProperties = {
   background: "rgba(255,255,255,0.15)",
   border: "none",
   borderRadius: 6,
