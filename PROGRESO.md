@@ -1,6 +1,6 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-08
+Última actualización: 2026-05-10
 
 ---
 
@@ -140,6 +140,21 @@
 | 6.10 | Checklist flotante en panel | ✅ | 4 pasos: clínica / agente / GCal / teléfono. Desaparece al completar |
 | 6.11 | Test de aceptación Fase 6 | ⬜ | Onboarding completo sin tocar código |
 | 6.12 | Landing comercial pública de Atiende360 (`/landing`) | ✅ | Hero + problema + solución + pasos + beneficios + casos + producto + pricing + add-ons + comparativa + garantía + FAQ + CTA |
+| 6.13 | Calendario Atiende360 (fase 1: vistas + CRUD) | ✅ | Vistas día/semana/mes, multi-profesional, bloques de agenda, CRUD completo |
+| 6.14 | Calendario Atiende360 (fase 2: servicios + disponibilidad + conflictos) | ✅ | Catálogo de servicios, horario semanal por profesional, validación de conflictos, origen de cita, filtros |
+
+---
+
+## Pendiente antes del lanzamiento (≤1 semana)
+
+| # | Tarea | Prioridad |
+|---|---|---|
+| P1 | Ejecutar migration 004_calendar.sql en Supabase SQL Editor | 🔴 URGENTE |
+| P2 | Ejecutar migration 005_services_availability.sql en Supabase SQL Editor | 🔴 URGENTE |
+| P3 | PKCE auth fix: en Supabase Auth → URL Configuration → Site URL = https://atiende360.com | 🔴 URGENTE |
+| P4 | Configurar número WhatsApp real (META_ACCESS_TOKEN + META_PHONE_NUMBER_ID) | 🟡 |
+| P5 | Crear agente Retell per-clínica (actualmente usan agente global) | 🟡 |
+| P6 | Plantillas WhatsApp aprobadas por Meta (recordatorios) | 🟡 |
 
 ---
 

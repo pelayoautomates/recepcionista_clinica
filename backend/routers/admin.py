@@ -148,8 +148,31 @@ async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
 _CITAS_CAMPOS = [
     "tipo_servicio", "fecha_inicio", "fecha_fin", "estado",
     "profesional", "notas_internas", "color", "duracion_min",
-    "paciente_nombre", "paciente_telefono",
+    "paciente_nombre", "paciente_telefono", "origen",
 ]
+
+_ORIGENES_VALIDOS = {"manual", "ia_llamada", "ia_whatsapp", "ia_chat", "google_calendar"}
+_ESTADOS_VALIDOS = {"pendiente", "confirmada", "reprogramada", "completada", "cancelada", "no_asistio"}
+
+
+def _check_conflicts(db, clinic_id: str, fecha_inicio: str, fecha_fin: str, profesional: str | None, exclude_id: str | None = None) -> bool:
+    """Devuelve True si hay conflicto de horario para ese profesional."""
+    if not profesional or not fecha_fin:
+        return False
+    query = (
+        db.table("citas")
+        .select("id")
+        .eq("clinic_id", clinic_id)
+        .eq("profesional", profesional)
+        .not_.in_("estado", ["cancelada", "no_asistio"])
+        .lt("fecha_inicio", fecha_fin)
+        .gt("fecha_fin", fecha_inicio)
+    )
+    if exclude_id:
+        query = query.neq("id", exclude_id)
+    result = query.execute()
+    return len(result.data) > 0
+
 
 @router.get("/clinicas/{clinic_id}/citas")
 async def listar_citas(
@@ -158,11 +181,13 @@ async def listar_citas(
     fecha_inicio: str | None = None,
     fecha_fin: str | None = None,
     estado: str | None = None,
+    profesional: str | None = None,
+    origen: str | None = None,
 ):
     db = get_supabase()
     query = db.table("citas").select(
         "id, clinic_id, paciente_id, google_event_id, tipo_servicio, fecha_inicio, fecha_fin, "
-        "estado, profesional, notas_internas, color, duracion_min, "
+        "estado, profesional, notas_internas, color, duracion_min, origen, "
         "paciente_nombre, paciente_telefono, created_at, updated_at, "
         "pacientes(nombre, telefono)"
     ).eq("clinic_id", str(clinic_id))
@@ -174,6 +199,10 @@ async def listar_citas(
         query = query.lte("fecha_inicio", fecha_fin)
     if estado:
         query = query.eq("estado", estado)
+    if profesional:
+        query = query.eq("profesional", profesional)
+    if origen:
+        query = query.eq("origen", origen)
     result = query.order("fecha_inicio").execute()
     return result.data
 
@@ -183,7 +212,26 @@ async def crear_cita(clinic_id: UUID, data: dict):
     db = get_supabase()
     if not data.get("fecha_inicio"):
         raise HTTPException(status_code=400, detail="fecha_inicio es obligatorio")
-    cita = {"clinic_id": str(clinic_id), "estado": "confirmada"}
+
+    fecha_inicio = data["fecha_inicio"]
+    fecha_fin = data.get("fecha_fin")
+    profesional = data.get("profesional")
+
+    # Calcular fecha_fin si no viene pero sí duracion_min
+    if not fecha_fin and data.get("duracion_min"):
+        from datetime import datetime, timedelta, timezone
+        fi = datetime.fromisoformat(fecha_inicio.replace("Z", "+00:00"))
+        fecha_fin = (fi + timedelta(minutes=int(data["duracion_min"]))).isoformat()
+        data["fecha_fin"] = fecha_fin
+
+    # Validar conflictos de horario
+    if _check_conflicts(db, str(clinic_id), fecha_inicio, fecha_fin or "", profesional):
+        raise HTTPException(
+            status_code=409,
+            detail=f"El profesional '{profesional}' ya tiene una cita en ese horario"
+        )
+
+    cita = {"clinic_id": str(clinic_id), "estado": data.get("estado", "confirmada")}
     for k in _CITAS_CAMPOS:
         if data.get(k) is not None:
             cita[k] = data[k]
@@ -200,6 +248,20 @@ async def actualizar_cita(clinic_id: UUID, cita_id: UUID, data: dict):
         updates["notas_internas"] = data["notas_internas"]
     if not updates:
         raise HTTPException(status_code=400, detail="Sin datos para actualizar")
+
+    # Validar conflictos si se cambia fecha o profesional
+    if "fecha_inicio" in updates or "profesional" in updates:
+        existing = db.table("citas").select("fecha_inicio, fecha_fin, profesional").eq("id", str(cita_id)).single().execute()
+        if existing.data:
+            fi = updates.get("fecha_inicio", existing.data["fecha_inicio"])
+            ff = updates.get("fecha_fin", existing.data.get("fecha_fin", ""))
+            prof = updates.get("profesional", existing.data.get("profesional"))
+            if _check_conflicts(db, str(clinic_id), fi, ff or "", prof, exclude_id=str(cita_id)):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"El profesional '{prof}' ya tiene una cita en ese horario"
+                )
+
     result = db.table("citas").update(updates).eq("id", str(cita_id)).eq("clinic_id", str(clinic_id)).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
@@ -294,6 +356,94 @@ async def eliminar_bloque(clinic_id: UUID, bloque_id: UUID):
     db = get_supabase()
     db.table("bloques_agenda").delete().eq("id", str(bloque_id)).eq("clinic_id", str(clinic_id)).execute()
     return {"ok": True}
+
+
+# ─── Servicios ────────────────────────────────────────────────────────────────
+
+_SERVICIOS_CAMPOS = ["nombre", "duracion_min", "color", "descripcion", "activo", "orden"]
+
+
+@router.get("/clinicas/{clinic_id}/servicios")
+async def listar_servicios(clinic_id: UUID, solo_activos: bool = True):
+    db = get_supabase()
+    query = db.table("servicios").select("*").eq("clinic_id", str(clinic_id))
+    if solo_activos:
+        query = query.eq("activo", True)
+    result = query.order("orden").order("nombre").execute()
+    return result.data
+
+
+@router.post("/clinicas/{clinic_id}/servicios")
+async def crear_servicio(clinic_id: UUID, data: dict):
+    db = get_supabase()
+    if not data.get("nombre"):
+        raise HTTPException(status_code=400, detail="nombre es obligatorio")
+    servicio = {
+        "clinic_id": str(clinic_id),
+        "nombre": data["nombre"],
+        "duracion_min": data.get("duracion_min", 30),
+        "color": data.get("color"),
+        "descripcion": data.get("descripcion"),
+        "activo": True,
+        "orden": data.get("orden", 0),
+    }
+    result = db.table("servicios").insert(servicio).execute()
+    return result.data[0]
+
+
+@router.patch("/clinicas/{clinic_id}/servicios/{servicio_id}")
+async def actualizar_servicio(clinic_id: UUID, servicio_id: UUID, data: dict):
+    db = get_supabase()
+    updates = {k: v for k, v in data.items() if k in _SERVICIOS_CAMPOS and v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Sin datos para actualizar")
+    result = db.table("servicios").update(updates).eq("id", str(servicio_id)).eq("clinic_id", str(clinic_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    return result.data[0]
+
+
+@router.delete("/clinicas/{clinic_id}/servicios/{servicio_id}")
+async def eliminar_servicio(clinic_id: UUID, servicio_id: UUID):
+    db = get_supabase()
+    db.table("servicios").update({"activo": False}).eq("id", str(servicio_id)).eq("clinic_id", str(clinic_id)).execute()
+    return {"ok": True}
+
+
+# ─── Disponibilidad por profesional ──────────────────────────────────────────
+
+@router.get("/clinicas/{clinic_id}/profesionales/{prof_id}/disponibilidad")
+async def obtener_disponibilidad(clinic_id: UUID, prof_id: UUID):
+    db = get_supabase()
+    result = db.table("disponibilidad_profesional").select("*").eq("profesional_id", str(prof_id)).eq("clinic_id", str(clinic_id)).order("dia_semana").execute()
+    return result.data
+
+
+@router.put("/clinicas/{clinic_id}/profesionales/{prof_id}/disponibilidad")
+async def guardar_disponibilidad(clinic_id: UUID, prof_id: UUID, data: dict):
+    """Reemplaza toda la disponibilidad de un profesional. data.horarios = [{dia_semana, hora_inicio, hora_fin, activo}]"""
+    db = get_supabase()
+    horarios = data.get("horarios", [])
+    # Borrar existentes
+    db.table("disponibilidad_profesional").delete().eq("profesional_id", str(prof_id)).eq("clinic_id", str(clinic_id)).execute()
+    if not horarios:
+        return []
+    filas = []
+    for h in horarios:
+        if h.get("dia_semana") is None or not h.get("hora_inicio") or not h.get("hora_fin"):
+            continue
+        filas.append({
+            "clinic_id": str(clinic_id),
+            "profesional_id": str(prof_id),
+            "dia_semana": int(h["dia_semana"]),
+            "hora_inicio": h["hora_inicio"],
+            "hora_fin": h["hora_fin"],
+            "activo": h.get("activo", True),
+        })
+    if not filas:
+        return []
+    result = db.table("disponibilidad_profesional").insert(filas).execute()
+    return result.data
 
 
 @router.get("/clinicas/{clinic_id}/leads/{lead_id}")

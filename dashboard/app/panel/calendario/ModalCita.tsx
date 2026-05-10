@@ -14,6 +14,7 @@ export type Cita = {
   duracion_min?: number;
   paciente_nombre?: string;
   paciente_telefono?: string;
+  origen?: string;
   pacientes?: { nombre?: string; telefono?: string } | null;
 };
 
@@ -24,28 +25,48 @@ export type Profesional = {
   especialidad?: string;
 };
 
+export type Servicio = {
+  id: string;
+  nombre: string;
+  duracion_min: number;
+  color?: string;
+  descripcion?: string;
+};
+
 export type ModalMode =
   | { type: "nueva"; slotDate: Date; slotHour: number; slotProfesional?: string }
   | { type: "ver"; cita: Cita }
   | { type: "bloquear"; slotDate?: Date }
-  | { type: "profesionales" };
+  | { type: "profesionales" }
+  | { type: "servicios" };
 
 const ESTADOS = [
-  { value: "pendiente", label: "Pendiente", color: "#854d0e", bg: "#fef9c3" },
-  { value: "confirmada", label: "Confirmada", color: "#166534", bg: "#dcfce7" },
-  { value: "completada", label: "Completada", color: "#3730a3", bg: "#e0e7ff" },
-  { value: "cancelada", label: "Cancelada", color: "#991b1b", bg: "#fee2e2" },
-  { value: "no_asistio", label: "No asistió", color: "#374151", bg: "#f3f4f6" },
+  { value: "pendiente",     label: "Pendiente",     color: "#854d0e", bg: "#fef9c3" },
+  { value: "confirmada",    label: "Confirmada",    color: "#166534", bg: "#dcfce7" },
+  { value: "reprogramada",  label: "Reprogramada",  color: "#1e40af", bg: "#dbeafe" },
+  { value: "completada",    label: "Completada",    color: "#3730a3", bg: "#e0e7ff" },
+  { value: "cancelada",     label: "Cancelada",     color: "#991b1b", bg: "#fee2e2" },
+  { value: "no_asistio",    label: "No asistió",    color: "#374151", bg: "#f3f4f6" },
+];
+
+const ORIGENES = [
+  { value: "manual",          label: "Manual (recepción)" },
+  { value: "ia_llamada",      label: "IA — Llamada" },
+  { value: "ia_whatsapp",     label: "IA — WhatsApp" },
+  { value: "ia_chat",         label: "IA — Chat web" },
+  { value: "google_calendar", label: "Google Calendar" },
 ];
 
 const TIPOS_BLOQUEO = [
-  { value: "bloqueo", label: "Bloqueo general" },
+  { value: "bloqueo",    label: "Bloqueo general" },
   { value: "vacaciones", label: "Vacaciones" },
-  { value: "formacion", label: "Formación" },
-  { value: "otro", label: "Otro" },
+  { value: "formacion",  label: "Formación" },
+  { value: "otro",       label: "Otro" },
 ];
 
 const DURACIONES = [15, 20, 30, 45, 60, 90, 120];
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const PROF_COLORS_LIST = ["#2563eb", "#7c3aed", "#059669", "#d97706", "#dc2626", "#0891b2", "#db2777", "#374151"];
 
 function toLocalDatetimeValue(iso: string): string {
   const d = new Date(iso);
@@ -59,47 +80,81 @@ function buildSlotISO(date: Date, hour: number): string {
   return d.toISOString();
 }
 
+function computeFechaFin(inicio: string, minutos: number): string {
+  const d = new Date(inicio);
+  d.setMinutes(d.getMinutes() + minutos);
+  return d.toISOString();
+}
+
+// ─── Disponibilidad type ─────────────────────────────────────────────────────
+type DisponibilidadRow = {
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
+  activo: boolean;
+};
+
+const defaultDisponibilidad = (): DisponibilidadRow[] =>
+  DIAS_SEMANA.map((_, i) => ({
+    dia_semana: i,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    activo: i < 5,
+  }));
+
+// ─── Main component ──────────────────────────────────────────────────────────
 export default function ModalCita({
   mode,
   clinicId,
   profesionales,
+  servicios,
   onClose,
   onSaved,
 }: {
   mode: ModalMode;
   clinicId: string;
   profesionales: Profesional[];
+  servicios: Servicio[];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const isNueva = mode.type === "nueva";
-  const isVer = mode.type === "ver";
-  const isBloquear = mode.type === "bloquear";
-  const isProfs = mode.type === "profesionales";
+  const isNueva     = mode.type === "nueva";
+  const isVer       = mode.type === "ver";
+  const isBloquear  = mode.type === "bloquear";
+  const isProfs     = mode.type === "profesionales";
+  const isServicios = mode.type === "servicios";
 
-  // ── Cita form state ──────────────────────────────────────
+  // ── Cita form state ──────────────────────────────────────────────────────
   const initialCita = isVer ? mode.cita : null;
-  const [editing, setEditing] = useState(isNueva);
-  const [pacNombre, setPacNombre] = useState(initialCita?.paciente_nombre || initialCita?.pacientes?.nombre || "");
+  const [editing, setEditing]         = useState(isNueva);
+  const [pacNombre, setPacNombre]     = useState(initialCita?.paciente_nombre || initialCita?.pacientes?.nombre || "");
   const [pacTelefono, setPacTelefono] = useState(initialCita?.paciente_telefono || initialCita?.pacientes?.telefono || "");
-  const [servicio, setServicio] = useState(initialCita?.tipo_servicio || "");
-  const [prof, setProf] = useState(
+  const [servicio, setServicio]       = useState(initialCita?.tipo_servicio || "");
+  const [prof, setProf]               = useState(
     initialCita?.profesional ||
     (isNueva && mode.type === "nueva" ? mode.slotProfesional || "" : "")
   );
-  const [estado, setEstado] = useState(initialCita?.estado || "confirmada");
-  const [duracion, setDuracion] = useState(initialCita?.duracion_min || 60);
-  const [notas, setNotas] = useState(initialCita?.notas_internas || "");
+  const [estado, setEstado]           = useState(initialCita?.estado || "confirmada");
+  const [duracion, setDuracion]       = useState(initialCita?.duracion_min || 30);
+  const [notas, setNotas]             = useState(initialCita?.notas_internas || "");
+  const [origen, setOrigen]           = useState(initialCita?.origen || "manual");
   const [fechaInicio, setFechaInicio] = useState(() => {
     if (isVer && initialCita) return toLocalDatetimeValue(initialCita.fecha_inicio);
     if (isNueva && mode.type === "nueva") return toLocalDatetimeValue(buildSlotISO(mode.slotDate, mode.slotHour));
     return toLocalDatetimeValue(new Date().toISOString());
   });
 
-  // ── Bloqueo form state ────────────────────────────────────
+  // Cuando se elige servicio del catálogo, auto-rellenar duración
+  function handleServicioChange(nombre: string) {
+    setServicio(nombre);
+    const found = servicios.find(s => s.nombre === nombre);
+    if (found) setDuracion(found.duracion_min);
+  }
+
+  // ── Bloqueo form state ───────────────────────────────────────────────────
   const [bloqTitulo, setBloqTitulo] = useState("");
-  const [bloqProf, setBloqProf] = useState("");
-  const [bloqTipo, setBloqTipo] = useState("bloqueo");
+  const [bloqProf, setBloqProf]     = useState("");
+  const [bloqTipo, setBloqTipo]     = useState("bloqueo");
   const [bloqInicio, setBloqInicio] = useState(() => {
     if (isBloquear && mode.type === "bloquear" && mode.slotDate) {
       return toLocalDatetimeValue(mode.slotDate.toISOString());
@@ -112,40 +167,71 @@ export default function ModalCita({
     return toLocalDatetimeValue(d.toISOString());
   });
 
-  // ── Profesionales form state ──────────────────────────────
-  const [profsList, setProfsList] = useState<Profesional[]>(profesionales);
-  const [profNombre, setProfNombre] = useState("");
-  const [profColor, setProfColor] = useState("#2563eb");
+  // ── Profesionales state ──────────────────────────────────────────────────
+  const [profsList, setProfsList]         = useState<Profesional[]>(profesionales);
+  const [profNombre, setProfNombre]       = useState("");
+  const [profColor, setProfColor]         = useState("#2563eb");
   const [profEspecialidad, setProfEspecialidad] = useState("");
+  const [editingProfId, setEditingProfId] = useState<string | null>(null);
+  const [disponibilidad, setDisponibilidad] = useState<DisponibilidadRow[]>(defaultDisponibilidad());
+  const [loadingDisp, setLoadingDisp]     = useState(false);
 
-  const PROF_COLORS_LIST = ["#2563eb", "#7c3aed", "#059669", "#d97706", "#dc2626", "#0891b2", "#db2777", "#374151"];
-
-  // ── Shared state ──────────────────────────────────────────
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
-
-  // ── Compute fecha_fin from fecha_inicio + duracion ────────
-  function computeFechaFin(inicio: string, minutos: number): string {
-    const d = new Date(inicio);
-    d.setMinutes(d.getMinutes() + minutos);
-    return d.toISOString();
+  async function loadDisponibilidad(profId: string) {
+    setLoadingDisp(true);
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/profesionales/${profId}/disponibilidad`);
+      if (res.ok) {
+        const rows: DisponibilidadRow[] = await res.json();
+        if (rows.length > 0) {
+          const filled = defaultDisponibilidad().map(def => {
+            const found = rows.find(r => r.dia_semana === def.dia_semana);
+            return found ? { ...def, ...found } : def;
+          });
+          setDisponibilidad(filled);
+        } else {
+          setDisponibilidad(defaultDisponibilidad());
+        }
+      }
+    } finally {
+      setLoadingDisp(false);
+    }
   }
 
-  // ── Save cita ─────────────────────────────────────────────
+  async function saveDisponibilidad(profId: string) {
+    await fetch(`/api/clinicas/${clinicId}/profesionales/${profId}/disponibilidad`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ horarios: disponibilidad }),
+    });
+  }
+
+  // ── Servicios state ──────────────────────────────────────────────────────
+  const [serviciosList, setServiciosList]   = useState<Servicio[]>(servicios);
+  const [svcNombre, setSvcNombre]           = useState("");
+  const [svcDuracion, setSvcDuracion]       = useState(30);
+  const [svcDescripcion, setSvcDescripcion] = useState("");
+  const [editingSvcId, setEditingSvcId]     = useState<string | null>(null);
+
+  // ── Shared state ─────────────────────────────────────────────────────────
+  const [saving, setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError]     = useState("");
+
+  // ── Save cita ────────────────────────────────────────────────────────────
   const saveCita = async () => {
     if (!fechaInicio) { setError("Selecciona fecha y hora"); return; }
     setSaving(true); setError("");
     const body = {
-      paciente_nombre: pacNombre || null,
-      paciente_telefono: pacTelefono || null,
-      tipo_servicio: servicio || null,
-      profesional: prof || null,
+      paciente_nombre:    pacNombre || null,
+      paciente_telefono:  pacTelefono || null,
+      tipo_servicio:      servicio || null,
+      profesional:        prof || null,
       estado,
-      duracion_min: duracion,
-      fecha_inicio: new Date(fechaInicio).toISOString(),
-      fecha_fin: computeFechaFin(fechaInicio, duracion),
-      notas_internas: notas || null,
+      duracion_min:       duracion,
+      fecha_inicio:       new Date(fechaInicio).toISOString(),
+      fecha_fin:          computeFechaFin(fechaInicio, duracion),
+      notas_internas:     notas || null,
+      origen,
     };
     try {
       const url = isVer
@@ -156,15 +242,17 @@ export default function ModalCita({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error((await res.json()).detail || "Error al guardar");
-      onSaved();
-      onClose();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Error al guardar");
+      }
+      onSaved(); onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error al guardar");
     } finally { setSaving(false); }
   };
 
-  // ── Delete cita ───────────────────────────────────────────
+  // ── Delete cita ──────────────────────────────────────────────────────────
   const deleteCita = async () => {
     if (!confirm("¿Eliminar esta cita?")) return;
     setDeleting(true); setError("");
@@ -177,7 +265,7 @@ export default function ModalCita({
     } finally { setDeleting(false); }
   };
 
-  // ── Quick status change ───────────────────────────────────
+  // ── Quick status change ──────────────────────────────────────────────────
   const changeStatus = async (newEstado: string) => {
     setSaving(true); setError("");
     try {
@@ -194,7 +282,7 @@ export default function ModalCita({
     } finally { setSaving(false); }
   };
 
-  // ── Save bloqueo ──────────────────────────────────────────
+  // ── Save bloqueo ─────────────────────────────────────────────────────────
   const saveBloqueo = async () => {
     if (!bloqTitulo) { setError("Introduce un título"); return; }
     setSaving(true); setError("");
@@ -217,7 +305,7 @@ export default function ModalCita({
     } finally { setSaving(false); }
   };
 
-  // ── Add profesional ───────────────────────────────────────
+  // ── Profesionales ────────────────────────────────────────────────────────
   const addProfesional = async () => {
     if (!profNombre) { setError("Introduce el nombre"); return; }
     setSaving(true); setError("");
@@ -229,6 +317,8 @@ export default function ModalCita({
       });
       if (!res.ok) throw new Error("Error al crear profesional");
       const nuevo = await res.json();
+      // Save default availability for new professional
+      await saveDisponibilidadForProf(nuevo.id);
       setProfsList(p => [...p, nuevo]);
       setProfNombre(""); setProfColor("#2563eb"); setProfEspecialidad("");
       onSaved();
@@ -237,20 +327,70 @@ export default function ModalCita({
     } finally { setSaving(false); }
   };
 
+  async function saveDisponibilidadForProf(profId: string) {
+    await fetch(`/api/clinicas/${clinicId}/profesionales/${profId}/disponibilidad`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ horarios: disponibilidad.filter(d => d.activo) }),
+    });
+  }
+
   const removeProfesional = async (profId: string) => {
     const res = await fetch(`/api/clinicas/${clinicId}/profesionales/${profId}`, { method: "DELETE" });
     if (res.ok) { setProfsList(p => p.filter(x => x.id !== profId)); onSaved(); }
   };
 
-  // ── Estado del cita en modo vista ────────────────────────
-  const estadoInfo = ESTADOS.find(e => e.value === estado) || ESTADOS[0];
+  const openEditProf = async (prof: Profesional) => {
+    setEditingProfId(prof.id);
+    await loadDisponibilidad(prof.id);
+  };
 
-  // ── Title ────────────────────────────────────────────────
-  const title = isProfs ? "Gestionar profesionales"
-    : isBloquear ? "Bloquear agenda"
+  const saveEditProf = async (profId: string) => {
+    setSaving(true);
+    try {
+      await saveDisponibilidad(profId);
+      onSaved();
+      setEditingProfId(null);
+    } finally { setSaving(false); }
+  };
+
+  // ── Servicios ─────────────────────────────────────────────────────────────
+  const addServicio = async () => {
+    if (!svcNombre) { setError("Introduce el nombre del servicio"); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/servicios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre: svcNombre, duracion_min: svcDuracion, descripcion: svcDescripcion || null }),
+      });
+      if (!res.ok) throw new Error("Error al crear servicio");
+      const nuevo = await res.json();
+      setServiciosList(s => [...s, nuevo]);
+      setSvcNombre(""); setSvcDuracion(30); setSvcDescripcion("");
+      onSaved();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally { setSaving(false); }
+  };
+
+  const removeServicio = async (svcId: string) => {
+    const res = await fetch(`/api/clinicas/${clinicId}/servicios/${svcId}`, { method: "DELETE" });
+    if (res.ok) { setServiciosList(s => s.filter(x => x.id !== svcId)); onSaved(); }
+  };
+
+  // ── Estado info ──────────────────────────────────────────────────────────
+  const estadoInfo = ESTADOS.find(e => e.value === estado) || ESTADOS[0];
+  const origenLabel = ORIGENES.find(o => o.value === (initialCita?.origen || "manual"))?.label || "Manual";
+
+  const title = isServicios  ? "Gestionar servicios"
+    : isProfs      ? "Gestionar profesionales"
+    : isBloquear   ? "Bloquear agenda"
     : isVer && !editing ? "Detalle de cita"
-    : isVer && editing ? "Editar cita"
+    : isVer && editing  ? "Editar cita"
     : "Nueva cita";
+
+  const wide = isProfs || isServicios;
 
   return (
     <div
@@ -266,14 +406,14 @@ export default function ModalCita({
         onClick={e => e.stopPropagation()}
         style={{
           background: "white", borderRadius: 16,
-          width: "100%", maxWidth: isProfs ? 520 : 480,
+          width: "100%", maxWidth: wide ? 580 : 480,
           boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
-          maxHeight: "90vh", overflow: "auto",
+          maxHeight: "92vh", overflow: "auto",
           fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
         }}
       >
         {/* Header */}
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "white", zIndex: 1 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#111827" }}>{title}</h2>
           <button onClick={onClose} style={iconBtnSt}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="#6b7280" strokeWidth="1.8" strokeLinecap="round"/></svg>
@@ -283,15 +423,22 @@ export default function ModalCita({
         <div style={{ padding: "20px 24px" }}>
           {error && <div style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 8, padding: "10px 14px", fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
-          {/* ── VIEW MODE (no editing) ── */}
+          {/* ── VIEW MODE ── */}
           {isVer && !editing && (
             <>
+              {/* Origin badge */}
+              <div style={{ marginBottom: 16 }}>
+                <span style={{ fontSize: 11.5, background: "#f3f4f6", color: "#6b7280", padding: "3px 10px", borderRadius: 20, fontWeight: 500 }}>
+                  {origenLabel}
+                </span>
+              </div>
+
               {/* Status pills */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
                 {ESTADOS.map(e => (
                   <button key={e.value} onClick={() => changeStatus(e.value)} style={{
                     padding: "5px 12px", borderRadius: 20, border: `2px solid ${estado === e.value ? e.color : "transparent"}`,
-                    background: e.bg, color: e.color, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                    background: e.bg, color: e.color, fontSize: 12, fontWeight: 600, cursor: "pointer",
                     opacity: saving ? 0.6 : 1,
                   }}>
                     {e.label}
@@ -301,10 +448,10 @@ export default function ModalCita({
 
               {/* Info rows */}
               {(initialCita?.paciente_nombre || initialCita?.pacientes?.nombre) && (
-                <InfoRow icon="👤" label="Paciente" value={initialCita.paciente_nombre || initialCita.pacientes?.nombre || ""} />
+                <InfoRow icon="👤" label="Paciente" value={initialCita!.paciente_nombre || initialCita!.pacientes?.nombre || ""} />
               )}
               {(initialCita?.paciente_telefono || initialCita?.pacientes?.telefono) && (
-                <InfoRow icon="📞" label="Teléfono" value={initialCita.paciente_telefono || initialCita.pacientes?.telefono || ""} />
+                <InfoRow icon="📞" label="Teléfono" value={initialCita!.paciente_telefono || initialCita!.pacientes?.telefono || ""} />
               )}
               {initialCita?.tipo_servicio && <InfoRow icon="🩺" label="Servicio" value={initialCita.tipo_servicio} />}
               {initialCita?.profesional && <InfoRow icon="👨‍⚕️" label="Profesional" value={initialCita.profesional} />}
@@ -337,10 +484,31 @@ export default function ModalCita({
                   <input value={pacTelefono} onChange={e => setPacTelefono(e.target.value)} placeholder="+34 600 000 000" style={inputSt} />
                 </Field>
               </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <Field label="Servicio">
-                  <input value={servicio} onChange={e => setServicio(e.target.value)} placeholder="Ej: Limpieza dental" style={inputSt} />
+                  {servicios.length > 0 ? (
+                    <select
+                      value={servicio}
+                      onChange={e => handleServicioChange(e.target.value)}
+                      style={{ ...inputSt, cursor: "pointer" }}
+                    >
+                      <option value="">Seleccionar servicio...</option>
+                      {servicios.map(s => (
+                        <option key={s.id} value={s.nombre}>{s.nombre} ({s.duracion_min} min)</option>
+                      ))}
+                      <option value="__otro__">Otro (escribir)</option>
+                    </select>
+                  ) : (
+                    <input value={servicio} onChange={e => setServicio(e.target.value)} placeholder="Ej: Limpieza dental" style={inputSt} />
+                  )}
                 </Field>
+                {/* Si eligió "Otro" del dropdown, mostrar campo libre */}
+                {servicios.length > 0 && servicio === "__otro__" && (
+                  <Field label="Nombre del servicio">
+                    <input autoFocus onChange={e => setServicio(e.target.value)} placeholder="Describir servicio" style={inputSt} />
+                  </Field>
+                )}
                 <Field label="Profesional">
                   <select value={prof} onChange={e => setProf(e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
                     <option value="">Sin asignar</option>
@@ -348,6 +516,7 @@ export default function ModalCita({
                   </select>
                 </Field>
               </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <Field label="Fecha y hora">
                   <input type="datetime-local" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} style={inputSt} />
@@ -358,17 +527,27 @@ export default function ModalCita({
                   </select>
                 </Field>
               </div>
-              <Field label="Estado">
-                <select value={estado} onChange={e => setEstado(e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
-                  {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-                </select>
-              </Field>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <Field label="Estado">
+                  <select value={estado} onChange={e => setEstado(e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
+                    {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="Origen">
+                  <select value={origen} onChange={e => setOrigen(e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
+                    {ORIGENES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </Field>
+              </div>
+
               <Field label="Notas internas">
                 <textarea value={notas} onChange={e => setNotas(e.target.value)}
                   rows={3} placeholder="Notas visibles solo para la clínica..."
                   style={{ ...inputSt, resize: "vertical", lineHeight: 1.5 }}
                 />
               </Field>
+
               <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                 <button onClick={saveCita} disabled={saving} style={{ ...btnPrimary, flex: 1 }}>
                   {saving ? "Guardando…" : isVer ? "Guardar cambios" : "Crear cita"}
@@ -414,27 +593,67 @@ export default function ModalCita({
           {/* ── PROFESIONALES ── */}
           {isProfs && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Existing */}
               {profsList.length > 0 && (
                 <div>
                   <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Profesionales activos</p>
                   {profsList.map(p => (
-                    <div key={p.id} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "10px 12px", background: "#f9fafb", borderRadius: 8, marginBottom: 6,
-                    }}>
-                      <span style={{ width: 12, height: 12, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{p.nombre}</div>
-                        {p.especialidad && <div style={{ fontSize: 12, color: "#9ca3af" }}>{p.especialidad}</div>}
+                    <div key={p.id}>
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 12px", background: "#f9fafb", borderRadius: 8, marginBottom: 4,
+                      }}>
+                        <span style={{ width: 12, height: 12, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{p.nombre}</div>
+                          {p.especialidad && <div style={{ fontSize: 12, color: "#9ca3af" }}>{p.especialidad}</div>}
+                        </div>
+                        <button
+                          onClick={() => editingProfId === p.id ? setEditingProfId(null) : openEditProf(p)}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 12, fontWeight: 500 }}
+                        >
+                          {editingProfId === p.id ? "Cerrar" : "Horario"}
+                        </button>
+                        <button onClick={() => removeProfesional(p.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18, lineHeight: 1 }}>×</button>
                       </div>
-                      <button onClick={() => removeProfesional(p.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18, lineHeight: 1 }}>×</button>
+
+                      {/* Disponibilidad inline */}
+                      {editingProfId === p.id && (
+                        <div style={{ background: "#f9fafb", borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}>
+                          <p style={{ margin: "0 0 10px", fontSize: 12.5, fontWeight: 600, color: "#374151" }}>Horario semanal</p>
+                          {loadingDisp ? (
+                            <div style={{ fontSize: 12, color: "#9ca3af" }}>Cargando...</div>
+                          ) : (
+                            disponibilidad.map((d, idx) => (
+                              <div key={d.dia_semana} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 32px", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                                <span style={{ fontSize: 12.5, color: d.activo ? "#111827" : "#9ca3af", fontWeight: 500 }}>{DIAS_SEMANA[d.dia_semana]}</span>
+                                <input
+                                  type="time" value={d.hora_inicio} disabled={!d.activo}
+                                  onChange={e => setDisponibilidad(ds => ds.map((x, i) => i === idx ? { ...x, hora_inicio: e.target.value } : x))}
+                                  style={{ ...inputSt, padding: "6px 8px", fontSize: 12, opacity: d.activo ? 1 : 0.4 }}
+                                />
+                                <input
+                                  type="time" value={d.hora_fin} disabled={!d.activo}
+                                  onChange={e => setDisponibilidad(ds => ds.map((x, i) => i === idx ? { ...x, hora_fin: e.target.value } : x))}
+                                  style={{ ...inputSt, padding: "6px 8px", fontSize: 12, opacity: d.activo ? 1 : 0.4 }}
+                                />
+                                <input
+                                  type="checkbox" checked={d.activo}
+                                  onChange={e => setDisponibilidad(ds => ds.map((x, i) => i === idx ? { ...x, activo: e.target.checked } : x))}
+                                  style={{ width: 16, height: 16, cursor: "pointer" }}
+                                />
+                              </div>
+                            ))
+                          )}
+                          <button onClick={() => saveEditProf(p.id)} disabled={saving} style={{ ...btnPrimary, marginTop: 8, fontSize: 13, padding: "8px 14px" }}>
+                            {saving ? "Guardando…" : "Guardar horario"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Add new */}
               <div>
                 <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Añadir profesional</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -447,7 +666,8 @@ export default function ModalCita({
                       <div style={{ display: "flex", gap: 4 }}>
                         {PROF_COLORS_LIST.map(c => (
                           <button key={c} onClick={() => setProfColor(c)} style={{
-                            width: 22, height: 22, borderRadius: "50%", background: c, border: profColor === c ? "2px solid #111827" : "2px solid transparent", cursor: "pointer",
+                            width: 22, height: 22, borderRadius: "50%", background: c,
+                            border: profColor === c ? "2px solid #111827" : "2px solid transparent", cursor: "pointer",
                           }} />
                         ))}
                       </div>
@@ -458,6 +678,51 @@ export default function ModalCita({
                   </Field>
                   <button onClick={addProfesional} disabled={saving} style={btnPrimary}>
                     {saving ? "Guardando…" : "+ Añadir profesional"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── SERVICIOS ── */}
+          {isServicios && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {serviciosList.length > 0 && (
+                <div>
+                  <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Servicios activos</p>
+                  {serviciosList.map(s => (
+                    <div key={s.id} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 12px", background: "#f9fafb", borderRadius: 8, marginBottom: 6,
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{s.nombre}</div>
+                        <div style={{ fontSize: 12, color: "#9ca3af" }}>{s.duracion_min} min{s.descripcion ? ` · ${s.descripcion}` : ""}</div>
+                      </div>
+                      <button onClick={() => removeServicio(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18, lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Añadir servicio</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Field label="Nombre *">
+                      <input value={svcNombre} onChange={e => setSvcNombre(e.target.value)} placeholder="Ej: Limpieza dental" style={inputSt} />
+                    </Field>
+                    <Field label="Duración (min)">
+                      <select value={svcDuracion} onChange={e => setSvcDuracion(Number(e.target.value))} style={{ ...inputSt, cursor: "pointer" }}>
+                        {DURACIONES.map(d => <option key={d} value={d}>{d} min</option>)}
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Descripción (opcional)">
+                    <input value={svcDescripcion} onChange={e => setSvcDescripcion(e.target.value)} placeholder="Descripción breve" style={inputSt} />
+                  </Field>
+                  <button onClick={addServicio} disabled={saving} style={btnPrimary}>
+                    {saving ? "Guardando…" : "+ Añadir servicio"}
                   </button>
                 </div>
               </div>

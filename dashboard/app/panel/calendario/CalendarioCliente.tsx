@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import ModalCita, { type Cita, type Profesional, type ModalMode } from "./ModalCita";
+import ModalCita, { type Cita, type Profesional, type Servicio, type ModalMode } from "./ModalCita";
 
 type BloqueAgenda = {
   id: string;
@@ -22,11 +22,12 @@ const DIAS_CORTO = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  confirmada: { bg: "#dcfce7", color: "#166534", border: "#86efac" },
-  pendiente:  { bg: "#fef9c3", color: "#854d0e", border: "#fde047" },
-  completada: { bg: "#e0e7ff", color: "#3730a3", border: "#a5b4fc" },
-  cancelada:  { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
-  no_asistio: { bg: "#f3f4f6", color: "#374151", border: "#d1d5db" },
+  confirmada:   { bg: "#dcfce7", color: "#166534", border: "#86efac" },
+  pendiente:    { bg: "#fef9c3", color: "#854d0e", border: "#fde047" },
+  reprogramada: { bg: "#dbeafe", color: "#1e40af", border: "#93c5fd" },
+  completada:   { bg: "#e0e7ff", color: "#3730a3", border: "#a5b4fc" },
+  cancelada:    { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
+  no_asistio:   { bg: "#f3f4f6", color: "#374151", border: "#d1d5db" },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -116,8 +117,11 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
   const [citas, setCitas] = useState<Cita[]>([]);
   const [bloques, setBloques] = useState<BloqueAgenda[]>([]);
   const [profesionales, setProfesionales] = useState<Profesional[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<ModalMode | null>(null);
+  const [filtroProfesional, setFiltroProfesional] = useState<string>("todos");
+  const [filtroEstado, setFiltroEstado] = useState<string>("todos");
 
   // ── Date range ────────────────────────────────────────────
   const getRango = useCallback((v: Vista, a: Date): { desde: Date; hasta: Date } => {
@@ -153,12 +157,17 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
     finally { setLoading(false); }
   }, [clinicId, getRango]);
 
-  useEffect(() => {
-    fetch(`/api/clinicas/${clinicId}/profesionales`)
-      .then(r => r.ok ? r.json() : [])
-      .then(setProfesionales)
-      .catch(() => {});
+  const refreshStaticData = useCallback(() => {
+    Promise.all([
+      fetch(`/api/clinicas/${clinicId}/profesionales`).then(r => r.ok ? r.json() : []),
+      fetch(`/api/clinicas/${clinicId}/servicios`).then(r => r.ok ? r.json() : []),
+    ]).then(([profs, svcs]) => {
+      setProfesionales(profs);
+      setServicios(svcs);
+    }).catch(() => {});
   }, [clinicId]);
+
+  useEffect(() => { refreshStaticData(); }, [refreshStaticData]);
 
   useEffect(() => { fetchData(vista, anchor); }, [vista, anchor, fetchData]);
 
@@ -187,7 +196,12 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
     return `${MESES[anchor.getMonth()]} ${anchor.getFullYear()}`;
   })();
 
-  const citasDelDia = (d: Date) => citas.filter(c => isSameDay(new Date(c.fecha_inicio), d));
+  const citasFiltradas = citas.filter(c => {
+    if (filtroProfesional !== "todos" && c.profesional !== filtroProfesional) return false;
+    if (filtroEstado !== "todos" && c.estado !== filtroEstado) return false;
+    return true;
+  });
+  const citasDelDia = (d: Date) => citasFiltradas.filter(c => isSameDay(new Date(c.fecha_inicio), d));
   const bloquesDelDia = (d: Date) => bloques.filter(b => isSameDay(new Date(b.fecha_inicio), d));
 
   const diasSemana = Array.from({ length: 7 }, (_, i) => addDays(getMonday(anchor), i));
@@ -222,13 +236,55 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {/* Professionals legend */}
+          {/* Filtro por profesional */}
+          {profesionales.length > 0 && (
+            <select
+              value={filtroProfesional}
+              onChange={e => setFiltroProfesional(e.target.value)}
+              style={{ fontSize: 12.5, border: "1px solid #e5e7eb", borderRadius: 7, padding: "5px 10px", color: "#374151", background: "white", cursor: "pointer" }}
+            >
+              <option value="todos">Todos los profesionales</option>
+              {profesionales.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+            </select>
+          )}
+
+          {/* Filtro por estado */}
+          <select
+            value={filtroEstado}
+            onChange={e => setFiltroEstado(e.target.value)}
+            style={{ fontSize: 12.5, border: "1px solid #e5e7eb", borderRadius: 7, padding: "5px 10px", color: "#374151", background: "white", cursor: "pointer" }}
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="reprogramada">Reprogramada</option>
+            <option value="completada">Completada</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="no_asistio">No asistió</option>
+          </select>
+
+          {/* Legend pills */}
           {profesionales.map(p => (
-            <span key={p.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#374151", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 20, padding: "3px 10px 3px 7px" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color, display: "inline-block" }} />
+            <span
+              key={p.id}
+              onClick={() => setFiltroProfesional(prev => prev === p.nombre ? "todos" : p.nombre)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12,
+                color: filtroProfesional === p.nombre ? "white" : "#374151",
+                background: filtroProfesional === p.nombre ? p.color : "#f9fafb",
+                border: `1px solid ${p.color}`,
+                borderRadius: 20, padding: "3px 10px 3px 7px", cursor: "pointer",
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: filtroProfesional === p.nombre ? "white" : p.color, display: "inline-block" }} />
               {p.nombre}
             </span>
           ))}
+
+          <button onClick={() => setModal({ type: "servicios" })} style={toolBtn} title="Gestionar servicios">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10M2 7h6M2 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            Servicios
+          </button>
 
           <button onClick={() => setModal({ type: "profesionales" })} style={toolBtn} title="Gestionar profesionales">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M10 7v4M8 9h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
@@ -322,10 +378,11 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
           mode={modal}
           clinicId={clinicId}
           profesionales={profesionales}
+          servicios={servicios}
           onClose={() => setModal(null)}
           onSaved={() => {
             fetchData(vista, anchor);
-            fetch(`/api/clinicas/${clinicId}/profesionales`).then(r => r.ok ? r.json() : []).then(setProfesionales);
+            refreshStaticData();
           }}
         />
       )}
