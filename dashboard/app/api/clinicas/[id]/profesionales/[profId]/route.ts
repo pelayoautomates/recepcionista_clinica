@@ -2,20 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminFetch } from "@/lib/api";
 import { enforceClinicScope, requireAccess } from "@/lib/auth-utils";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type Ctx = { params: Promise<{ id: string; profId: string }> };
+
+export async function PATCH(req: NextRequest, { params }: Ctx) {
   const access = await requireAccess();
   if (access instanceof NextResponse) return access;
 
-  const { id } = await params;
+  const { id, profId } = await params;
   const scopeError = enforceClinicScope(access, id);
   if (scopeError) return scopeError;
 
   const body = await req.json();
-  const res = await adminFetch(`/admin/clinicas/${id}/citas`, {
-    method: "POST",
+  const res = await adminFetch(`/admin/clinicas/${id}/profesionales/${profId}`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -26,26 +25,15 @@ export async function POST(
   });
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
   const access = await requireAccess();
   if (access instanceof NextResponse) return access;
 
-  const { id } = await params;
+  const { id, profId } = await params;
   const scopeError = enforceClinicScope(access, id);
   if (scopeError) return scopeError;
 
-  const incoming = new URL(req.url).searchParams;
-  const query = new URLSearchParams();
-  ["fecha", "fecha_inicio", "fecha_fin"].forEach((key) => {
-    const value = incoming.get(key);
-    if (value) query.set(key, value);
-  });
-
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-  const res = await adminFetch(`/admin/clinicas/${id}/citas${suffix}`, { noStore: true });
+  const res = await adminFetch(`/admin/clinicas/${id}/profesionales/${profId}`, { method: "DELETE" });
   const text = await res.text();
   return new NextResponse(text, {
     status: res.status,
