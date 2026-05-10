@@ -28,9 +28,9 @@ export default function MarketingShell({
         <div className={styles.container}>
           <div className={styles.navInner}>
             <Link href="/landing" className={styles.brandLink} prefetch={false}>
-              <span className={styles.brandMark} aria-hidden="true">A360</span>
+              <span className={styles.brandMark} aria-hidden="true">AT360</span>
               <span>
-                <strong className={styles.brandName}>Agente360</strong>
+                <strong className={styles.brandName}>Atiende360</strong>
                 <small className={styles.brandSubtext}>Recepcionista IA para clinicas</small>
               </span>
             </Link>
@@ -66,9 +66,9 @@ export default function MarketingShell({
       <footer className={styles.footerWrap}>
         <div className={styles.container}>
           <div className={styles.footerInner}>
-            <span className={styles.footerBrand}>Agente360</span>
+            <span className={styles.footerBrand}>Atiende360</span>
             <p className={styles.footerText}>
-              2026 Agente360. Recepcionista IA para clinicas enfocada en conversion medible.
+              2026 Atiende360. Recepcionista IA para clinicas enfocada en conversion medible.
             </p>
           </div>
         </div>

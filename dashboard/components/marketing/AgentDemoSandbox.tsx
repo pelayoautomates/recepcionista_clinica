@@ -231,7 +231,7 @@ export default function AgentDemoSandbox() {
                   </div>
                 ))}
 
-                {loading && <div className={styles.demoPhoneTyping}>Agente360 escribiendo...</div>}
+                {loading && <div className={styles.demoPhoneTyping}>Atiende360 escribiendo...</div>}
                 <div ref={bottomRef} />
               </div>
 

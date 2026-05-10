@@ -26,7 +26,7 @@ export default function MarketingLanding() {
                   Convierte llamadas y mensajes en citas cerradas, incluso fuera de horario.
                 </h1>
                 <p className={styles.heroConversionLead}>
-                  Agente360 responde al instante por telefono, WhatsApp y webchat, agenda en Google Calendar y
+                  Atiende360 responde al instante por telefono, WhatsApp y webchat, agenda en Google Calendar y
                   escala a humano cuando hace falta. Menos fuga de leads, mas agenda llena.
                 </p>
 
@@ -150,7 +150,7 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Comparativa real</p>
-              <h2 className={styles.sectionTitle}>Recepcionista humana vs Agente360</h2>
+              <h2 className={styles.sectionTitle}>Recepcionista humana vs Atiende360</h2>
             </div>
 
             <div className={styles.tableWrap}>
@@ -159,7 +159,7 @@ export default function MarketingLanding() {
                   <tr>
                     <th>Caracteristica</th>
                     <th>Recepcionista humana</th>
-                    <th>Agente360</th>
+                    <th>Atiende360</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -229,7 +229,7 @@ export default function MarketingLanding() {
                   <article className={styles.realPanelInfoCard}>
                     <h4>Conversaciones recientes</h4>
                     <p>Paciente: Quiero cita para limpieza esta semana.</p>
-                    <p>Agente360: Tengo hueco jueves 11:30, te encaja?</p>
+                    <p>Atiende360: Tengo hueco jueves 11:30, te encaja?</p>
                   </article>
                   <article className={styles.realPanelInfoCard}>
                     <h4>Agenda de hoy</h4>
@@ -252,7 +252,7 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Prueba interactiva</p>
-              <h2 className={styles.sectionTitle}>Prueba como responderia Agente360 con tu negocio</h2>
+              <h2 className={styles.sectionTitle}>Prueba como responderia Atiende360 con tu negocio</h2>
             </div>
             <AgentDemoSandbox />
           </div>
@@ -322,7 +322,7 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.finalCtaCard}>
               <p className={styles.finalKicker}>Oferta de lanzamiento</p>
-              <h2>Activa Agente360 y convierte mas contactos en citas en menos de una semana.</h2>
+              <h2>Activa Atiende360 y convierte mas contactos en citas en menos de una semana.</h2>
               <p>
                 Implantacion guiada, prueba con datos reales y riesgo minimo para tu operacion.
               </p>

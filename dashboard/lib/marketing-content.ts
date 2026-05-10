@@ -53,7 +53,7 @@ export const PROCESS_STEPS = [
     text: "Compartes web, servicios, horarios y reglas basicas de agenda en una configuracion guiada.",
   },
   {
-    title: "Agente360 aprende tu operativa",
+    title: "Atiende360 aprende tu operativa",
     text: "Preparamos respuestas, flujos de cita y criterios para derivar casos sensibles a tu equipo.",
   },
   {
@@ -81,7 +81,7 @@ export const FEATURE_BENEFITS = [
   },
   {
     title: "Google Calendar o calendario interno",
-    text: "Si no conectas Google Calendar, Agente360 sigue funcionando con su agenda integrada.",
+    text: "Si no conectas Google Calendar, Atiende360 sigue funcionando con su agenda integrada.",
   },
   {
     title: "Clasifica leads y prioriza equipo",
@@ -109,7 +109,7 @@ export const WHO_IS_FOR = [
 export const TRUST_BLOCKS = [
   {
     title: "Tu equipo mantiene el control",
-    text: "Agente360 no sustituye criterio clinico. Deriva a humano cuando detecta riesgo o duda sensible.",
+    text: "Atiende360 no sustituye criterio clinico. Deriva a humano cuando detecta riesgo o duda sensible.",
   },
   {
     title: "Historial y trazabilidad completa",
@@ -128,7 +128,7 @@ export const TRUST_BLOCKS = [
 export const LANDING_FAQS = [
   {
     q: "La IA puede agendar citas directamente?",
-    a: "Si. Agente360 puede crear, mover y cancelar citas segun tus reglas operativas y disponibilidad.",
+    a: "Si. Atiende360 puede crear, mover y cancelar citas segun tus reglas operativas y disponibilidad.",
   },
   {
     q: "Se conecta con Google Calendar?",
@@ -136,7 +136,7 @@ export const LANDING_FAQS = [
   },
   {
     q: "Que pasa si no uso Google Calendar?",
-    a: "No pasa nada. Puedes operar con el calendario interno de Agente360.",
+    a: "No pasa nada. Puedes operar con el calendario interno de Atiende360.",
   },
   {
     q: "Puede atender llamadas y WhatsApp?",
@@ -266,7 +266,7 @@ export const ADDONS: AddOn[] = [
   {
     name: "Numero dedicado",
     price: "15 EUR/mes",
-    description: "Numero exclusivo para que Agente360 atienda llamadas de tu clinica.",
+    description: "Numero exclusivo para que Atiende360 atienda llamadas de tu clinica.",
   },
   {
     name: "Sede adicional",

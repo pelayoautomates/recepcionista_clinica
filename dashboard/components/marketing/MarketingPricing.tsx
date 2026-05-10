@@ -10,14 +10,14 @@ export default function MarketingPricing() {
         <section className={styles.pricingHero}>
           <div className={styles.container}>
             <div className={styles.pricingHeroInner}>
-              <p className={styles.sectionKicker}>Pricing de Agente360</p>
+              <p className={styles.sectionKicker}>Pricing de Atiende360</p>
               <h1>Elige el plan que mejor encaja con la recepcion de tu clinica</h1>
               <p>
                 Mantienes control total de costes, limites y canales. Sin letra pequena y sin permanencia.
               </p>
               <div className={styles.heroCtaRow}>
                 <Link href="/login" className={styles.btnPrimary} prefetch={false}>
-                  Probar Agente360
+                  Probar Atiende360
                 </Link>
                 <Link href="/landing#calculadora" className={styles.btnSecondary} prefetch={false}>
                   Calcular impacto
