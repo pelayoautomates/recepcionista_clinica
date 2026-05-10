@@ -36,14 +36,14 @@ export default function RevenueLossCalculator() {
   const yearlyLostRevenue = result.estimatedLostRevenue * 12;
 
   return (
-    <section className={styles.calcSplit} aria-label="Calculadora de ingresos potencialmente perdidos">
+    <div className={styles.calcSplit} aria-label="Calculadora de ingresos potencialmente perdidos">
       <div className={styles.calcPitch}>
-        <p className={styles.calcLabel}>Herramienta gratuita · sin email</p>
-        <h3 className={styles.calcPitchTitle}>
+        <p className={styles.calcLabel}>Herramienta gratuita - sin email</p>
+        <h2 className={styles.calcPitchTitle}>
           Antes de pagar nada, calcula cuanto estas perdiendo en llamadas que nadie contesta.
-        </h3>
+        </h2>
         <p className={styles.calcPitchBody}>
-          Modifica 3 datos y veras al instante el impacto en tu facturacion mensual y anual.
+          Modifica 3 datos y veras una estimacion orientativa del impacto mensual y anual.
         </p>
       </div>
 
@@ -67,6 +67,7 @@ export default function RevenueLossCalculator() {
               type="range"
               min={0}
               max={40}
+              aria-label="Llamadas perdidas por semana"
               value={missedCallsWeek}
               onChange={(e) => setMissedCallsWeek(clamp(Number(e.target.value), 0, 40))}
             />
@@ -80,6 +81,7 @@ export default function RevenueLossCalculator() {
               min={40}
               max={2000}
               step={10}
+              aria-label="Valor medio del tratamiento"
               value={averageTicket}
               onChange={(e) => setAverageTicket(clamp(Number(e.target.value), 40, 2000))}
             />
@@ -93,12 +95,13 @@ export default function RevenueLossCalculator() {
               min={5}
               max={90}
               step={1}
+              aria-label="Porcentaje de llamadas que acaban en cita"
               value={appointmentRate}
               onChange={(e) => setAppointmentRate(clamp(Number(e.target.value), 5, 90))}
             />
           </label>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

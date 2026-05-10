@@ -27,7 +27,7 @@ export default function MarketingShell({
       <header className={styles.navWrap}>
         <div className={styles.container}>
           <div className={styles.navInner}>
-            <Link href="/landing" className={styles.brandLink} prefetch={false}>
+            <Link href="/" className={styles.brandLink} prefetch={false} aria-label="Atiende360 inicio">
               <span className={styles.brandMark} aria-hidden="true">AT360</span>
               <span>
                 <strong className={styles.brandName}>Atiende360</strong>
@@ -38,7 +38,7 @@ export default function MarketingShell({
             <nav className={styles.navList}>
               {NAV_ITEMS.map((item) => {
                 const isPricing = item.href === "/pricing";
-                const isActive = (active === "pricing" && isPricing) || (active === "landing" && !isPricing);
+                const isActive = active === "pricing" && isPricing;
 
                 return (
                   <Link
@@ -54,8 +54,8 @@ export default function MarketingShell({
             </nav>
 
             <div className={styles.navActions}>
-              <Link href="/login" className={styles.btnGhost} prefetch={false}>Ver flujo real</Link>
-              <Link href="/login" className={styles.btnPrimary} prefetch={false}>Activar prueba guiada</Link>
+              <Link href="/#demo" className={styles.btnGhost} prefetch={false}>Probar demo</Link>
+              <Link href="/login" className={styles.btnPrimary} prefetch={false}>Pedir demo guiada</Link>
             </div>
           </div>
         </div>

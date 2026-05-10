@@ -2,18 +2,25 @@ import type { Metadata } from "next";
 import MarketingPricing from "@/components/marketing/MarketingPricing";
 
 export const metadata: Metadata = {
-  title: "Precios Atiende360 | Planes para clinicas",
+  title: "Precios de recepcionista IA para clinicas",
   description:
-    "Consulta planes, limites, add-ons y comparativa de Atiende360 para elegir la mejor recepcionista IA para tu clinica.",
+    "Consulta planes, limites, add-ons y comparativa de Atiende360 para elegir un software de recepcionista IA para tu clinica privada.",
   alternates: {
     canonical: "/pricing",
   },
   openGraph: {
-    title: "Precios Atiende360 | Planes para clinicas",
+    title: "Precios Atiende360 | Planes de recepcionista IA para clinicas",
     description:
-      "Pricing claro de Atiende360: Starter, Pro y Growth, con add-ons y FAQ de precios.",
+      "Planes Starter, Pro y Growth con minutos, usuarios, sedes, add-ons y FAQ de precios.",
     type: "website",
     url: "/pricing",
+    siteName: "Atiende360",
+    locale: "es_ES",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Precios Atiende360",
+    description: "Planes y add-ons de recepcionista IA para clinicas privadas.",
   },
 };
 

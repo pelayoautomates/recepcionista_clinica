@@ -6,11 +6,16 @@ import AgentDemoSandbox from "./AgentDemoSandbox";
 import styles from "./MarketingStyles.module.css";
 import { GoogleCalendarLogo, WhatsAppLogo } from "@/components/BrandLogos";
 import {
+  ANSWER_BLOCKS,
+  DIFFERENTIATORS,
   FEATURE_BENEFITS,
   HERO_TRUST_POINTS,
   HUMAN_VS_AI_ROWS,
   LANDING_FAQS,
+  LIMITATIONS,
   PROCESS_STEPS,
+  USE_CASES,
+  WHO_IS_FOR,
 } from "@/lib/marketing-content";
 
 export default function MarketingLanding() {
@@ -21,26 +26,27 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.heroConversionGrid}>
               <div className={styles.heroConversionCopy}>
-                <p className={styles.heroKicker}>RECEPCIONISTA IA PARA CLINICAS PRIVADAS</p>
+                <p className={styles.heroKicker}>SOFTWARE DE RECEPCIONISTA IA PARA CLINICAS PRIVADAS</p>
                 <h1 className={styles.heroConversionTitle}>
-                  Convierte llamadas y mensajes en citas cerradas, incluso fuera de horario.
+                  Recepcionista IA para clinicas que convierte llamadas y mensajes en citas.
                 </h1>
                 <p className={styles.heroConversionLead}>
-                  Atiende360 responde al instante por telefono, WhatsApp y webchat, agenda en Google Calendar y
-                  escala a humano cuando hace falta. Menos fuga de leads, mas agenda llena.
+                  Atiende360 atiende por telefono, WhatsApp y webchat, registra leads, agenda en Google Calendar
+                  o calendario interno y deriva a humano las consultas sensibles. Menos contactos perdidos,
+                  mas citas trazables y menos carga repetitiva para recepcion.
                 </p>
 
                 <div className={styles.heroConversionCta}>
                   <Link href="/login" prefetch={false} className={styles.btnPrimary}>
-                    Activar prueba guiada
+                    Pedir demo guiada
                   </Link>
-                  <a href="#panel-real" className={styles.btnSecondary}>
-                    Ver panel real
+                  <a href="#como-funciona" className={styles.btnSecondary}>
+                    Ver como funciona
                   </a>
                 </div>
 
                 <p className={styles.offerLine}>
-                  Setup asistido + 5 dias de prueba. Cancelacion simple y sin permanencia.
+                  Para dentistas, estetica, fisioterapia y centros sanitarios privados que no pueden permitirse perder leads.
                 </p>
 
                 <div className={styles.heroTrustGridCenter}>
@@ -54,17 +60,17 @@ export default function MarketingLanding() {
                 <div className={styles.heroOrbitalGlow} aria-hidden="true" />
                 <div className={styles.hero3dStack}>
                   <article className={styles.stackCardMain}>
-                    <small>Conversion de hoy</small>
-                    <strong>+9 citas cerradas</strong>
-                    <p>Respuesta media: 41 segundos</p>
+                    <small>Flujo de recepcion</small>
+                    <strong>Contacto, lead, cita y escalado</strong>
+                    <p>Todo queda registrado para que el equipo sepa que paso y que toca hacer.</p>
                   </article>
                   <article className={styles.stackCardFloatA}>
-                    <span>Leads sin fuga</span>
-                    <b>87%</b>
+                    <span>Canal entrante</span>
+                    <b>Llamada o chat</b>
                   </article>
                   <article className={styles.stackCardFloatB}>
                     <span>Escalado humano</span>
-                    <b>Solo casos sensibles</b>
+                    <b>Casos sensibles</b>
                   </article>
                 </div>
               </div>
@@ -96,20 +102,42 @@ export default function MarketingLanding() {
             <div className={styles.proofGrid}>
               <article>
                 <strong>24/7</strong>
-                <p>Atencion continua en los tres canales</p>
+                <p>Atencion continua en canales activos</p>
               </article>
               <article>
-                <strong>&lt; 1 min</strong>
-                <p>Tiempo medio de primera respuesta</p>
+                <strong>3 canales</strong>
+                <p>Telefono, WhatsApp y webchat</p>
               </article>
               <article>
                 <strong>1 panel</strong>
                 <p>Conversaciones, leads, citas y calendario</p>
               </article>
               <article>
-                <strong>0 friccion</strong>
-                <p>Onboarding guiado para empezar rapido</p>
+                <strong>Humano</strong>
+                <p>Derivacion cuando hay dudas sensibles</p>
               </article>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} id="que-es">
+          <div className={styles.container}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>Respuesta rapida</p>
+              <h2 className={styles.sectionTitle}>Que es Atiende360 y cuando encaja</h2>
+              <p className={styles.sectionSubtitle}>
+                Un resumen directo para compradores, Google y motores de respuesta con IA: producto, publico,
+                problema, funcionamiento y limites operativos.
+              </p>
+            </div>
+
+            <div className={styles.answerGrid}>
+              {ANSWER_BLOCKS.map((item) => (
+                <article key={item.q} className={styles.answerCard}>
+                  <h3>{item.q}</h3>
+                  <p>{item.a}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
@@ -119,22 +147,30 @@ export default function MarketingLanding() {
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Problema real</p>
               <h2 className={styles.sectionTitle}>
-                Si no contestas rapido, el paciente reserva en otra clinica.
+                Si una clinica no responde rapido, el paciente compara y reserva en otro sitio.
               </h2>
+              <p className={styles.sectionSubtitle}>
+                La perdida no siempre se ve en caja: empieza en llamadas sin contestar, mensajes pendientes,
+                seguimientos tardios y agendas que no estan conectadas con la conversacion.
+              </p>
             </div>
 
             <div className={styles.painGridCompact}>
               <article className={styles.painCard}>
                 <h3>Llamadas no atendidas</h3>
-                <p>Las horas de saturacion y fuera de horario rompen conversion.</p>
+                <p>Las horas de saturacion y fuera de horario rompen conversion justo cuando el paciente tiene intencion.</p>
               </article>
               <article className={styles.painCard}>
                 <h3>Seguimiento tarde</h3>
-                <p>El lead se enfria en minutos y se va con la competencia.</p>
+                <p>El lead se enfria en minutos si nadie responde, confirma datos o propone una cita concreta.</p>
               </article>
               <article className={styles.painCard}>
                 <h3>Agenda descoordinada</h3>
-                <p>Sin sistema unificado, se pierde tiempo y facturacion.</p>
+                <p>Sin sistema unificado, llamadas, chats, calendario y notas quedan repartidos entre herramientas.</p>
+              </article>
+              <article className={styles.painCard}>
+                <h3>Recepcion saturada</h3>
+                <p>El equipo dedica demasiado tiempo a preguntas repetidas en lugar de priorizar pacientes de valor.</p>
               </article>
             </div>
           </div>
@@ -146,11 +182,99 @@ export default function MarketingLanding() {
           </div>
         </section>
 
+        <section className={styles.section} id="solucion">
+          <div className={styles.container}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>Solucion</p>
+              <h2 className={styles.sectionTitle}>Un sistema de recepcion digital, no solo un chatbot</h2>
+              <p className={styles.sectionSubtitle}>
+                Atiende360 combina agente de voz, chat, WhatsApp, calendario y panel de gestion para que cada
+                contacto tenga contexto, estado y siguiente accion.
+              </p>
+            </div>
+
+            <div className={styles.solutionGrid}>
+              <article className={styles.solutionCard}>
+                <h3>Antes</h3>
+                <p>Llamadas perdidas, mensajes sin dueño, citas apuntadas a mano y leads sin seguimiento claro.</p>
+              </article>
+              <article className={styles.solutionCard}>
+                <h3>Despues</h3>
+                <p>Respuesta inmediata, datos capturados, cita propuesta o agendada y trazabilidad para recepcion.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.sectionSoft}`} id="funcionalidades">
+          <div className={styles.container}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>Funcionalidades</p>
+              <h2 className={styles.sectionTitle}>Que incluye Atiende360</h2>
+              <p className={styles.sectionSubtitle}>
+                Las funciones se centran en recepcion, conversion y agenda. El contenido es textual para que
+                tambien pueda ser rastreado, resumido y citado por buscadores y sistemas de IA.
+              </p>
+            </div>
+
+            <div className={styles.featureGrid}>
+              {FEATURE_BENEFITS.slice(0, 6).map((item) => (
+                <article key={item.title} className={styles.featureCard}>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} id="para-quien">
+          <div className={styles.container}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>Publico objetivo</p>
+              <h2 className={styles.sectionTitle}>Para que clinicas esta pensado</h2>
+              <p className={styles.sectionSubtitle}>
+                Atiende360 encaja mejor en centros privados donde una respuesta tardia suele convertirse en una cita perdida.
+              </p>
+            </div>
+
+            <div className={styles.whoGrid}>
+              {WHO_IS_FOR.map((item) => (
+                <article key={item} className={styles.whoCard}>
+                  <p>{item}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={`${styles.section} ${styles.sectionSoft}`} id="casos-de-uso">
+          <div className={styles.container}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>Casos de uso</p>
+              <h2 className={styles.sectionTitle}>Donde aporta mas valor</h2>
+            </div>
+
+            <div className={styles.featureGrid}>
+              {USE_CASES.map((item) => (
+                <article key={item.title} className={styles.featureCard}>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className={styles.section} id="resultados">
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
-              <p className={styles.sectionKicker}>Comparativa real</p>
-              <h2 className={styles.sectionTitle}>Recepcionista humana vs Atiende360</h2>
+              <p className={styles.sectionKicker}>Comparativa operativa</p>
+              <h2 className={styles.sectionTitle}>Recepcion manual vs Atiende360</h2>
+              <p className={styles.sectionSubtitle}>
+                La IA no reemplaza el criterio humano. Automatiza la primera respuesta, el registro y las tareas
+                repetitivas para que el equipo atienda mejor lo importante.
+              </p>
             </div>
 
             <div className={styles.tableWrap}>
@@ -179,8 +303,12 @@ export default function MarketingLanding() {
         <section className={`${styles.section} ${styles.sectionSoft}`} id="panel-real">
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
-              <p className={styles.sectionKicker}>Panel real de clinica</p>
-              <h2 className={styles.sectionTitle}>Esta vista replica tu estructura real de operacion diaria</h2>
+              <p className={styles.sectionKicker}>Panel operativo</p>
+              <h2 className={styles.sectionTitle}>Una vista de trabajo para conversaciones, leads y citas</h2>
+              <p className={styles.sectionSubtitle}>
+                El panel ayuda a recepcion y direccion a ver que contactos entraron, que citas se agendaron
+                y que conversaciones necesitan revision humana.
+              </p>
             </div>
 
             <div className={styles.realPanelStage}>
@@ -263,6 +391,10 @@ export default function MarketingLanding() {
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Como funciona</p>
               <h2 className={styles.sectionTitle}>Implementacion guiada en 3 pasos</h2>
+              <p className={styles.sectionSubtitle}>
+                El cliente no necesita entrenar un modelo desde cero. Necesita aportar informacion operativa
+                de la clinica y validar las reglas antes de activar canales.
+              </p>
             </div>
 
             <div className={styles.stepsGrid}>
@@ -270,22 +402,36 @@ export default function MarketingLanding() {
                 <article key={step.title} className={styles.stepCard}>
                   <span>{index + 1}</span>
                   <h3>{step.title}</h3>
-                  <p>{step.text.replace("clinica", "negocio")}</p>
+                  <p>{step.text}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className={styles.section}>
+        <section className={styles.section} id="diferenciacion">
           <div className={styles.container}>
-            <div className={styles.featureStrip}>
-              {FEATURE_BENEFITS.slice(0, 3).map((item) => (
-                <article key={item.title}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>Diferenciacion y limites</p>
+              <h2 className={styles.sectionTitle}>Especifico para recepcion clinica, con limites claros</h2>
+            </div>
+
+            <div className={styles.featureGrid}>
+              {DIFFERENTIATORS.map((item) => (
+                <article key={item.title} className={styles.featureCard}>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
                 </article>
               ))}
+            </div>
+
+            <div className={styles.limitBox} aria-label="Limitaciones de Atiende360">
+              <h3>Que no hace Atiende360</h3>
+              <ul>
+                {LIMITATIONS.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
@@ -304,11 +450,14 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>FAQ</p>
-              <h2 className={styles.sectionTitle}>Preguntas clave antes de probar</h2>
+              <h2 className={styles.sectionTitle}>Preguntas frecuentes antes de pedir demo</h2>
+              <p className={styles.sectionSubtitle}>
+                Respuestas concretas sobre alcance, integraciones, seguridad operativa, configuracion y diferencias frente a una solucion generica.
+              </p>
             </div>
 
             <div className={styles.faqGrid}>
-              {LANDING_FAQS.slice(0, 4).map((faq) => (
+              {LANDING_FAQS.slice(0, 10).map((faq) => (
                 <details key={faq.q}>
                   <summary>{faq.q}</summary>
                   <p>{faq.a}</p>
@@ -321,14 +470,15 @@ export default function MarketingLanding() {
         <section className={styles.sectionDark}>
           <div className={styles.container}>
             <div className={styles.finalCtaCard}>
-              <p className={styles.finalKicker}>Oferta de lanzamiento</p>
-              <h2>Activa Atiende360 y convierte mas contactos en citas en menos de una semana.</h2>
+              <p className={styles.finalKicker}>Siguiente paso</p>
+              <h2>Comprueba si Atiende360 encaja con la recepcion de tu clinica.</h2>
               <p>
-                Implantacion guiada, prueba con datos reales y riesgo minimo para tu operacion.
+                Revisamos tus canales, agenda y volumen de contactos para configurar una demo con reglas reales,
+                sin prometer automatizaciones que tu operativa no necesite.
               </p>
               <div className={styles.finalActionRow}>
                 <Link href="/login" prefetch={false} className={styles.btnPrimary}>
-                  Quiero activar mi prueba
+                  Pedir demo guiada
                 </Link>
                 <Link href="/pricing" prefetch={false} className={styles.btnGhostLight}>
                   Ver precios

@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Rutas completamente públicas (sin sesión)
-const PUBLIC_PATHS = ["/", "/login", "/landing", "/pricing"];
+const PUBLIC_PATHS = ["/", "/login", "/landing", "/pricing", "/robots.txt", "/sitemap.xml"];
 const PUBLIC_PREFIXES = ["/auth", "/api"];
 
 export async function middleware(request: NextRequest) {

@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Activa tu plan | Atiende360",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function SuscripcionPage() {

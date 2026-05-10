@@ -550,6 +550,77 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.answerGrid,
+.solutionGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.answerCard,
+.solutionCard,
+.limitBox {
+  background: #ffffff;
+  border: 1px solid var(--mk-line);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: var(--mk-shadow-soft);
+}
+
+.answerCard h3,
+.solutionCard h3,
+.limitBox h3 {
+  margin: 0;
+  font-family: var(--marketing-font-heading), sans-serif;
+  color: #123a8d;
+  font-size: 22px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.answerCard p,
+.solutionCard p {
+  margin: 9px 0 0;
+  color: #3d4d70;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.solutionCard:first-child {
+  border-color: #efb7ac;
+  background: #fff8f6;
+}
+
+.solutionCard:first-child h3 {
+  color: #a33222;
+}
+
+.solutionCard:last-child {
+  border-color: #a9d8c7;
+  background: #f2fbf7;
+}
+
+.solutionCard:last-child h3 {
+  color: #0b7356;
+}
+
+.limitBox {
+  margin-top: 12px;
+  background: #f8fbff;
+}
+
+.limitBox ul {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: #3d4d70;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.limitBox li + li {
+  margin-top: 7px;
+}
+
 .calcCard {
   background: #fff;
   border: 1px solid #cad9f6;
@@ -2474,6 +2545,8 @@
   .heroConversionGrid,
   .calcSplit,
   .demoSplit,
+  .answerGrid,
+  .solutionGrid,
   .painGrid,
   .featureGrid,
   .whoGrid,

@@ -19,7 +19,7 @@ export default function MarketingPricing() {
                 <Link href="/login" className={styles.btnPrimary} prefetch={false}>
                   Probar Atiende360
                 </Link>
-                <Link href="/landing#calculadora" className={styles.btnSecondary} prefetch={false}>
+                <Link href="/#calculadora" className={styles.btnSecondary} prefetch={false}>
                   Calcular impacto
                 </Link>
               </div>
@@ -45,7 +45,7 @@ export default function MarketingPricing() {
                 <Link href="/login" prefetch={false} className={styles.btnPrimary}>
                   Solicitar demo consultiva
                 </Link>
-                <Link href="/landing" prefetch={false} className={styles.btnGhost}>
+                <Link href="/" prefetch={false} className={styles.btnGhost}>
                   Volver a landing
                 </Link>
               </div>

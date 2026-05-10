@@ -181,10 +181,12 @@ export default function AgentDemoSandbox() {
         <label className={styles.demoUrlLabel}>
           URL de tu clinica
           <input
-            type="text"
+            type="url"
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
             placeholder="ejemplo: clinicabellaestetica.com"
+            inputMode="url"
+            autoComplete="url"
           />
         </label>
 
@@ -192,6 +194,7 @@ export default function AgentDemoSandbox() {
           <button
             type="button"
             className={mode === "chat" ? styles.demoModeActive : ""}
+            aria-pressed={mode === "chat"}
             onClick={() => setMode("chat")}
           >
             Probar por chat
@@ -199,6 +202,7 @@ export default function AgentDemoSandbox() {
           <button
             type="button"
             className={mode === "voice" ? styles.demoModeActive : ""}
+            aria-pressed={mode === "voice"}
             onClick={() => setMode("voice")}
           >
             Probar por voz
@@ -237,6 +241,7 @@ export default function AgentDemoSandbox() {
 
               <div className={styles.demoPhoneInputRow}>
                 <textarea
+                  aria-label="Mensaje de prueba como paciente"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={onEnter}
@@ -269,6 +274,7 @@ export default function AgentDemoSandbox() {
                 className={styles.btnPrimarySolid}
                 onClick={startVoiceDemo}
                 disabled={!voiceSupported || !hasValidUrl || loading}
+                aria-label={voiceLive ? "Detener llamada de demo" : "Iniciar llamada de demo"}
               >
                 {voiceLive ? "Detener llamada" : "Iniciar llamada"}
               </button>
