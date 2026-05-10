@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import GoogleCalendarButton from "@/components/GoogleCalendarButton";
 import { adminFetch } from "@/lib/api";
 
 const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -131,32 +130,6 @@ export default async function PanelPage() {
         </p>
       </div>
 
-      {/* Google Calendar banner */}
-      {!tieneCalendario && (
-        <div style={{
-          background: "white",
-          border: "1px solid #fde68a",
-          borderLeft: "3px solid #f59e0b",
-          borderRadius: 10,
-          padding: "12px 18px",
-          marginBottom: 24,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          boxShadow: "0 1px 3px rgba(15,23,42,0.05)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "#713f12" }}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }}>
-              <rect x="1.5" y="3" width="15" height="13.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M1.5 7H16.5M5.5 1.5V4.5M12.5 1.5V4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-              <rect x="4.5" y="10" width="3" height="3" rx="0.5" fill="currentColor" fillOpacity="0.4" />
-            </svg>
-            <span>Google Calendar no conectado — el agente no puede gestionar citas automáticamente.</span>
-          </div>
-          <GoogleCalendarButton url={googleAuthUrl} compact />
-        </div>
-      )}
 
       {/* Metric cards */}
       <div style={{
@@ -417,7 +390,7 @@ function MetricCard({ label, value, icon, iconBg, iconColor, trend, trendUp, ale
       padding: "20px 22px",
       boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
     }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 14 }}>
         <div style={{
           width: 40, height: 40, borderRadius: 10,
           background: iconBg, color: iconColor,
@@ -425,13 +398,6 @@ function MetricCard({ label, value, icon, iconBg, iconColor, trend, trendUp, ale
         }}>
           {icon}
         </div>
-        {/* Sparkline decoration */}
-        <svg width="64" height="28" viewBox="0 0 64 28" fill="none" opacity="0.7">
-          {trendUp
-            ? <path d="M0 22 C8 20 16 17 24 14 C32 11 40 8 48 5 C54 3 60 2 64 1" stroke={iconColor} strokeWidth="2" strokeLinecap="round" fill="none" />
-            : <path d="M0 8 C8 10 16 13 24 16 C32 19 40 21 48 23 C54 25 60 26 64 27" stroke={iconColor} strokeWidth="2" strokeLinecap="round" fill="none" />
-          }
-        </svg>
       </div>
       <div style={{
         fontSize: 32, fontWeight: 800,

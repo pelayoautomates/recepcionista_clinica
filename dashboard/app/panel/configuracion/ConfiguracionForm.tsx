@@ -6,6 +6,7 @@ type Clinica = {
   id: string;
   nombre: string;
   telefono?: string;
+  url_web?: string;
   servicios?: any;
   horarios?: any;
   prompt_personalizado?: string;
@@ -107,12 +108,12 @@ export default function ConfiguracionForm({
   clinicId: string;
 }) {
   const initialDoc = getInitialDoc(clinica);
-  const [vista, setVista] = useState<Vista>(initialDoc ? "info" : "generar");
+  const hasData = !!(initialDoc || clinica.prompt_personalizado);
+  const [vista, setVista] = useState<Vista>(hasData ? "info" : "generar");
   const [doc, setDoc] = useState(initialDoc);
-  const [prompt, setPrompt] = useState(clinica.prompt_personalizado || "");
-  const [editarPrompt, setEditarPrompt] = useState(false);
   const [mostrarAvanzado, setMostrarAvanzado] = useState(false);
-  const [url, setUrl] = useState("");
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [url, setUrl] = useState(clinica.url_web || "");
   const [archivos, setArchivos] = useState<File[]>([]);
   const [procesando, setProcesando] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -153,7 +154,6 @@ export default function ConfiguracionForm({
       setDoc(newDoc);
       savedDocRef.current = newDoc;
       setIsDirty(false);
-      if (!editarPrompt) setPrompt(generarPromptDesdeDoc(clinica.nombre, newDoc));
       setVista("info");
     } catch (e: any) {
       setError(e.message || "Error generando configuración");
@@ -166,7 +166,7 @@ export default function ConfiguracionForm({
     setGuardando(true);
     setGuardado(false);
     setError("");
-    const promptFinal = editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc);
+    const promptFinal = generarPromptDesdeDoc(clinica.nombre, doc);
     try {
       const res = await fetch(`/api/clinicas/${clinicId}/configuracion/guardar`, {
         method: "POST",
@@ -178,7 +178,6 @@ export default function ConfiguracionForm({
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");
-      if (!editarPrompt) setPrompt(promptFinal);
       savedDocRef.current = doc;
       setIsDirty(false);
       setGuardado(true);
@@ -355,21 +354,47 @@ export default function ConfiguracionForm({
                   Edita libremente. Al guardar se regenera el system prompt automáticamente.
                 </div>
               </div>
-              {/* Three dots */}
-              <button
-                onClick={() => setMostrarAvanzado(p => !p)}
-                title="Opciones avanzadas"
-                style={{
-                  background: mostrarAvanzado ? "#f3f4f6" : "transparent",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 7, padding: "5px 10px",
-                  cursor: "pointer", fontSize: 16, color: "#6b7280",
-                  display: "flex", alignItems: "center", gap: 4,
-                  fontWeight: 700, letterSpacing: 2,
-                }}
-              >
-                ···
-              </button>
+              {/* Three dots menu */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setMenuAbierto(p => !p)}
+                  title="Opciones"
+                  style={{
+                    background: menuAbierto ? "#f3f4f6" : "transparent",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 7, padding: "5px 10px",
+                    cursor: "pointer", fontSize: 16, color: "#6b7280",
+                    display: "flex", alignItems: "center", gap: 4,
+                    fontWeight: 700, letterSpacing: 2,
+                  }}
+                >
+                  ···
+                </button>
+                {menuAbierto && (
+                  <div style={{
+                    position: "absolute", right: 0, top: "calc(100% + 6px)",
+                    background: "white", border: "1px solid #e5e7eb",
+                    borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    zIndex: 50, minWidth: 200, overflow: "hidden",
+                  }}>
+                    <button
+                      onClick={() => { setMostrarAvanzado(p => !p); setMenuAbierto(false); }}
+                      style={{
+                        width: "100%", textAlign: "left",
+                        padding: "11px 16px", border: "none", background: "none",
+                        cursor: "pointer", fontSize: 13, color: "#374151",
+                        display: "flex", alignItems: "center", gap: 10,
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <rect x="1" y="1" width="12" height="12" rx="2" stroke="#6b7280" strokeWidth="1.3"/>
+                        <path d="M4 5h6M4 7h4M4 9h5" stroke="#6b7280" strokeWidth="1.3" strokeLinecap="round"/>
+                      </svg>
+                      {mostrarAvanzado ? "Ocultar system prompt" : "Ver system prompt"}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ padding: 16 }}>
@@ -389,54 +414,33 @@ export default function ConfiguracionForm({
               />
             </div>
 
-            {/* Avanzado: system prompt */}
+            {/* System prompt — read only */}
             {mostrarAvanzado && (
               <div style={{ borderTop: "1px solid #f3f4f6", padding: 16, background: "#fafafa" }}>
-                <div style={{
-                  background: "#fef9c3", border: "1px solid #fde047",
-                  borderRadius: 8, padding: "10px 14px", fontSize: 12.5,
-                  color: "#713f12", marginBottom: 12,
-                  display: "flex", gap: 8, alignItems: "flex-start",
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
-                    <path d="M8 1.5L14.5 13H1.5L8 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-                    <path d="M8 6v3M8 10.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                  </svg>
-                  <span>
-                    <strong>Recomendamos no modificar el system prompt directamente.</strong> Si lo editas manualmente puede quedar desactualizado respecto a la información del bot. Los cambios en "Información del bot" no actualizarán el prompt si está en modo manual.
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>System prompt (solo lectura)</span>
+                  <span style={{ fontSize: 11.5, color: "#9ca3af" }}>
+                    {generarPromptDesdeDoc(clinica.nombre, doc).length} caracteres
                   </span>
                 </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>System prompt</span>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6b7280", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={editarPrompt}
-                      onChange={e => setEditarPrompt(e.target.checked)}
-                    />
-                    Editar manualmente
-                  </label>
-                </div>
-
                 <textarea
-                  value={editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc)}
-                  onChange={e => setPrompt(e.target.value)}
-                  disabled={!editarPrompt}
+                  value={generarPromptDesdeDoc(clinica.nombre, doc)}
+                  readOnly
                   rows={14}
                   style={{
                     ...inputSt,
                     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                     fontSize: 12,
                     lineHeight: 1.65,
-                    background: editarPrompt ? "white" : "#f9fafb",
-                    color: editarPrompt ? "#111827" : "#6b7280",
+                    background: "#f9fafb",
+                    color: "#6b7280",
                     resize: "vertical",
+                    cursor: "default",
                   }}
                 />
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
-                  {(editarPrompt ? prompt : generarPromptDesdeDoc(clinica.nombre, doc)).length} caracteres
-                </div>
+                <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
+                  El system prompt se genera automáticamente a partir de la información del bot. Edita el documento de arriba para modificarlo.
+                </p>
               </div>
             )}
           </div>
