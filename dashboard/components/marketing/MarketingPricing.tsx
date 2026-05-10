@@ -16,7 +16,7 @@ export default function MarketingPricing() {
                 Mantienes control total de costes, limites y canales. Sin letra pequena y sin permanencia.
               </p>
               <div className={styles.heroCtaRow}>
-                <Link href="/login" className={styles.btnPrimary} prefetch={false}>
+                <Link href="/demo" className={styles.btnPrimary} prefetch={false}>
                   Probar Atiende360
                 </Link>
                 <Link href="/#calculadora" className={styles.btnSecondary} prefetch={false}>
@@ -42,7 +42,7 @@ export default function MarketingPricing() {
                 Podemos ajustar estrategia de recepcion, reglas de derivacion y plan de despliegue por etapas.
               </p>
               <div className={styles.finalActionRow}>
-                <Link href="/login" prefetch={false} className={styles.btnPrimary}>
+                <Link href="/demo" prefetch={false} className={styles.btnPrimary}>
                   Solicitar demo consultiva
                 </Link>
                 <Link href="/" prefetch={false} className={styles.btnGhost}>

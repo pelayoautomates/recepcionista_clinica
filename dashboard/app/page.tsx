@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import MarketingLanding from "@/components/marketing/MarketingLanding";
-import { FEATURE_BENEFITS, LANDING_FAQS } from "@/lib/marketing-content";
+import { ENTITY_TERMS, FEATURE_BENEFITS, LANDING_FAQS } from "@/lib/marketing-content";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
@@ -40,6 +40,37 @@ const jsonLd = {
       areaServed: "ES",
       description:
         "Empresa de software especializada en recepcionista IA para clinicas privadas y centros sanitarios.",
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "sales",
+        email: "hola@atiende360.com",
+        availableLanguage: ["es"],
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      url: siteUrl,
+      name: "Atiende360",
+      inLanguage: "es",
+      publisher: {
+        "@id": `${siteUrl}/#organization`,
+      },
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${siteUrl}/#webpage`,
+      url: siteUrl,
+      name: "Recepcionista IA para clinicas privadas",
+      isPartOf: {
+        "@id": `${siteUrl}/#website`,
+      },
+      about: {
+        "@id": `${siteUrl}/#software`,
+      },
+      mainEntity: {
+        "@id": `${siteUrl}/#software`,
+      },
     },
     {
       "@type": "SoftwareApplication",
@@ -61,6 +92,15 @@ const jsonLd = {
       description:
         "Software SaaS de recepcionista IA para clinicas que atiende llamadas, WhatsApp y webchat, registra leads, agenda citas y escala conversaciones sensibles a humanos.",
       featureList: FEATURE_BENEFITS.map((feature) => feature.title),
+      keywords: ENTITY_TERMS.join(", "),
+      offers: {
+        "@type": "AggregateOffer",
+        priceCurrency: "EUR",
+        lowPrice: "99",
+        highPrice: "299",
+        offerCount: 3,
+        url: `${siteUrl}/pricing`,
+      },
     },
     {
       "@type": "FAQPage",

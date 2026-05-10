@@ -20,7 +20,7 @@ export default function MarketingShell({
   active,
 }: {
   children: React.ReactNode;
-  active: "landing" | "pricing";
+  active: "landing" | "pricing" | "demo" | "seguridad" | "integraciones" | "sobre" | "comparativa";
 }) {
   return (
     <div className={`${styles.root} ${headingFont.variable} ${bodyFont.variable}`}>
@@ -37,8 +37,11 @@ export default function MarketingShell({
 
             <nav className={styles.navList}>
               {NAV_ITEMS.map((item) => {
-                const isPricing = item.href === "/pricing";
-                const isActive = active === "pricing" && isPricing;
+                const isActive =
+                  (active === "pricing" && item.href === "/pricing") ||
+                  (active === "demo" && item.href === "/demo") ||
+                  (active === "seguridad" && item.href === "/seguridad") ||
+                  (active === "integraciones" && item.href === "/integraciones");
 
                 return (
                   <Link
@@ -55,7 +58,7 @@ export default function MarketingShell({
 
             <div className={styles.navActions}>
               <Link href="/#demo" className={styles.btnGhost} prefetch={false}>Probar demo</Link>
-              <Link href="/login" className={styles.btnPrimary} prefetch={false}>Pedir demo guiada</Link>
+              <Link href="/demo" className={styles.btnPrimary} prefetch={false}>Pedir demo guiada</Link>
             </div>
           </div>
         </div>
@@ -66,9 +69,15 @@ export default function MarketingShell({
       <footer className={styles.footerWrap}>
         <div className={styles.container}>
           <div className={styles.footerInner}>
-            <span className={styles.footerBrand}>Atiende360</span>
+            <Link href="/sobre-atiende360" className={styles.footerBrand}>Atiende360</Link>
             <p className={styles.footerText}>
               2026 Atiende360. Recepcionista IA para clinicas enfocada en conversion medible.
+              {" "}
+              <Link href="/seguridad">Seguridad</Link>
+              {" · "}
+              <Link href="/integraciones">Integraciones</Link>
+              {" · "}
+              <Link href="/comparativa/chatbot-generico">Comparativa</Link>
             </p>
           </div>
         </div>

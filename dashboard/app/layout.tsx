@@ -37,12 +37,21 @@ export const metadata: Metadata = {
     siteName: "Atiende360",
     locale: "es_ES",
     type: "website",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Atiende360, recepcionista IA para clinicas privadas",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Atiende360 | Recepcionista IA para clinicas",
     description:
       "Recepcionista IA 24/7 para clinicas: llamadas, WhatsApp, webchat, citas y escalado humano.",
+    images: ["/opengraph-image"],
   },
 };
 

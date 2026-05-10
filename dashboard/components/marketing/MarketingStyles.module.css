@@ -520,6 +520,7 @@
 
 .painCard h3,
 .featureCard h3,
+.featureCard h2,
 .trustCard h3,
 .stepCard h3 {
   margin: 0;
@@ -619,6 +620,165 @@
 
 .limitBox li + li {
   margin-top: 7px;
+}
+
+.pageHero {
+  padding: 74px 0 48px;
+  background:
+    radial-gradient(circle at 78% 20%, rgba(23, 160, 214, 0.16), transparent 35%),
+    radial-gradient(circle at 14% 30%, rgba(15, 75, 217, 0.13), transparent 38%);
+}
+
+.pageHeroInner {
+  max-width: 920px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.pageHeroInner h1 {
+  margin: 13px auto 12px;
+  font-family: var(--marketing-font-heading), sans-serif;
+  font-size: clamp(38px, 5.5vw, 68px);
+  line-height: 0.97;
+  letter-spacing: -0.04em;
+  max-width: 16ch;
+}
+
+.pageHeroInner p {
+  margin: 0 auto;
+  color: #2f446f;
+  font-size: 20px;
+  line-height: 1.42;
+  max-width: 62ch;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.contentCard,
+.formCard {
+  background: #ffffff;
+  border: 1px solid var(--mk-line);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: var(--mk-shadow-soft);
+}
+
+.contentCard h2 {
+  margin: 0;
+  color: #123a8d;
+  font-family: var(--marketing-font-heading), sans-serif;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.contentCard p {
+  margin: 9px 0 0;
+  color: #3d4d70;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.checkList {
+  margin-top: 20px;
+  display: grid;
+  gap: 9px;
+}
+
+.checkList p {
+  margin: 0;
+  border: 1px solid #d6e2fb;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 11px 13px;
+  color: #243d6f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.fieldGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.formField {
+  display: grid;
+  gap: 7px;
+  color: #233a6a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.formField input,
+.formField select,
+.formField textarea {
+  width: 100%;
+  border: 1px solid #c9d7f3;
+  border-radius: 11px;
+  background: #fbfdff;
+  padding: 11px 12px;
+  color: #13274f;
+  font: inherit;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.formField textarea {
+  resize: vertical;
+}
+
+.checkboxGroup {
+  margin: 13px 0;
+  border: 1px solid #d7e2f8;
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.checkboxGroup legend {
+  color: #233a6a;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 0 5px;
+}
+
+.checkboxGroup label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #344b75;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.formHint {
+  margin: 10px 0 0;
+  color: #526891;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.semanticTerms {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.semanticTerms span {
+  border-radius: 999px;
+  border: 1px solid #c9d8f5;
+  background: #ffffff;
+  color: #244779;
+  padding: 7px 11px;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .calcCard {
@@ -1523,6 +1683,8 @@
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
+  color: inherit;
+  text-decoration: none;
 }
 
 .footerText {
@@ -1530,6 +1692,12 @@
   color: #4a5d81;
   font-size: 14px;
   text-align: right;
+}
+
+.footerText a {
+  color: #17439f;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .pricingHero {
@@ -2545,6 +2713,7 @@
   .heroConversionGrid,
   .calcSplit,
   .demoSplit,
+  .contentGrid,
   .answerGrid,
   .solutionGrid,
   .painGrid,
@@ -2573,6 +2742,10 @@
   }
 
   .calcGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldGrid {
     grid-template-columns: 1fr;
   }
 
@@ -2683,6 +2856,7 @@
 
   .heroLead,
   .heroLeadWide,
+  .pageHeroInner p,
   .calcPitchBody,
   .sectionSubtitle,
   .finalCtaCard p,

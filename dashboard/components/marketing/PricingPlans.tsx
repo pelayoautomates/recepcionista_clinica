@@ -50,7 +50,7 @@ function PlanCard({
         ))}
       </ul>
 
-      <Link href="/login" className={styles.btnPrimary} prefetch={false}>
+      <Link href="/demo" className={styles.btnPrimary} prefetch={false}>
         {plan.cta}
       </Link>
     </article>

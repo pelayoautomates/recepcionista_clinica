@@ -37,7 +37,7 @@ export default function MarketingLanding() {
                 </p>
 
                 <div className={styles.heroConversionCta}>
-                  <Link href="/login" prefetch={false} className={styles.btnPrimary}>
+                  <Link href="/demo" prefetch={false} className={styles.btnPrimary}>
                     Pedir demo guiada
                   </Link>
                   <a href="#como-funciona" className={styles.btnSecondary}>
@@ -477,7 +477,7 @@ export default function MarketingLanding() {
                 sin prometer automatizaciones que tu operativa no necesite.
               </p>
               <div className={styles.finalActionRow}>
-                <Link href="/login" prefetch={false} className={styles.btnPrimary}>
+                <Link href="/demo" prefetch={false} className={styles.btnPrimary}>
                   Pedir demo guiada
                 </Link>
                 <Link href="/pricing" prefetch={false} className={styles.btnGhostLight}>

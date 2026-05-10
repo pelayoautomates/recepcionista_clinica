@@ -26,9 +26,10 @@ export type CompareRow = {
 export const NAV_ITEMS = [
   { href: "/#como-funciona", label: "Como funciona" },
   { href: "/#funcionalidades", label: "Funciones" },
-  { href: "/#casos-de-uso", label: "Casos de uso" },
+  { href: "/seguridad", label: "Seguridad" },
+  { href: "/integraciones", label: "Integraciones" },
   { href: "/pricing", label: "Precios" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/demo", label: "Demo" },
 ];
 
 export const HERO_TRUST_POINTS = [
@@ -409,4 +410,99 @@ export const COMPARISON_ROWS: CompareRow[] = [
   { feature: "Alertas a humano", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Resumenes automaticos", starter: "Basico", pro: "Semanales", growth: "Diarios" },
   { feature: "Soporte", starter: "Email", pro: "Email + WhatsApp", growth: "Prioritario" },
+];
+
+export const ENTITY_TERMS = [
+  "recepcionista IA para clinicas",
+  "software de recepcion medica",
+  "automatizacion de llamadas para clinicas",
+  "agenda de citas con IA",
+  "webchat sanitario",
+  "WhatsApp para clinicas",
+  "clasificacion de leads sanitarios",
+  "derivacion humana en consultas sensibles",
+  "Google Calendar para clinicas",
+  "panel de conversaciones y citas",
+];
+
+export const SECURITY_PRINCIPLES = [
+  {
+    title: "IA para recepcion, no para diagnostico",
+    text: "Atiende360 esta pensado para tareas administrativas: responder dudas operativas, recoger datos, proponer citas y escalar conversaciones delicadas.",
+  },
+  {
+    title: "Derivacion humana configurable",
+    text: "Cuando aparecen sintomas complejos, urgencias, quejas, datos ambiguos o peticiones fuera de reglas, el flujo debe pasar al equipo de la clinica.",
+  },
+  {
+    title: "Minimizacion de datos",
+    text: "La configuracion debe recoger solo la informacion necesaria para atender, registrar y agendar, evitando pedir datos clinicos que no hagan falta.",
+  },
+  {
+    title: "Trazabilidad operativa",
+    text: "Conversaciones, leads y citas quedan centralizados para que el equipo pueda revisar que se dijo, que se agendo y que requiere seguimiento.",
+  },
+  {
+    title: "Acceso con panel privado",
+    text: "El panel de gestion no esta pensado para indexarse ni exponerse a buscadores; las rutas privadas quedan bloqueadas para rastreadores.",
+  },
+  {
+    title: "Configuracion por clinica",
+    text: "Cada centro define servicios, horarios, reglas de cita, tono de respuesta y criterios de escalado segun su operativa.",
+  },
+];
+
+export const INTEGRATION_BLOCKS = [
+  {
+    title: "Google Calendar",
+    text: "Sincroniza disponibilidad y citas si la clinica ya trabaja con Google Calendar.",
+  },
+  {
+    title: "Calendario interno",
+    text: "Permite operar sin una agenda externa desde el primer dia, con reglas basicas de disponibilidad.",
+  },
+  {
+    title: "Telefono IA",
+    text: "Atiende llamadas entrantes y recoge motivo, datos y disponibilidad cuando el canal de voz esta activo.",
+  },
+  {
+    title: "Webchat",
+    text: "Inserta una experiencia de chat para responder preguntas y captar contactos desde la web de la clinica.",
+  },
+  {
+    title: "WhatsApp",
+    text: "Canal opcional para seguimiento y conversacion, sujeto a activacion y costes de uso.",
+  },
+  {
+    title: "Integraciones personalizadas",
+    text: "Se valoran caso por caso cuando la clinica necesita conectar sistemas adicionales.",
+  },
+];
+
+export const GENERIC_COMPARISON = [
+  {
+    title: "Objetivo principal",
+    generic: "Responder preguntas de forma general.",
+    atende: "Convertir contactos en citas trazables y escalar lo sensible.",
+  },
+  {
+    title: "Contexto operativo",
+    generic: "Depende de prompts genericos y documentos sueltos.",
+    atende: "Trabaja con servicios, horarios, reglas de agenda, canales y panel.",
+  },
+  {
+    title: "Agenda",
+    generic: "Normalmente no gestiona disponibilidad real sin desarrollo adicional.",
+    atende: "Incluye calendario interno y Google Calendar opcional.",
+  },
+  {
+    title: "Seguimiento",
+    generic: "Puede perder trazabilidad si no se conecta a un CRM.",
+    atende: "Centraliza conversaciones, leads, estados y citas.",
+  },
+  {
+    title: "Limites clinicos",
+    generic: "Puede requerir mucha supervision para no responder de mas.",
+    atende: "Define derivacion humana para conversaciones sensibles.",
+  },
 ];

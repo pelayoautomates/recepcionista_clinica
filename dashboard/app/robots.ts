@@ -14,7 +14,6 @@ const privatePaths = [
   "/onboarding/",
   "/suscripcion",
   "/suscripcion/",
-  "/_next/",
 ];
 
 export default function robots(): MetadataRoute.Robots {

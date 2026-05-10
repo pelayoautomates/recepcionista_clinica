@@ -4,19 +4,20 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-
-  return [
-    {
-      url: `${siteUrl}/`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    {
-      url: `${siteUrl}/pricing`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
+  const publicPages = [
+    { path: "/", changeFrequency: "weekly" as const, priority: 1 },
+    { path: "/demo", changeFrequency: "weekly" as const, priority: 0.9 },
+    { path: "/pricing", changeFrequency: "monthly" as const, priority: 0.8 },
+    { path: "/seguridad", changeFrequency: "monthly" as const, priority: 0.7 },
+    { path: "/integraciones", changeFrequency: "monthly" as const, priority: 0.7 },
+    { path: "/sobre-atiende360", changeFrequency: "monthly" as const, priority: 0.6 },
+    { path: "/comparativa/chatbot-generico", changeFrequency: "monthly" as const, priority: 0.65 },
   ];
+
+  return publicPages.map((page) => ({
+    url: `${siteUrl}${page.path}`,
+    lastModified: now,
+    changeFrequency: page.changeFrequency,
+    priority: page.priority,
+  }));
 }

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import MarketingPricing from "@/components/marketing/MarketingPricing";
+import { PLANS, PRICING_FAQS } from "@/lib/marketing-content";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
   title: "Precios de recepcionista IA para clinicas",
@@ -24,6 +27,59 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": `${siteUrl}/pricing#webpage`,
+      url: `${siteUrl}/pricing`,
+      name: "Precios de Atiende360",
+      about: {
+        "@id": `${siteUrl}/#software`,
+      },
+    },
+    {
+      "@type": "Product",
+      "@id": `${siteUrl}/pricing#product`,
+      name: "Atiende360",
+      category: "Software de recepcionista IA para clinicas",
+      description:
+        "Planes de Atiende360 para atender llamadas, webchat, WhatsApp, leads y citas en clinicas privadas.",
+      brand: {
+        "@type": "Brand",
+        name: "Atiende360",
+      },
+      offers: PLANS.map((plan) => ({
+        "@type": "Offer",
+        name: plan.name,
+        price: plan.monthly,
+        priceCurrency: "EUR",
+        availability: "https://schema.org/InStock",
+        url: `${siteUrl}/pricing`,
+        description: plan.subtitle,
+      })),
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${siteUrl}/pricing#faq`,
+      mainEntity: PRICING_FAQS.map((faq) => ({
+        "@type": "Question",
+        name: faq.q,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: faq.a,
+        },
+      })),
+    },
+  ],
+};
+
 export default function PricingPage() {
-  return <MarketingPricing />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <MarketingPricing />
+    </>
+  );
 }
