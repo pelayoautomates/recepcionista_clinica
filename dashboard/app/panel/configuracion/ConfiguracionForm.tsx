@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
 type Clinica = {
@@ -118,7 +118,20 @@ export default function ConfiguracionForm({
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const savedDocRef = useRef(initialDoc);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   const generarConIA = async () => {
     if (!url.trim() && archivos.length === 0) {
@@ -138,6 +151,8 @@ export default function ConfiguracionForm({
       const data: IAResult = await res.json();
       const newDoc = iaResultToDoc(data, clinica.nombre);
       setDoc(newDoc);
+      savedDocRef.current = newDoc;
+      setIsDirty(false);
       if (!editarPrompt) setPrompt(generarPromptDesdeDoc(clinica.nombre, newDoc));
       setVista("info");
     } catch (e: any) {
@@ -164,6 +179,8 @@ export default function ConfiguracionForm({
       });
       if (!res.ok) throw new Error("Error al guardar");
       if (!editarPrompt) setPrompt(promptFinal);
+      savedDocRef.current = doc;
+      setIsDirty(false);
       setGuardado(true);
       setTimeout(() => setGuardado(false), 2500);
     } catch (e: any) {
@@ -322,7 +339,18 @@ export default function ConfiguracionForm({
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Información del bot</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827", display: "flex", alignItems: "center", gap: 8 }}>
+                  Información del bot
+                  {isDirty && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, color: "#b45309",
+                      background: "#fffbeb", border: "1px solid #fde68a",
+                      borderRadius: 6, padding: "2px 7px",
+                    }}>
+                      Cambios sin guardar
+                    </span>
+                  )}
+                </div>
                 <div style={{ fontSize: 11.5, color: "#9ca3af", marginTop: 2 }}>
                   Edita libremente. Al guardar se regenera el system prompt automáticamente.
                 </div>
@@ -347,7 +375,7 @@ export default function ConfiguracionForm({
             <div style={{ padding: 16 }}>
               <textarea
                 value={doc}
-                onChange={e => setDoc(e.target.value)}
+                onChange={e => { setDoc(e.target.value); setIsDirty(e.target.value !== savedDocRef.current); }}
                 rows={18}
                 placeholder={"Clínica: Nombre de la clínica\n\nResumen: Descripción de la clínica...\n\nServicios:\n- Limpieza dental (60 min, 80€)\n- Ortodoncia...\n\nHorarios:\n- Lunes a viernes: 9:00–20:00\n- Sábados: 10:00–14:00\n\nTeléfono: +34 600 000 000"}
                 style={{

@@ -31,6 +31,7 @@ export default function OnboardingPage() {
   const [clinica, setClinica] = useState<ClinicaData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [extraidoOk, setExtraidoOk] = useState(false);
 
   // Step 1 fields
   const [nombre, setNombre] = useState("");
@@ -38,16 +39,47 @@ export default function OnboardingPage() {
   const [urlWeb, setUrlWeb] = useState("");
   const [telefono, setTelefono] = useState("");
 
-  // Step 2 fields
-  const [extrayendo, setExtrayendo] = useState(false);
-  const [extraidoOk, setExtraidoOk] = useState(false);
-  const [skipExtraccion, setSkipExtraccion] = useState(false);
-
   const trialDias = clinica
     ? Math.ceil(
         (new Date(clinica.trial_expires_at).getTime() - Date.now()) / 86_400_000
       )
     : 7;
+
+  async function extraerConfig(clinicaData: ClinicaData) {
+    if (!clinicaData.url_web?.trim()) {
+      setStep(3);
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("url", clinicaData.url_web.trim());
+
+      const res = await fetch(`/api/clinicas/${clinicaData.clinic_id}/configuracion/extraer`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Error al extraer configuración");
+      const data = await res.json();
+
+      const payload: Record<string, unknown> = {};
+      if (data.prompt_generado) payload.prompt_personalizado = data.prompt_generado;
+      if (data.servicios?.length) payload.servicios = data.servicios;
+      if (data.horarios && Object.keys(data.horarios).length) payload.horarios = data.horarios;
+
+      if (Object.keys(payload).length > 0) {
+        await fetch(`/api/clinicas/${clinicaData.clinic_id}/configuracion/guardar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      setExtraidoOk(true);
+    } catch {
+      // Extraction errors are non-blocking — user can do it later from Configuración
+    } finally {
+      setStep(3);
+    }
+  }
 
   async function crearClinica() {
     setLoading(true);
@@ -60,55 +92,28 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error al crear la clínica");
-      setClinica({ clinic_id: data.clinic_id, nombre, especialidad, url_web: urlWeb, telefono, trial_expires_at: data.trial_expires_at });
-      setStep(2);
+
+      const nuevaClinica: ClinicaData = {
+        clinic_id: data.clinic_id,
+        nombre,
+        especialidad,
+        url_web: urlWeb,
+        telefono,
+        trial_expires_at: data.trial_expires_at,
+      };
+      setClinica(nuevaClinica);
+
+      if (urlWeb.trim()) {
+        setStep(2);
+        await extraerConfig(nuevaClinica);
+      } else {
+        setStep(3);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function extraerConfig() {
-    if (!clinica || !urlWeb) return;
-    setExtrayendo(true);
-    setError("");
-    try {
-      const formData = new FormData();
-      if (urlWeb) formData.append("url", urlWeb);
-
-      // 1. Extraer con IA
-      const res = await fetch(`/api/clinicas/${clinica.clinic_id}/configuracion/extraer`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Error al extraer configuración");
-      const data = await res.json();
-
-      // 2. Guardar automáticamente lo extraído en la BD
-      const payload: Record<string, unknown> = {};
-      if (data.prompt_generado) payload.prompt_personalizado = data.prompt_generado;
-      if (data.servicios?.length) payload.servicios = data.servicios;
-      if (data.horarios && Object.keys(data.horarios).length) payload.horarios = data.horarios;
-
-      if (Object.keys(payload).length > 0) {
-        await fetch(`/api/clinicas/${clinica.clinic_id}/configuracion/guardar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      setExtraidoOk(true);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Error al extraer");
-    } finally {
-      setExtrayendo(false);
-    }
-  }
-
-  function irAlPanel() {
-    router.push("/panel");
   }
 
   return (
@@ -124,12 +129,7 @@ export default function OnboardingPage() {
       <div style={{ width: "100%", maxWidth: 560 }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 12,
-          }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{
               width: 36, height: 36,
               background: "linear-gradient(135deg, #2563eb, #4f46e5)",
@@ -167,7 +167,7 @@ export default function OnboardingPage() {
           </div>
           <p style={{ marginTop: 8, fontSize: 12, color: "#9ca3af" }}>
             {step === 1 && "Tu clínica"}
-            {step === 2 && "Entrena al agente"}
+            {step === 2 && "Analizando tu web"}
             {step === 3 && "¡Todo listo!"}
           </p>
         </div>
@@ -179,6 +179,7 @@ export default function OnboardingPage() {
           padding: "40px 36px",
           boxShadow: "0 4px 32px rgba(0,0,0,0.08)",
         }}>
+
           {/* ── STEP 1 ── */}
           {step === 1 && (
             <>
@@ -224,7 +225,7 @@ export default function OnboardingPage() {
                     style={inputStyle}
                   />
                   <span style={{ fontSize: 11.5, color: "#9ca3af" }}>
-                    La IA leerá tu web para entender tus servicios y horarios.
+                    La IA leerá toda tu web y configurará automáticamente los servicios y horarios.
                   </span>
                 </label>
 
@@ -256,98 +257,57 @@ export default function OnboardingPage() {
             </>
           )}
 
-          {/* ── STEP 2 ── */}
-          {step === 2 && clinica && (
-            <>
-              <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 700, color: "#111827" }}>
-                Entrena a tu recepcionista IA
-              </h1>
-              <p style={{ margin: "0 0 24px", color: "#6b7280", fontSize: 14 }}>
-                {urlWeb
-                  ? "Vamos a leer tu web para que el agente conozca tus servicios, precios y horarios."
-                  : "Puedes añadir la web de tu clínica más tarde desde Configuración."}
+          {/* ── STEP 2: Auto-scraping loading screen ── */}
+          {step === 2 && (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              {/* Animated logo */}
+              <div style={{
+                width: 72, height: 72,
+                background: "linear-gradient(135deg, #2563eb, #4f46e5)",
+                borderRadius: 20,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 24px",
+                boxShadow: "0 8px 32px rgba(37,99,235,0.3)",
+              }}>
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" style={{ animation: "pulse 2s ease-in-out infinite" }}>
+                  <circle cx="18" cy="18" r="14" stroke="white" strokeWidth="2" strokeDasharray="60" strokeDashoffset="20" strokeLinecap="round" style={{ animation: "spin 2s linear infinite" }} />
+                  <path d="M18 10v8l5 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+
+              <h2 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 700, color: "#111827" }}>
+                Analizando tu web...
+              </h2>
+              <p style={{ margin: "0 0 8px", fontSize: 14, color: "#6b7280", maxWidth: 360, marginLeft: "auto", marginRight: "auto" }}>
+                Estamos leyendo todas las páginas de <strong style={{ color: "#2563eb" }}>{urlWeb}</strong> para configurar tu recepcionista IA.
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+                Esto puede tardar hasta 30 segundos...
               </p>
 
-              {urlWeb && !extraidoOk && !skipExtraccion && (
-                <div style={{
-                  background: "#f0f4ff",
-                  borderRadius: 12,
-                  padding: "20px 20px",
-                  marginBottom: 24,
-                  border: "1px solid #dbeafe",
-                }}>
-                  <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 14, color: "#1e40af" }}>
-                    Web detectada
-                  </p>
-                  <p style={{ margin: "0 0 14px", fontSize: 13, color: "#3b82f6", wordBreak: "break-all" }}>
-                    {urlWeb}
-                  </p>
-                  <button
-                    onClick={extraerConfig}
-                    disabled={extrayendo}
-                    style={{ ...btnPrimary, fontSize: 13, padding: "9px 18px" }}
-                  >
-                    {extrayendo ? "Extrayendo información…" : "Extraer servicios y horarios IA"}
-                  </button>
-                </div>
-              )}
-
-              {extraidoOk && (
-                <div style={{
-                  background: "#f0fdf4",
-                  border: "1px solid #bbf7d0",
-                  borderRadius: 12,
-                  padding: "16px 20px",
-                  marginBottom: 24,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 12,
-                }}>
-                  <span style={{ fontSize: 20 }}>✅</span>
-                  <div>
-                    <p style={{ margin: "0 0 2px", fontWeight: 600, fontSize: 14, color: "#166534" }}>
-                      Información extraída correctamente
-                    </p>
-                    <p style={{ margin: 0, fontSize: 13, color: "#15803d" }}>
-                      Puedes revisar y editar todo desde el panel en Configuración.
-                    </p>
-                  </div>
-                </div>
-              )}
+              {/* Progress dots */}
+              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 28 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#2563eb",
+                    animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                  }} />
+                ))}
+              </div>
 
               <div style={{
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
+                marginTop: 28,
+                background: "#f0f4ff",
                 borderRadius: 10,
                 padding: "12px 16px",
-                marginBottom: 24,
-                fontSize: 13,
-                color: "#92400e",
+                fontSize: 12.5,
+                color: "#4f46e5",
+                border: "1px solid #dbeafe",
               }}>
-                <strong>Importante:</strong> el agente IA funciona mejor cuando la información está actualizada.
-                Revisa los servicios y horarios en Configuración antes de activar los canales.
+                Cuanto más completa sea tu web, mejor entrenará la IA a tu recepcionista.
               </div>
-
-              {error && <p style={errorStyle}>{error}</p>}
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button
-                  onClick={() => setStep(3)}
-                  style={btnPrimary}
-                  disabled={extrayendo}
-                >
-                  {extraidoOk || !urlWeb ? "Continuar →" : "Saltar por ahora →"}
-                </button>
-                {urlWeb && !extraidoOk && !extrayendo && (
-                  <button
-                    onClick={() => { setSkipExtraccion(true); setStep(3); }}
-                    style={btnSecondary}
-                  >
-                    Lo haré después
-                  </button>
-                )}
-              </div>
-            </>
+            </div>
           )}
 
           {/* ── STEP 3 ── */}
@@ -365,7 +325,7 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              {/* Checklist de pasos pendientes */}
+              {/* Checklist */}
               <div style={{
                 background: "#f9fafb",
                 borderRadius: 14,
@@ -377,7 +337,7 @@ export default function OnboardingPage() {
                 </p>
                 {[
                   { done: true, label: "Clínica creada" },
-                  { done: extraidoOk, label: "Agente entrenado con tu web" },
+                  { done: extraidoOk, label: urlWeb ? "Agente entrenado con tu web" : "Añadir web → Configuración" },
                   { done: false, label: "Conectar Google Calendar → Configuración" },
                   { done: false, label: "Comprar número de teléfono → Canales" },
                 ].map(({ done, label }) => (
@@ -408,7 +368,7 @@ export default function OnboardingPage() {
                 ))}
               </div>
 
-              <button onClick={irAlPanel} style={btnPrimary}>
+              <button onClick={() => router.push("/panel")} style={btnPrimary}>
                 Ir al panel →
               </button>
             </>
@@ -419,6 +379,15 @@ export default function OnboardingPage() {
           Sin permanencia. Cancela cuando quieras.
         </p>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -451,18 +420,6 @@ const btnPrimary: CSSProperties = {
   fontWeight: 600,
   cursor: "pointer",
   width: "100%",
-};
-
-const btnSecondary: CSSProperties = {
-  background: "white",
-  color: "#374151",
-  border: "1px solid #d1d5db",
-  borderRadius: 10,
-  padding: "12px 20px",
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: "pointer",
-  flex: 1,
 };
 
 const errorStyle: CSSProperties = {

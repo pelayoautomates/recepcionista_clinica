@@ -1,6 +1,7 @@
 import io
 import logging
 import re
+from urllib.parse import urljoin, urlparse
 from uuid import UUID
 
 import httpx
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_admin_key)])
 
 MAX_CHARS = 40_000  # límite para no enviar demasiado texto al LLM
+MAX_PAGES = 20      # máximo de páginas a rastrear por sitio
+CHARS_PER_PAGE = 6_000  # límite de texto por página individual
 
 
 # ─── Endpoint principal ───────────────────────────────────────────────────────
@@ -33,10 +36,10 @@ async def extraer_y_generar_prompt(
 
     if url and url.strip():
         try:
-            texto_web = await _scrape_url(url.strip())
-            textos.append(f"[Sitio web: {url}]\n{texto_web}")
+            texto_web = await _crawl_site(url.strip())
+            textos.append(texto_web)
         except Exception as e:
-            logger.warning("No se pudo scrapear %s: %s", url, e)
+            logger.warning("No se pudo rastrear %s: %s", url, e)
 
     for archivo in archivos:
         try:
@@ -73,17 +76,87 @@ async def guardar_configuracion(clinic_id: UUID, data: dict):
 
 # ─── Extracción de texto ──────────────────────────────────────────────────────
 
-async def _scrape_url(url: str) -> str:
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-        r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        r.raise_for_status()
-    html = r.text
-    # Quitar scripts, styles y etiquetas HTML
-    html = re.sub(r"<(script|style)[^>]*>.*?</(script|style)>", "", html, flags=re.DOTALL | re.IGNORECASE)
+def _html_to_text(html: str) -> str:
+    """Convierte HTML a texto plano limpio."""
+    # Eliminar bloques no útiles
+    html = re.sub(
+        r"<(script|style|noscript|nav|footer|header|aside|iframe)[^>]*>.*?</(script|style|noscript|nav|footer|header|aside|iframe)>",
+        "", html, flags=re.DOTALL | re.IGNORECASE,
+    )
+    # Convertir etiquetas de bloque a saltos de línea
+    html = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
+    html = re.sub(r"</(p|div|li|h[1-6]|tr|section|article)>", "\n", html, flags=re.IGNORECASE)
+    # Quitar resto de etiquetas
     html = re.sub(r"<[^>]+>", " ", html)
-    html = re.sub(r"&[a-z]+;", " ", html)
-    html = re.sub(r"\s{3,}", "\n\n", html)
-    return html.strip()[:15_000]
+    # Entidades HTML comunes
+    html = html.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
+    html = re.sub(r"&#?\w+;", " ", html)
+    # Limpiar espacios
+    html = re.sub(r"[ \t]{2,}", " ", html)
+    html = re.sub(r"\n{3,}", "\n\n", html)
+    return html.strip()[:CHARS_PER_PAGE]
+
+
+def _extract_links(html: str, current_url: str, base_domain: str) -> list[str]:
+    """Extrae enlaces internos del HTML."""
+    hrefs = re.findall(r'href=["\']([^"\'#?][^"\']*)["\']', html)
+    links: list[str] = []
+    skip = ('.pdf', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.css', '.js',
+            '.xml', '.ico', '.woff', '.woff2', '.ttf', '.zip', 'mailto:', 'tel:', 'javascript:')
+    for href in hrefs:
+        full = urljoin(current_url, href)
+        parsed = urlparse(full)
+        if parsed.netloc == base_domain and not any(full.lower().endswith(s) or s in full for s in skip):
+            # Normalise: strip fragment and query
+            clean = parsed._replace(fragment="", query="").geturl()
+            links.append(clean)
+    return links
+
+
+async def _crawl_site(start_url: str) -> str:
+    """Rastrea el sitio web completo (hasta MAX_PAGES páginas) y devuelve el texto concatenado."""
+    parsed_start = urlparse(start_url)
+    base_domain = parsed_start.netloc
+
+    visited: set[str] = set()
+    queue: list[str] = [start_url]
+    sections: list[str] = []
+    total_chars = 0
+
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; Atiende360Bot/1.0; +https://atiende360.com)"}
+
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        while queue and len(visited) < MAX_PAGES and total_chars < MAX_CHARS:
+            url = queue.pop(0)
+            if url in visited:
+                continue
+            visited.add(url)
+
+            try:
+                r = await client.get(url, headers=headers)
+                r.raise_for_status()
+                content_type = r.headers.get("content-type", "")
+                if "text/html" not in content_type:
+                    continue
+            except Exception as exc:
+                logger.debug("Omitiendo %s: %s", url, exc)
+                continue
+
+            html = r.text
+            text = _html_to_text(html)
+
+            if text.strip():
+                sections.append(f"[Página: {url}]\n{text}")
+                total_chars += len(text)
+
+            # Encolar nuevos enlaces internos
+            if len(visited) < MAX_PAGES:
+                for link in _extract_links(html, url, base_domain):
+                    if link not in visited and link not in queue:
+                        queue.append(link)
+
+    logger.info("Crawl completado: %d páginas, %d chars totales", len(visited), total_chars)
+    return "\n\n---\n\n".join(sections)[:MAX_CHARS]
 
 
 async def _extract_text_from_file(archivo: UploadFile) -> str:
