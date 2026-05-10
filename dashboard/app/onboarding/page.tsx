@@ -77,11 +77,28 @@ export default function OnboardingPage() {
       const formData = new FormData();
       if (urlWeb) formData.append("url", urlWeb);
 
+      // 1. Extraer con IA
       const res = await fetch(`/api/clinicas/${clinica.clinic_id}/configuracion/extraer`, {
         method: "POST",
         body: formData,
       });
       if (!res.ok) throw new Error("Error al extraer configuración");
+      const data = await res.json();
+
+      // 2. Guardar automáticamente lo extraído en la BD
+      const payload: Record<string, unknown> = {};
+      if (data.prompt_generado) payload.prompt_personalizado = data.prompt_generado;
+      if (data.servicios?.length) payload.servicios = data.servicios;
+      if (data.horarios && Object.keys(data.horarios).length) payload.horarios = data.horarios;
+
+      if (Object.keys(payload).length > 0) {
+        await fetch(`/api/clinicas/${clinica.clinic_id}/configuracion/guardar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
       setExtraidoOk(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error al extraer");
