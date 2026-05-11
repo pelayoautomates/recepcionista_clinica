@@ -28,10 +28,39 @@ const AVATAR_PALETTES = [
   { bg: "#ede9fe", color: "#6d28d9" },
 ];
 
+type SortKey = "fecha" | "score";
+
+function ScoreBadge({ scoring }: { scoring?: { score: number; nivel: string; motivos: string[] } }) {
+  if (!scoring) return null;
+  const { score, nivel } = scoring;
+  const colors: Record<string, { bg: string; color: string }> = {
+    alto:  { bg: "#dcfce7", color: "#166534" },
+    medio: { bg: "#fef3c7", color: "#92400e" },
+    bajo:  { bg: "#fee2e2", color: "#991b1b" },
+  };
+  const c = colors[nivel] ?? colors.bajo;
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+      background: c.bg, color: c.color, display: "inline-flex", alignItems: "center", gap: 4,
+    }} title={`Score: ${score}/100`}>
+      {score}
+    </span>
+  );
+}
+
 export default function LeadsClient({ leads }: { leads: any[] }) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("fecha");
 
   const toggle = (id: string) => setExpanded(prev => prev === id ? null : id);
+
+  const sorted = [...leads].sort((a, b) => {
+    if (sortBy === "score") {
+      return (b.scoring?.score ?? 0) - (a.scoring?.score ?? 0);
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   return (
     <div>
@@ -46,7 +75,21 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
           </p>
         </div>
 
-        {/* Stat chips */}
+        {/* Sort + stat chips */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#9ca3af" }}>Ordenar:</span>
+          {(["fecha", "score"] as SortKey[]).map(k => (
+            <button key={k} onClick={() => setSortBy(k)} style={{
+              fontSize: 12, padding: "3px 10px", borderRadius: 20, cursor: "pointer",
+              fontFamily: "inherit", fontWeight: sortBy === k ? 700 : 400,
+              border: sortBy === k ? "1.5px solid #2563eb" : "1px solid #d1d5db",
+              background: sortBy === k ? "#eff6ff" : "white",
+              color: sortBy === k ? "#2563eb" : "#6b7280",
+            }}>
+              {k === "fecha" ? "Más reciente" : "Mayor score"}
+            </button>
+          ))}
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           {["nuevo", "cita_agendada"].map(e => {
             const count = leads.filter(l => l.estado_lead === e).length;
@@ -69,7 +112,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-              {["Paciente", "Teléfono", "Canal", "Estado", "Fecha", ""].map(h => (
+              {["Paciente", "Score", "Teléfono", "Canal", "Estado", "Fecha", ""].map(h => (
                 <th key={h} style={{
                   textAlign: "left", padding: "10px 16px",
                   fontSize: 11, fontWeight: 600, color: "#9ca3af",
@@ -81,12 +124,12 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
           <tbody>
             {leads.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 13.5 }}>
+                <td colSpan={7} style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 13.5 }}>
                   Sin leads todavía
                 </td>
               </tr>
             )}
-            {leads.map((lead: any, i: number) => {
+            {sorted.map((lead: any, i: number) => {
               const est = ESTADO_CONFIG[lead.estado_lead] || { label: lead.estado_lead, bg: "#f3f4f6", color: "#6b7280" };
               const pal = AVATAR_PALETTES[i % AVATAR_PALETTES.length];
               const isOpen = expanded === lead.id;
@@ -119,6 +162,9 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
                         </div>
                       </div>
                     </td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <ScoreBadge scoring={lead.scoring} />
+                    </td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "#374151" }}>
                       {lead.telefono || "—"}
                     </td>
@@ -150,7 +196,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
                   {/* Expanded detail row */}
                   {isOpen && (
                     <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                      <td colSpan={6} style={{ padding: "0 16px 16px 56px", background: "#fafafa" }}>
+                      <td colSpan={7} style={{ padding: "0 16px 16px 56px", background: "#fafafa" }}>
                         <div style={{
                           display: "grid",
                           gridTemplateColumns: "1fr 1fr 1fr",

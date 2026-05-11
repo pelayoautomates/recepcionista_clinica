@@ -234,6 +234,26 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "agregar_a_lista_espera",
+            "description": (
+                "Añade al paciente a la lista de espera cuando no hay disponibilidad para el servicio "
+                "que solicita. Úsala SOLO cuando hayas confirmado que no hay ningún hueco disponible. "
+                "El equipo de la clínica le contactará cuando se libere un hueco."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "paciente_id": {"type": "string", "description": "UUID del paciente."},
+                    "servicio_nombre": {"type": "string", "description": "Nombre del servicio que el paciente quiere."},
+                    "notas": {"type": "string", "description": "Preferencias del paciente (horario, profesional, etc.)"},
+                },
+                "required": ["paciente_id", "servicio_nombre"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "escalar_a_humano",
             "description": (
                 "Escala la conversación al equipo de la clínica. Úsala cuando: "

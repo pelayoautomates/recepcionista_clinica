@@ -24,7 +24,7 @@ async def _dispatch_tool(
 ) -> str:
     from tools.calendario import consultar_disponibilidad, crear_cita, mover_cita, cancelar_cita, buscar_citas_paciente
     from tools.pacientes import buscar_paciente, crear_lead, actualizar_estado_lead
-    from tools.sistema import programar_seguimiento, escalar_a_humano
+    from tools.sistema import programar_seguimiento, escalar_a_humano, agregar_a_lista_espera
 
     # Mapeo canal → origen
     _CANAL_ORIGEN = {"chat_web": "ia_chat", "whatsapp": "ia_whatsapp", "voz": "ia_llamada"}
@@ -53,6 +53,8 @@ async def _dispatch_tool(
             result = await actualizar_estado_lead(**args)
         elif tool_name == "programar_seguimiento":
             result = await programar_seguimiento(**args)
+        elif tool_name == "agregar_a_lista_espera":
+            result = await agregar_a_lista_espera(**args)
         elif tool_name == "escalar_a_humano":
             result = await escalar_a_humano(**args)
         else:

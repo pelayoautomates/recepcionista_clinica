@@ -71,6 +71,25 @@ const LINKS = [
     ),
   },
   {
+    href: "/panel/lista-espera", label: "Lista de espera", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <circle cx="8.5" cy="8.5" r="6" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8.5 5.5V8.5L10.5 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M6 13.5H11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/panel/recuperacion", label: "Recuperación", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path d="M14 8.5A5.5 5.5 0 112.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M2.5 3V6H5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/conocimiento", label: "Conocimiento", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">

@@ -63,6 +63,7 @@ async def actualizar_clinica(clinic_id: UUID, data: ClinicaUpdate):
 
 @router.get("/clinicas/{clinic_id}/leads")
 async def listar_leads(clinic_id: UUID, estado: str | None = None, canal: str | None = None):
+    from scoring import enriquecer_leads
     db = get_supabase()
     query = db.table("pacientes").select("*").eq("clinic_id", str(clinic_id))
     if estado:
@@ -70,7 +71,7 @@ async def listar_leads(clinic_id: UUID, estado: str | None = None, canal: str | 
     if canal:
         query = query.eq("canal_origen", canal)
     result = query.order("created_at", desc=True).execute()
-    return result.data
+    return enriquecer_leads(result.data)
 
 
 # ─── Conversaciones ──────────────────────────────────────────────────────────
@@ -712,3 +713,114 @@ async def eliminar_conocimiento(clinic_id: UUID, entrada_id: UUID):
     db.table("conocimientos").delete() \
         .eq("id", str(entrada_id)).eq("clinic_id", str(clinic_id)).execute()
     return
+
+
+# ─── Lista de espera ──────────────────────────────────────────────────────────
+
+@router.get("/clinicas/{clinic_id}/lista-espera")
+async def listar_espera(clinic_id: UUID, estado: str | None = None):
+    db = get_supabase()
+    q = db.table("lista_espera").select(
+        "*, pacientes(nombre, telefono, email, canal_origen)"
+    ).eq("clinic_id", str(clinic_id))
+    if estado:
+        q = q.eq("estado", estado)
+    result = q.order("created_at").execute()
+    return result.data
+
+
+@router.post("/clinicas/{clinic_id}/lista-espera")
+async def crear_entrada_espera(clinic_id: UUID, data: dict):
+    db = get_supabase()
+    row = {
+        "clinic_id": str(clinic_id),
+        "paciente_id": data.get("paciente_id"),
+        "servicio_nombre": data.get("servicio_nombre", "").strip(),
+        "profesional_id": data.get("profesional_id"),
+        "notas": data.get("notas", "").strip() or None,
+        "estado": "esperando",
+    }
+    result = db.table("lista_espera").insert(row).execute()
+    return result.data[0]
+
+
+@router.patch("/clinicas/{clinic_id}/lista-espera/{entrada_id}")
+async def actualizar_entrada_espera(clinic_id: UUID, entrada_id: UUID, data: dict):
+    db = get_supabase()
+    allowed = {"estado", "notas", "notificado_at"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Sin campos válidos")
+    result = db.table("lista_espera").update(updates) \
+        .eq("id", str(entrada_id)).eq("clinic_id", str(clinic_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    return result.data[0]
+
+
+@router.delete("/clinicas/{clinic_id}/lista-espera/{entrada_id}", status_code=204)
+async def eliminar_entrada_espera(clinic_id: UUID, entrada_id: UUID):
+    db = get_supabase()
+    db.table("lista_espera").delete() \
+        .eq("id", str(entrada_id)).eq("clinic_id", str(clinic_id)).execute()
+    return
+
+
+# ─── Recuperación de leads ────────────────────────────────────────────────────
+
+@router.get("/clinicas/{clinic_id}/recuperacion")
+async def leads_recuperacion(clinic_id: UUID):
+    """Leads fríos: perdidos o sin cita y sin actividad reciente (>3 días)."""
+    from datetime import date, timedelta
+    from scoring import enriquecer_leads
+
+    db = get_supabase()
+    hace_3_dias = (date.today() - timedelta(days=3)).isoformat()
+
+    # Leads perdidos
+    perdidos = db.table("pacientes").select("*") \
+        .eq("clinic_id", str(clinic_id)) \
+        .eq("estado_lead", "perdido") \
+        .execute().data
+
+    # Leads sin cita (nuevo/interesado/contactado) sin actividad >3 días y con teléfono
+    sin_cita = db.table("pacientes").select("*") \
+        .eq("clinic_id", str(clinic_id)) \
+        .in_("estado_lead", ["nuevo", "interesado", "contactado"]) \
+        .neq("telefono", None) \
+        .lte("created_at", f"{hace_3_dias}T23:59:59Z") \
+        .execute().data
+
+    todos = {p["id"]: p for p in perdidos}
+    for p in sin_cita:
+        todos.setdefault(p["id"], p)
+
+    result = list(todos.values())
+    result.sort(key=lambda p: p.get("created_at", ""), reverse=True)
+    return enriquecer_leads(result)
+
+
+@router.post("/clinicas/{clinic_id}/leads/{lead_id}/seguimiento")
+async def disparar_seguimiento(clinic_id: UUID, lead_id: UUID):
+    """Crea job inmediato de seguimiento WhatsApp para un lead."""
+    from datetime import datetime, timezone as tz
+    db = get_supabase()
+    paciente = db.table("pacientes").select("id, clinic_id, telefono") \
+        .eq("id", str(lead_id)).eq("clinic_id", str(clinic_id)).single().execute()
+    if not paciente.data:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    if not paciente.data.get("telefono"):
+        raise HTTPException(status_code=400, detail="El lead no tiene teléfono")
+
+    ahora = datetime.now(tz.utc)
+    idem_key = f"seguimiento_recovery_{str(lead_id)}_{ahora.date()}"
+    result = db.table("jobs").upsert({
+        "clinic_id": str(clinic_id),
+        "paciente_id": str(lead_id),
+        "tipo": "seguimiento_lead",
+        "fecha_programada": ahora.isoformat(),
+        "estado": "pendiente",
+        "idempotency_key": idem_key,
+        "payload": {"motivo": "recovery_manual"},
+    }, on_conflict="idempotency_key").execute()
+    return {"ok": True, "job_id": result.data[0]["id"]}

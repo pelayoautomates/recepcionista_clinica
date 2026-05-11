@@ -39,6 +39,26 @@ async def programar_seguimiento(paciente_id: str, fecha_iso: str, motivo: str) -
     return {"job_id": result.data[0]["id"], "fecha_programada": fecha.isoformat()}
 
 
+async def agregar_a_lista_espera(
+    paciente_id: str,
+    servicio_nombre: str,
+    notas: str = "",
+) -> dict:
+    """Añade al paciente a la lista de espera cuando no hay disponibilidad."""
+    db = get_supabase()
+    paciente = db.table("pacientes").select("clinic_id").eq("id", paciente_id).single().execute()
+    clinic_id = paciente.data["clinic_id"]
+    result = db.table("lista_espera").insert({
+        "clinic_id": clinic_id,
+        "paciente_id": paciente_id,
+        "servicio_nombre": servicio_nombre,
+        "notas": notas or None,
+        "estado": "esperando",
+    }).execute()
+    logger.info("Paciente %s añadido a lista de espera para %s", paciente_id, servicio_nombre)
+    return {"ok": True, "entrada_id": result.data[0]["id"]}
+
+
 async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
     """
     Escala la conversación activa a un humano:
