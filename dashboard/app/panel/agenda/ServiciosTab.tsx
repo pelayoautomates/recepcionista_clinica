@@ -85,7 +85,8 @@ export default function ServiciosTab({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {servicios.map(s => (
-          <div key={s.id} style={{
+          <div key={s.id}>
+          <div style={{
             background: "white", border: "1px solid #e5e7eb", borderRadius: 10,
             padding: "14px 18px", display: "flex", alignItems: "center", gap: 14,
             opacity: s.activo ? 1 : 0.55,
@@ -120,6 +121,7 @@ export default function ServiciosTab({
           {showProfs === s.id && (
             <ProfAsignados clinicId={clinicId} servicioId={s.id} allProfs={profesionales} />
           )}
+          </div>
         ))}
         {servicios.length === 0 && (
           <div style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af", fontSize: 14 }}>
