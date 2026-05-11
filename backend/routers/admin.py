@@ -661,3 +661,54 @@ async def metricas_clinica(clinic_id: UUID):
         "convs_pct": pct(convs_hoy, convs_ayer),
         "conversaciones_esperando_humano": pendientes_humano,
     }
+
+
+# ─── Base de conocimiento ─────────────────────────────────────────────────────
+
+@router.get("/clinicas/{clinic_id}/conocimiento")
+async def listar_conocimiento(clinic_id: UUID, solo_activos: bool = False):
+    db = get_supabase()
+    q = db.table("conocimientos").select("*").eq("clinic_id", str(clinic_id))
+    if solo_activos:
+        q = q.eq("activo", True)
+    result = q.order("orden").order("created_at").execute()
+    return result.data
+
+
+@router.post("/clinicas/{clinic_id}/conocimiento")
+async def crear_conocimiento(clinic_id: UUID, data: dict):
+    db = get_supabase()
+    row = {
+        "clinic_id": str(clinic_id),
+        "titulo": data.get("titulo", "").strip(),
+        "contenido": data.get("contenido", "").strip(),
+        "tipo": data.get("tipo", "faq"),
+        "activo": data.get("activo", True),
+        "orden": data.get("orden", 0),
+    }
+    if not row["titulo"] or not row["contenido"]:
+        raise HTTPException(status_code=400, detail="titulo y contenido son obligatorios")
+    result = db.table("conocimientos").insert(row).execute()
+    return result.data[0]
+
+
+@router.patch("/clinicas/{clinic_id}/conocimiento/{entrada_id}")
+async def actualizar_conocimiento(clinic_id: UUID, entrada_id: UUID, data: dict):
+    db = get_supabase()
+    allowed = {"titulo", "contenido", "tipo", "activo", "orden"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Sin campos válidos para actualizar")
+    result = db.table("conocimientos").update(updates) \
+        .eq("id", str(entrada_id)).eq("clinic_id", str(clinic_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    return result.data[0]
+
+
+@router.delete("/clinicas/{clinic_id}/conocimiento/{entrada_id}", status_code=204)
+async def eliminar_conocimiento(clinic_id: UUID, entrada_id: UUID):
+    db = get_supabase()
+    db.table("conocimientos").delete() \
+        .eq("id", str(entrada_id)).eq("clinic_id", str(clinic_id)).execute()
+    return

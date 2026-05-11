@@ -78,13 +78,17 @@ async def run_agent(
     """
     db = get_supabase()
 
-    # Cargar configuración de la clínica y sus servicios activos
+    # Cargar configuración de la clínica, servicios activos y base de conocimiento
     clinica_res = db.table("clinicas").select("*").eq("id", clinic_id).single().execute()
     clinica = clinica_res.data
     servicios_res = db.table("servicios").select(
         "nombre, duracion_min, precio, categoria, reservable_ia, activo"
     ).eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
     servicios_tabla = servicios_res.data or []
+
+    conocimiento_res = db.table("conocimientos").select("titulo, contenido, tipo") \
+        .eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
+    conocimiento = conocimiento_res.data or []
 
     # Si no hay paciente_id (webchat sin teléfono), crear lead anónimo para tener ID
     if not paciente_id:
@@ -120,7 +124,7 @@ async def run_agent(
         return "Un miembro del equipo de la clínica se pondrá en contacto contigo en breve.", conversacion_id
 
     # Construir messages para OpenAI (solo role+content, sin campos extra como timestamp)
-    system_prompt = build_system_prompt(clinica, servicios_tabla=servicios_tabla)
+    system_prompt = build_system_prompt(clinica, servicios_tabla=servicios_tabla, conocimiento=conocimiento)
     messages = [{"role": "system", "content": system_prompt}]
     for h in (historial if isinstance(historial, list) else []):
         if not isinstance(h, dict):

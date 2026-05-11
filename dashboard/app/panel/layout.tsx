@@ -24,8 +24,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     if (expires < new Date()) redirect("/suscripcion");
   }
 
-  const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`);
+  const [clinicaRes, metricasRes] = await Promise.all([
+    adminFetch(`/admin/clinicas/${rol.clinic_id}`),
+    adminFetch(`/admin/clinicas/${rol.clinic_id}/metricas`),
+  ]);
   const clinica = await clinicaRes.json();
+  const metricas = await metricasRes.json().catch(() => ({}));
 
   const userName = user.email?.split("@")[0] ?? "Usuario";
 
@@ -67,7 +71,10 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           #panel-main { padding: 16px !important; overflow-x: hidden !important; width: 100% !important; box-sizing: border-box !important; }
         }
       `}</style>
-      <PanelSidebar clinicName={clinica.nombre} />
+      <PanelSidebar
+        clinicName={clinica.nombre}
+        pendientesHumano={metricas.conversaciones_esperando_humano ?? 0}
+      />
 
       <div id="panel-main-content" style={{ flex: 1, marginLeft: 240, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
         {/* Banner trial */}

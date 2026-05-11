@@ -48,10 +48,10 @@ Cuando escales, di exactamente: "Voy a pasarte con el equipo de la clínica, te 
 ## Información de la clínica
 {info_clinica}
 
-{prompt_personalizado}"""
+{conocimiento_texto}{prompt_personalizado}"""
 
 
-def build_system_prompt(clinica: dict, servicios_tabla: list | None = None) -> str:
+def build_system_prompt(clinica: dict, servicios_tabla: list | None = None, conocimiento: list | None = None) -> str:
     """
     servicios_tabla: filas de la tabla `servicios` (precargadas por run_agent).
     Si no se pasan, intenta leerlas de clinica.servicios (legacy JSONB).
@@ -101,11 +101,27 @@ def build_system_prompt(clinica: dict, servicios_tabla: list | None = None) -> s
         horarios_texto,
     ]))
 
+    # Base de conocimiento inyectada en el prompt
+    conocimiento_texto = ""
+    if conocimiento:
+        entradas = [
+            f"### {k['titulo']}\n{k['contenido']}"
+            for k in conocimiento
+            if k.get("titulo") and k.get("contenido")
+        ]
+        if entradas:
+            conocimiento_texto = "\n## Base de conocimiento de la clínica\n" + "\n\n".join(entradas) + "\n\n"
+
+    prompt_personalizado = clinica.get("prompt_personalizado", "") or ""
+    if prompt_personalizado:
+        prompt_personalizado = "\n" + prompt_personalizado
+
     return BASE_SYSTEM_PROMPT.format(
         nombre_clinica=clinica.get("nombre", "la clínica"),
         nombre_agente=clinica.get("agente_nombre") or "Valeria",
         fecha_hora_actual=datetime.now(timezone.utc).strftime("%A %d de %B de %Y, %H:%M UTC"),
         tono="cercano pero profesional",
         info_clinica=info_clinica,
-        prompt_personalizado=clinica.get("prompt_personalizado", ""),
+        conocimiento_texto=conocimiento_texto,
+        prompt_personalizado=prompt_personalizado,
     )

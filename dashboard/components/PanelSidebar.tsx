@@ -71,6 +71,15 @@ const LINKS = [
     ),
   },
   {
+    href: "/panel/conocimiento", label: "Conocimiento", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path d="M8.5 2C5.46 2 3 4.46 3 7.5C3 9.5 4.04 11.26 5.62 12.27V14.5H11.38V12.27C12.96 11.26 14 9.5 14 7.5C14 4.46 11.54 2 8.5 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M6 14.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/facturacion", label: "Facturación", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
@@ -93,9 +102,10 @@ const LINKS = [
 
 interface Props {
   clinicName: string;
+  pendientesHumano?: number;
 }
 
-export default function PanelSidebar({ clinicName }: Props) {
+export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -244,7 +254,17 @@ export default function PanelSidebar({ clinicName }: Props) {
                   }}
                 >
                   {icon}
-                  {label}
+                  <span style={{ flex: 1 }}>{label}</span>
+                  {href === "/panel/conversaciones" && pendientesHumano > 0 && (
+                    <span style={{
+                      minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444",
+                      color: "white", fontSize: 10.5, fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      padding: "0 5px",
+                    }}>
+                      {pendientesHumano > 99 ? "99+" : pendientesHumano}
+                    </span>
+                  )}
                 </Link>
               );
             })}
