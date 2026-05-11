@@ -10,6 +10,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from config import settings
 from rate_limit import limiter
 from routers import admin, chat, whatsapp, retell, auth, invitaciones, configuracion, canales, registro
+from routers import stripe_billing
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,6 +59,7 @@ app.include_router(invitaciones.router, prefix="/admin", tags=["invitaciones"])
 app.include_router(configuracion.router, prefix="/admin", tags=["configuracion"])
 app.include_router(canales.router, prefix="/admin", tags=["canales"])
 app.include_router(registro.router, prefix="/saas", tags=["registro"])
+app.include_router(stripe_billing.router, prefix="/billing", tags=["billing"])
 
 
 @app.get("/health")

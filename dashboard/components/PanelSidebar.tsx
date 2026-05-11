@@ -71,6 +71,16 @@ const LINKS = [
     ),
   },
   {
+    href: "/panel/facturacion", label: "Facturación", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <rect x="2" y="4" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M2 7H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        <path d="M5 10.5H7M10 10.5H12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/configuracion", label: "Configuración", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">

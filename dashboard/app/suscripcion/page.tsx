@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import SuscripcionClient from "./SuscripcionClient";
 
 export const metadata: Metadata = {
   title: "Activa tu plan | Atiende360",
@@ -54,56 +54,7 @@ export default function SuscripcionPage() {
             activa uno de nuestros planes.
           </p>
 
-          {/* Plan destacado */}
-          <div style={{
-            background: "linear-gradient(135deg, #eff6ff, #eef2ff)",
-            border: "2px solid #2563eb",
-            borderRadius: 14,
-            padding: "24px 28px",
-            marginBottom: 24,
-            textAlign: "left",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-              <div>
-                <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 16, color: "#1e40af" }}>
-                  Plan Starter
-                </p>
-                <p style={{ margin: 0, fontSize: 13, color: "#3b82f6" }}>
-                  Para clínicas que quieren empezar
-                </p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ margin: "0 0 2px", fontWeight: 800, fontSize: 26, color: "#111827" }}>
-                  99€
-                </p>
-                <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>/mes</p>
-              </div>
-            </div>
-            <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#374151", lineHeight: 1.8 }}>
-              <li>300 minutos de llamadas IA al mes</li>
-              <li>Agente de voz + webchat</li>
-              <li>Google Calendar + citas automáticas</li>
-              <li>Panel de conversaciones y leads</li>
-              <li>Sin permanencia, cancela cuando quieras</li>
-            </ul>
-          </div>
-
-          <Link
-            href="/pricing"
-            style={{
-              display: "block",
-              background: "linear-gradient(135deg, #2563eb, #4f46e5)",
-              color: "white",
-              textDecoration: "none",
-              borderRadius: 10,
-              padding: "14px 24px",
-              fontSize: 15,
-              fontWeight: 600,
-              marginBottom: 12,
-            }}
-          >
-            Ver todos los planes →
-          </Link>
+          <SuscripcionClient />
 
           <p style={{ margin: "16px 0 0", fontSize: 12, color: "#9ca3af" }}>
             ¿Tienes dudas?{" "}

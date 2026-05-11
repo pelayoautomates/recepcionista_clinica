@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     # Notificaciones (opcional)
     notify_webhook_url: str = ""  # URL para notificar escaladas a humano (Slack/Make/etc.)
 
+    # Stripe
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_starter: str = ""   # price_xxx del plan Starter en Stripe
+    stripe_price_pro: str = ""       # price_xxx del plan Pro
+    stripe_price_growth: str = ""    # price_xxx del plan Growth
+    dashboard_url: str = "https://app.atiende360.com"  # para redirect después de checkout
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
