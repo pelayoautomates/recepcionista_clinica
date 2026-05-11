@@ -1,25 +1,13 @@
 "use client";
-import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { signInWithGoogle } from "./actions";
 
 function LoginContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams.get("token") ?? undefined;
   const error = searchParams.get("error");
   const msg = searchParams.get("msg");
-
-  const handleGoogleLogin = async () => {
-    const supabase = createClient();
-    if (token) {
-      localStorage.setItem("pending_invite", token);
-    }
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-  };
 
   return (
     <div style={{
@@ -46,18 +34,20 @@ function LoginContent() {
           </div>
         )}
 
-        <button
-          onClick={handleGoogleLogin}
-          style={{
-            width: "100%", padding: "12px 16px", borderRadius: 8, cursor: "pointer",
-            border: "1px solid #d1d5db", background: "white", fontSize: 15,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-            fontWeight: 500, color: "#374151",
-          }}
-        >
-          <GoogleIcon />
-          Entrar con Google
-        </button>
+        <form action={signInWithGoogle.bind(null, token)}>
+          <button
+            type="submit"
+            style={{
+              width: "100%", padding: "12px 16px", borderRadius: 8, cursor: "pointer",
+              border: "1px solid #d1d5db", background: "white", fontSize: 15,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              fontWeight: 500, color: "#374151",
+            }}
+          >
+            <GoogleIcon />
+            Entrar con Google
+          </button>
+        </form>
       </div>
     </div>
   );

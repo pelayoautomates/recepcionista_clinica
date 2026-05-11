@@ -51,19 +51,38 @@ Cuando escales, di exactamente: "Voy a pasarte con el equipo de la clínica, te 
 {prompt_personalizado}"""
 
 
-def build_system_prompt(clinica: dict) -> str:
-    servicios = clinica.get("servicios", [])
+def build_system_prompt(clinica: dict, servicios_tabla: list | None = None) -> str:
+    """
+    servicios_tabla: filas de la tabla `servicios` (precargadas por run_agent).
+    Si no se pasan, intenta leerlas de clinica.servicios (legacy JSONB).
+    """
     servicios_texto = ""
-    if isinstance(servicios, dict):
-        # Free-form text saved under _doc key
-        servicios_texto = servicios.get("_doc", "").strip()
-    elif isinstance(servicios, list) and servicios:
-        servicios_texto = "Servicios disponibles:\n" + "\n".join(
-            f"- {s['nombre']}: {s.get('duracion_min', 60)} min"
-            + (f", precio orientativo {s['precio_orientativo']}€" if s.get("precio_orientativo") else "")
-            for s in servicios
-            if isinstance(s, dict)
-        )
+    if servicios_tabla:
+        lines = []
+        for s in servicios_tabla:
+            if not isinstance(s, dict) or not s.get("activo", True):
+                continue
+            linea = f"- {s['nombre']}: {s.get('duracion_min', 30)} min"
+            if s.get("precio"):
+                linea += f", {s['precio']}€"
+            if s.get("categoria"):
+                linea += f" [{s['categoria']}]"
+            if not s.get("reservable_ia", True):
+                linea += " (solo con humano)"
+            lines.append(linea)
+        if lines:
+            servicios_texto = "Servicios disponibles:\n" + "\n".join(lines)
+    else:
+        servicios = clinica.get("servicios", [])
+        if isinstance(servicios, dict):
+            servicios_texto = servicios.get("_doc", "").strip()
+        elif isinstance(servicios, list) and servicios:
+            servicios_texto = "Servicios disponibles:\n" + "\n".join(
+                f"- {s['nombre']}: {s.get('duracion_min', 60)} min"
+                + (f", precio orientativo {s['precio_orientativo']}€" if s.get("precio_orientativo") else "")
+                for s in servicios
+                if isinstance(s, dict)
+            )
 
     horarios = clinica.get("horarios", {})
     dias_map = {"lun": "Lunes", "mar": "Martes", "mie": "Miércoles", "jue": "Jueves",

@@ -115,6 +115,16 @@ def _bloques_activos(db, clinic_id: str, fecha_inicio: datetime, fecha_fin: date
     return filtrados
 
 
+def _sala_solapada(db, clinic_id: str, sala_id: str, fecha_inicio: datetime, fecha_fin: datetime) -> bool:
+    """Devuelve True si la sala ya está ocupada en ese rango."""
+    r = db.table("citas").select("id").eq("clinic_id", clinic_id).eq(
+        "sala_id", sala_id
+    ).not_.in_("estado", ["cancelada", "no_asistio"]).lt(
+        "fecha_inicio", fecha_fin.isoformat()
+    ).gt("fecha_fin", fecha_inicio.isoformat()).execute()
+    return bool(r.data)
+
+
 def _citas_solapadas(db, clinic_id: str, profesional_id: str, fecha_inicio: datetime, fecha_fin: datetime) -> list[dict]:
     """Citas existentes que solapan con el slot propuesto (incluyendo buffers ya guardados en fecha_fin)."""
     r = db.table("citas").select("id, fecha_inicio, fecha_fin").eq("clinic_id", clinic_id).eq(
@@ -356,6 +366,11 @@ async def create_appointment_validated(
     if _gcal_ocupado(clinic_id, slot_inicio_con_buffer, slot_fin_con_buffer, clinic):
         return {"error": "Google Calendar marca ese horario como ocupado. Propón otro slot."}
 
+    # Validar sala si aplica
+    sala_final = sala_id or servicio.get("sala_id")
+    if sala_final and _sala_solapada(db, clinic_id, sala_final, slot_inicio_con_buffer, slot_fin_con_buffer):
+        return {"error": "La sala asignada ya está ocupada en ese horario. Propón otro slot."}
+
     # Crear en Supabase
     cita_data: dict[str, Any] = {
         "clinic_id": clinic_id,
@@ -407,6 +422,7 @@ async def create_appointment_validated(
         db.table("citas").update({"estado": "sync_failed"}).eq("id", cita_id).execute()
 
     logger.info("Cita %s creada — profesional=%s servicio=%s", cita_id, prof_nombre, servicio_nombre)
+    _notificar_clinica_nueva_cita(clinic, servicio_nombre, prof_nombre, fecha_inicio, nombre_paciente, origen)
     return {
         "ok": True,
         "cita_id": cita_id,
@@ -416,6 +432,80 @@ async def create_appointment_validated(
         "servicio": servicio_nombre,
         "profesional": prof_nombre,
         "duracion_min": duracion,
+    }
+
+
+def _notificar_clinica_nueva_cita(
+    clinic: dict,
+    servicio: str,
+    profesional: str,
+    fecha_inicio: datetime,
+    paciente: str,
+    origen: str,
+) -> None:
+    """Envía notificación a la clínica por webhook (Slack/Make/Zapier) cuando el agente agenda una cita."""
+    try:
+        from config import settings
+        import httpx as _httpx
+
+        canal_label = {"ia_llamada": "Llamada", "ia_whatsapp": "WhatsApp", "ia_chat": "Webchat"}.get(origen, origen)
+        texto = (
+            f"Nueva cita agendada por IA ({canal_label})\n"
+            f"Paciente: {paciente}\n"
+            f"Servicio: {servicio}\n"
+            f"Profesional: {profesional}\n"
+            f"Fecha: {fecha_inicio.strftime('%d/%m/%Y %H:%M')}\n"
+            f"Clínica: {clinic.get('nombre', '')}"
+        )
+
+        # Webhook por clínica tiene prioridad; fallback al global
+        webhook_url = clinic.get("notif_webhook") or settings.notify_webhook_url
+        if webhook_url:
+            _httpx.post(
+                webhook_url,
+                json={"text": texto, "username": "Atiende360", "tipo": "nueva_cita"},
+                timeout=5,
+            )
+    except Exception as exc:
+        logger.warning("Notificación clínica fallida: %s", exc)
+
+
+async def buscar_citas_paciente(clinic_id: str, paciente_id: str) -> dict:
+    """Devuelve las citas futuras y recientes del paciente para que el agente pueda moverlas/cancelarlas."""
+    db = get_supabase()
+    ahora = datetime.now(timezone.utc)
+    hace_30d = ahora - timedelta(days=30)
+
+    r = db.table("citas").select(
+        "id, tipo_servicio, fecha_inicio, fecha_fin, estado, profesional_id"
+    ).eq("clinic_id", clinic_id).eq("paciente_id", paciente_id).gte(
+        "fecha_inicio", hace_30d.isoformat()
+    ).not_.in_("estado", ["cancelada"]).order("fecha_inicio").execute()
+
+    citas = r.data or []
+    futuras = [c for c in citas if c["fecha_inicio"] >= ahora.isoformat()]
+    pasadas = [c for c in citas if c["fecha_inicio"] < ahora.isoformat()]
+
+    return {
+        "citas_futuras": [
+            {
+                "cita_id": c["id"],
+                "servicio": c["tipo_servicio"],
+                "fecha": datetime.fromisoformat(c["fecha_inicio"]).strftime("%d/%m/%Y %H:%M"),
+                "fecha_inicio_iso": c["fecha_inicio"],
+                "estado": c["estado"],
+            }
+            for c in futuras
+        ],
+        "citas_recientes": [
+            {
+                "cita_id": c["id"],
+                "servicio": c["tipo_servicio"],
+                "fecha": datetime.fromisoformat(c["fecha_inicio"]).strftime("%d/%m/%Y %H:%M"),
+                "estado": c["estado"],
+            }
+            for c in pasadas[-3:]
+        ],
     }
 
 

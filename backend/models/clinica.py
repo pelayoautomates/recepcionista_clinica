@@ -46,3 +46,4 @@ class ClinicaUpdate(BaseModel):
     horarios: dict[str, Any] | None = None
     servicios: list[Any] | None = None
     prompt_personalizado: str | None = None
+    notif_webhook: str | None = None

@@ -6,6 +6,7 @@ const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const token = searchParams.get("token");
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=no_code`);
@@ -60,7 +61,10 @@ export async function GET(request: NextRequest) {
     }
   } catch {}
 
-  // Sin clínica → onboarding
-  response.headers.set("location", `${origin}/onboarding`);
+  // Sin clínica → onboarding (con token de invitación si existe)
+  const onboardingUrl = token
+    ? `${origin}/onboarding?token=${encodeURIComponent(token)}`
+    : `${origin}/onboarding`;
+  response.headers.set("location", onboardingUrl);
   return response;
 }

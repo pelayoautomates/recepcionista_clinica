@@ -338,6 +338,8 @@ export default function OnboardingPage() {
                 {[
                   { done: true, label: "Clínica creada" },
                   { done: extraidoOk, label: urlWeb ? "Agente entrenado con tu web" : "Añadir web → Configuración" },
+                  { done: false, label: "Añadir servicios → Agenda IA" },
+                  { done: false, label: "Configurar profesionales → Agenda IA" },
                   { done: false, label: "Conectar Google Calendar → Configuración" },
                   { done: false, label: "Comprar número de teléfono → Canales" },
                 ].map(({ done, label }) => (

@@ -103,11 +103,13 @@ def _enviar_recordatorio_whatsapp(job: dict, tipo: str):
     payload = job.get("payload", {})
     fecha_cita = payload.get("fecha_cita", "")
     nombre_clinica = payload.get("nombre_clinica", "la clínica")
+    tipo_servicio = payload.get("tipo_servicio", "")
+    servicio_txt = f" ({tipo_servicio})" if tipo_servicio else ""
 
     if tipo == "24h":
-        texto = f"Hola {nombre}, te recordamos que tienes una cita mañana en {nombre_clinica}: {fecha_cita}. Responde CONFIRMAR, CANCELAR o MOVER si necesitas cambiarla."
+        texto = f"Hola {nombre}, te recordamos que tienes una cita mañana en {nombre_clinica}{servicio_txt}: {fecha_cita}. Responde CANCELAR o MOVER si necesitas cambiarla."
     else:
-        texto = f"Hola {nombre}, tu cita en {nombre_clinica} es en aproximadamente 1 hora: {fecha_cita}. ¡Te esperamos!"
+        texto = f"Hola {nombre}, tu cita{servicio_txt} en {nombre_clinica} es en aproximadamente 1 hora: {fecha_cita}. ¡Te esperamos!"
 
     import httpx as _httpx
     with _httpx.Client() as client:
@@ -223,7 +225,7 @@ def _programar_recordatorios_pendientes():
     limite = ahora + timedelta(hours=25)
 
     citas = db.table("citas") \
-        .select("id, clinic_id, paciente_id, fecha_inicio") \
+        .select("id, clinic_id, paciente_id, fecha_inicio, tipo_servicio") \
         .eq("estado", "confirmada") \
         .gte("fecha_inicio", ahora.isoformat()) \
         .lte("fecha_inicio", limite.isoformat()) \
@@ -245,6 +247,7 @@ def _programar_recordatorios_pendientes():
             "cita_id": cita["id"],
             "fecha_cita": fecha_cita.strftime("%d/%m/%Y %H:%M"),
             "nombre_clinica": nombre_clinica,
+            "tipo_servicio": cita.get("tipo_servicio", ""),
         }
 
         for tipo, fecha_prog in [("recordatorio_24h", fecha_24h), ("recordatorio_1h", fecha_1h)]:

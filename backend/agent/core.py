@@ -22,7 +22,7 @@ async def _dispatch_tool(
     conversacion_id: str | None = None,
     canal: str = "chat_web",
 ) -> str:
-    from tools.calendario import consultar_disponibilidad, crear_cita, mover_cita, cancelar_cita
+    from tools.calendario import consultar_disponibilidad, crear_cita, mover_cita, cancelar_cita, buscar_citas_paciente
     from tools.pacientes import buscar_paciente, crear_lead, actualizar_estado_lead
     from tools.sistema import programar_seguimiento, escalar_a_humano
 
@@ -43,6 +43,8 @@ async def _dispatch_tool(
             result = await mover_cita(**args)
         elif tool_name == "cancelar_cita":
             result = await cancelar_cita(**args)
+        elif tool_name == "buscar_citas_paciente":
+            result = await buscar_citas_paciente(clinic_id, **args)
         elif tool_name == "buscar_paciente":
             result = await buscar_paciente(clinic_id, **args)
         elif tool_name == "crear_lead":
@@ -76,15 +78,30 @@ async def run_agent(
     """
     db = get_supabase()
 
-    # Cargar configuración de la clínica
+    # Cargar configuración de la clínica y sus servicios activos
     clinica_res = db.table("clinicas").select("*").eq("id", clinic_id).single().execute()
     clinica = clinica_res.data
+    servicios_res = db.table("servicios").select(
+        "nombre, duracion_min, precio, categoria, reservable_ia, activo"
+    ).eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
+    servicios_tabla = servicios_res.data or []
+
+    # Si no hay paciente_id (webchat sin teléfono), crear lead anónimo para tener ID
+    if not paciente_id:
+        from tools.pacientes import crear_lead
+        anon = await crear_lead(clinic_id, canal=canal)
+        paciente_id = anon["id"]
 
     # Cargar o crear conversación
     if conversacion_id:
         conv_res = db.table("conversaciones").select("*").eq("id", conversacion_id).single().execute()
         conversacion = conv_res.data
-        historial = conversacion["mensajes"]
+        if not conversacion:
+            conversacion_id = None
+            conversacion = {}
+            historial = []
+        else:
+            historial = conversacion.get("mensajes") or []
     else:
         conv_data = {
             "clinic_id": clinic_id,
@@ -96,14 +113,14 @@ async def run_agent(
         conv_res = db.table("conversaciones").insert(conv_data).execute()
         conversacion = conv_res.data[0]
         conversacion_id = conversacion["id"]
-        historial = []
+        historial = conversacion.get("mensajes") or []
 
     # Si la conversación está en mano humana, no responder
     if conversacion.get("estado") == "esperando_humano":
         return "Un miembro del equipo de la clínica se pondrá en contacto contigo en breve.", conversacion_id
 
     # Construir messages para OpenAI (solo role+content, sin campos extra como timestamp)
-    system_prompt = build_system_prompt(clinica)
+    system_prompt = build_system_prompt(clinica, servicios_tabla=servicios_tabla)
     messages = [{"role": "system", "content": system_prompt}]
     for h in (historial if isinstance(historial, list) else []):
         if not isinstance(h, dict):

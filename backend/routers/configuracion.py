@@ -68,6 +68,8 @@ async def guardar_configuracion(clinic_id: UUID, data: dict):
         campos["horarios"] = data["horarios"]
     if "servicios" in data:
         campos["servicios"] = data["servicios"]
+    if "notif_webhook" in data:
+        campos["notif_webhook"] = data["notif_webhook"]  # None = borrar webhook
     if not campos:
         raise HTTPException(status_code=400, detail="No hay datos para guardar")
     result = db.table("clinicas").update(campos).eq("id", str(clinic_id)).execute()

@@ -84,6 +84,27 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "buscar_citas_paciente",
+            "description": (
+                "Busca las citas del paciente (futuras y recientes). "
+                "SIEMPRE úsala antes de mover o cancelar una cita, para obtener el cita_id correcto. "
+                "También úsala cuando el paciente pregunte por sus citas o quiera ver cuándo tiene su próxima visita."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "paciente_id": {
+                        "type": "string",
+                        "description": "UUID del paciente. Debe haberse obtenido antes con buscar_paciente o crear_lead."
+                    }
+                },
+                "required": ["paciente_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "mover_cita",
             "description": (
                 "Mueve una cita existente a una nueva fecha y hora. "

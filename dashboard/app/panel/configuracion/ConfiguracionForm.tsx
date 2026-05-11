@@ -104,7 +104,7 @@ export default function ConfiguracionForm({
   clinica,
   clinicId,
 }: {
-  clinica: Clinica;
+  clinica: Clinica & { notif_webhook?: string };
   clinicId: string;
 }) {
   const initialDoc = getInitialDoc(clinica);
@@ -120,6 +120,7 @@ export default function ConfiguracionForm({
   const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [notifWebhook, setNotifWebhook] = useState(clinica.notif_webhook || "");
   const fileRef = useRef<HTMLInputElement>(null);
   const savedDocRef = useRef(initialDoc);
 
@@ -175,6 +176,7 @@ export default function ConfiguracionForm({
           prompt_personalizado: promptFinal,
           servicios: { _doc: doc },
           horarios: clinica.horarios || {},
+          notif_webhook: notifWebhook.trim() || null,
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");
@@ -443,6 +445,28 @@ export default function ConfiguracionForm({
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Webhook notificaciones */}
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            <div style={{ padding: "13px 16px", borderBottom: "1px solid #f3f4f6", fontSize: 13.5, fontWeight: 700, color: "#111827" }}>
+              Notificaciones
+            </div>
+            <div style={{ padding: 16 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+                Webhook (Slack / Make / Zapier)
+              </label>
+              <input
+                type="url"
+                value={notifWebhook}
+                onChange={e => setNotifWebhook(e.target.value)}
+                placeholder="https://hooks.slack.com/services/..."
+                style={inputSt}
+              />
+              <p style={{ fontSize: 12, color: "#9ca3af", margin: "8px 0 0" }}>
+                El agente IA enviará un aviso aquí cada vez que agende, mueva o cancele una cita.
+              </p>
+            </div>
           </div>
 
           {/* Save button */}

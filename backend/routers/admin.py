@@ -79,7 +79,7 @@ async def listar_leads(clinic_id: UUID, estado: str | None = None, canal: str | 
 async def listar_conversaciones(clinic_id: UUID, estado: str | None = None):
     db = get_supabase()
     query = db.table("conversaciones") \
-        .select("id, paciente_id, canal, estado, created_at, updated_at") \
+        .select("id, paciente_id, canal, estado, mensajes, created_at, updated_at, pacientes(nombre)") \
         .eq("clinic_id", str(clinic_id))
     if estado:
         query = query.eq("estado", estado)
@@ -614,30 +614,50 @@ async def listar_jobs(clinic_id: UUID, estado: str | None = None):
 @router.get("/clinicas/{clinic_id}/metricas")
 async def metricas_clinica(clinic_id: UUID):
     db = get_supabase()
-    from datetime import date
-    hoy = date.today().isoformat()
+    from datetime import date, timedelta
+    hoy = date.today()
+    ayer = hoy - timedelta(days=1)
+    hoy_str = hoy.isoformat()
+    ayer_str = ayer.isoformat()
 
-    leads_hoy = db.table("pacientes") \
-        .select("id", count="exact") \
-        .eq("clinic_id", str(clinic_id)) \
-        .gte("created_at", f"{hoy}T00:00:00Z") \
-        .execute()
+    def count_hoy(tabla: str, campo_fecha: str, filtros: dict | None = None):
+        q = db.table(tabla).select("id", count="exact").eq("clinic_id", str(clinic_id)) \
+            .gte(campo_fecha, f"{hoy_str}T00:00:00Z").lte(campo_fecha, f"{hoy_str}T23:59:59Z")
+        for k, v in (filtros or {}).items():
+            q = q.eq(k, v)
+        return q.execute().count or 0
 
-    citas_hoy = db.table("citas") \
-        .select("id", count="exact") \
-        .eq("clinic_id", str(clinic_id)) \
-        .gte("fecha_inicio", f"{hoy}T00:00:00Z") \
-        .lte("fecha_inicio", f"{hoy}T23:59:59Z") \
-        .execute()
+    def count_ayer(tabla: str, campo_fecha: str, filtros: dict | None = None):
+        q = db.table(tabla).select("id", count="exact").eq("clinic_id", str(clinic_id)) \
+            .gte(campo_fecha, f"{ayer_str}T00:00:00Z").lte(campo_fecha, f"{ayer_str}T23:59:59Z")
+        for k, v in (filtros or {}).items():
+            q = q.eq(k, v)
+        return q.execute().count or 0
 
-    pendientes_humano = db.table("conversaciones") \
-        .select("id", count="exact") \
-        .eq("clinic_id", str(clinic_id)) \
-        .eq("estado", "esperando_humano") \
-        .execute()
+    leads_hoy = count_hoy("pacientes", "created_at")
+    leads_ayer = count_ayer("pacientes", "created_at")
+    citas_hoy = count_hoy("citas", "fecha_inicio")
+    citas_ayer = count_ayer("citas", "fecha_inicio")
+    convs_hoy = count_hoy("conversaciones", "created_at")
+    convs_ayer = count_ayer("conversaciones", "created_at")
+
+    pendientes_humano = db.table("conversaciones").select("id", count="exact") \
+        .eq("clinic_id", str(clinic_id)).eq("estado", "esperando_humano").execute().count or 0
+
+    def pct(hoy_v: int, ayer_v: int) -> int | None:
+        if ayer_v == 0:
+            return None
+        return round((hoy_v - ayer_v) / ayer_v * 100)
 
     return {
-        "leads_hoy": leads_hoy.count or 0,
-        "citas_hoy": citas_hoy.count or 0,
-        "conversaciones_esperando_humano": pendientes_humano.count or 0,
+        "leads_hoy": leads_hoy,
+        "leads_ayer": leads_ayer,
+        "leads_pct": pct(leads_hoy, leads_ayer),
+        "citas_hoy": citas_hoy,
+        "citas_ayer": citas_ayer,
+        "citas_pct": pct(citas_hoy, citas_ayer),
+        "convs_hoy": convs_hoy,
+        "convs_ayer": convs_ayer,
+        "convs_pct": pct(convs_hoy, convs_ayer),
+        "conversaciones_esperando_humano": pendientes_humano,
     }

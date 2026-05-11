@@ -48,11 +48,13 @@ const ESTADO_CONV: Record<string, { label: string; bg: string; color: string }> 
   resuelta:         { label: "Resuelta",           bg: "#f1f5f9", color: "#64748b" },
 };
 
-const ESTADO_LEAD: Record<string, { label: string; color: string }> = {
-  nuevo:         { label: "Nuevo",         color: "#2563eb" },
-  contactado:    { label: "Contactado",    color: "#7c3aed" },
-  cita_agendada: { label: "Cita agendada", color: "#166534" },
-  perdido:       { label: "Perdido",       color: "#94a3b8" },
+const ESTADO_CITA: Record<string, { label: string; bg: string; color: string }> = {
+  confirmada:       { label: "Confirmada",   bg: "#dcfce7", color: "#166534" },
+  pendiente:        { label: "Pendiente",    bg: "#fef3c7", color: "#92400e" },
+  reprogramada:     { label: "Reprogramada", bg: "#dbeafe", color: "#1d4ed8" },
+  completada:       { label: "Completada",   bg: "#f1f5f9", color: "#64748b" },
+  cancelada:        { label: "Cancelada",    bg: "#fee2e2", color: "#991b1b" },
+  requiere_revision:{ label: "Revisar",      bg: "#fef3c7", color: "#92400e" },
 };
 
 function getLocalDateISO() {
@@ -87,26 +89,23 @@ export default async function PanelPage() {
   const rol = await rolRes.json();
   const clinic_id = rol.clinic_id;
 
-  const [clinicaRes, metricasRes, convsRes, leadsRes] = await Promise.all([
+  const hoy = getLocalDateISO();
+
+  const [clinicaRes, metricasRes, convsRes, citasRes] = await Promise.all([
     adminFetch(`/admin/clinicas/${clinic_id}`, { noStore: true }),
     adminFetch(`/admin/clinicas/${clinic_id}/metricas`, { noStore: true }),
     adminFetch(`/admin/clinicas/${clinic_id}/conversaciones`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${clinic_id}/leads`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinic_id}/citas?fecha=${hoy}`, { noStore: true }),
   ]);
 
   const clinica = await clinicaRes.json();
   const metricas = await metricasRes.json();
   const todasConvs: any[] = convsRes.ok ? await convsRes.json() : [];
-  const todosLeads: any[] = leadsRes.ok ? await leadsRes.json() : [];
+  const citasHoy: any[] = citasRes.ok ? await citasRes.json() : [];
 
-  const hoy = getLocalDateISO();
   const convsHoy = todasConvs
     .filter(c => (c.updated_at || c.created_at || "").startsWith(hoy))
     .slice(0, 6);
-  const leadsHoy = todosLeads.filter(l => (l.created_at || "").startsWith(hoy)).slice(0, 5);
-  const citasHoy = todasConvs
-    .filter(c => c.canal !== undefined)
-    .slice(0, 4);
 
   const tieneCalendario = !!clinica.google_tokens_enc;
   const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${clinic_id}`;
@@ -140,25 +139,24 @@ export default async function PanelPage() {
       }}>
         <MetricCard
           label="Conversaciones hoy"
-          value={todasConvs.filter(c => (c.updated_at || c.created_at || "").startsWith(hoy)).length}
+          value={metricas.convs_hoy ?? convsHoy.length}
           icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M17 3H3C2.45 3 2 3.45 2 4V13C2 13.55 2.45 14 3 14H6V17.5L10.5 14H17C17.55 14 18 13.55 18 13V4C18 3.45 17.55 3 17 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>}
           iconBg="#dbeafe" iconColor="#2563eb"
-          trend="+18% vs ayer" trendUp
+          pct={metricas.convs_pct ?? null}
         />
         <MetricCard
-          label="Citas agendadas"
+          label="Citas agendadas hoy"
           value={metricas.citas_hoy ?? 0}
           icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3.5" width="16" height="14.5" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M2 8.5H18M6.5 1.5V5.5M13.5 1.5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
           iconBg="#d1fae5" iconColor="#059669"
-          trend="+12% vs ayer" trendUp
+          pct={metricas.citas_pct ?? null}
         />
         <MetricCard
           label="Leads captados hoy"
-          value={leadsHoy.length}
+          value={metricas.leads_hoy ?? 0}
           icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5" /><path d="M3 17C3 13.69 6.13 11 10 11C13.87 11 17 13.69 17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M14 4L16 6L20 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
           iconBg="#ede9fe" iconColor="#7c3aed"
-          trend={leadsHoy.length > 0 ? `${leadsHoy.length} nuevo${leadsHoy.length > 1 ? "s" : ""}` : "Sin leads hoy"}
-          trendUp={leadsHoy.length > 0}
+          pct={metricas.leads_pct ?? null}
         />
       </div>
 
@@ -208,7 +206,7 @@ export default async function PanelPage() {
                   const hora = conv.updated_at
                     ? new Date(conv.updated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
                     : "—";
-                  const nombre = conv.paciente_nombre || conv.paciente_id?.slice(0, 8) || "Desconocido";
+                  const nombre = conv.pacientes?.nombre || conv.paciente_id?.slice(0, 8) || "Desconocido";
                   const pal = AVATAR_PALETTES[i % AVATAR_PALETTES.length];
                   const msgs: any[] = Array.isArray(conv.mensajes) ? conv.mensajes : [];
                   const userMsg = msgs.filter((m: any) => m.role === "user").pop();
@@ -278,43 +276,47 @@ export default async function PanelPage() {
             </Link>
           </div>
 
-          {!tieneCalendario ? (
-            <div style={{ padding: "28px 20px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
-              Conecta Google Calendar para ver tu agenda
-            </div>
-          ) : leadsHoy.length === 0 ? (
+          {citasHoy.length === 0 ? (
             <div style={{ padding: "28px 20px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
               Sin citas hoy
             </div>
           ) : (
             <div style={{ padding: "6px 0" }}>
-              {leadsHoy.map((lead: any, i: number) => (
-                <div key={lead.id} style={{
-                  display: "flex", alignItems: "flex-start", gap: 12,
-                  padding: "12px 20px",
-                  borderBottom: i < leadsHoy.length - 1 ? "1px solid #f9fafb" : "none",
-                }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: "#2563eb", marginTop: 5, flexShrink: 0,
-                  }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827", marginBottom: 2 }}>
-                      {lead.nombre || "Paciente"}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                      {ESTADO_LEAD[lead.estado_lead]?.label || lead.estado_lead}
-                    </div>
-                  </div>
-                  <span style={{
-                    fontSize: 11.5, fontWeight: 600,
-                    background: "#dcfce7", color: "#166534",
-                    padding: "2px 9px", borderRadius: 20,
+              {citasHoy.slice(0, 6).map((cita: any, i: number) => {
+                const hora = cita.fecha_inicio
+                  ? new Date(cita.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+                  : "—";
+                const estadoStyle = ESTADO_CITA[cita.estado] || ESTADO_CITA.confirmada;
+                return (
+                  <div key={cita.id} style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "11px 20px",
+                    borderBottom: i < Math.min(citasHoy.length, 6) - 1 ? "1px solid #f9fafb" : "none",
                   }}>
-                    Confirmada
-                  </span>
-                </div>
-              ))}
+                    <div style={{
+                      minWidth: 42, textAlign: "center",
+                      fontSize: 12.5, fontWeight: 700, color: "#2563eb",
+                    }}>
+                      {hora}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
+                        {cita.paciente_nombre || "Paciente"}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                        {cita.tipo_servicio || "—"}{cita.profesional ? ` · ${cita.profesional}` : ""}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 11.5, fontWeight: 600,
+                      background: estadoStyle.bg, color: estadoStyle.color,
+                      padding: "2px 9px", borderRadius: 20, whiteSpace: "nowrap",
+                    }}>
+                      {estadoStyle.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -378,15 +380,23 @@ export default async function PanelPage() {
   );
 }
 
-function MetricCard({ label, value, icon, iconBg, iconColor, trend, trendUp, alert }: {
+function MetricCard({ label, value, icon, iconBg, iconColor, pct }: {
   label: string; value: number; icon: React.ReactNode;
   iconBg: string; iconColor: string;
-  trend: string; trendUp?: boolean; alert?: boolean;
+  pct: number | null;
 }) {
+  const up = pct !== null && pct >= 0;
+  const trendColor = pct === null ? "#9ca3af" : pct > 0 ? "#22c55e" : "#ef4444";
+  const trendText = pct === null
+    ? "Sin datos de ayer"
+    : pct === 0
+    ? "Igual que ayer"
+    : `${pct > 0 ? "+" : ""}${pct}% vs ayer`;
+
   return (
     <div style={{
       background: "white", borderRadius: 12,
-      border: `1px solid ${alert ? "#fde68a" : "#e5e7eb"}`,
+      border: "1px solid #e5e7eb",
       padding: "20px 22px",
       boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
     }}>
@@ -400,22 +410,22 @@ function MetricCard({ label, value, icon, iconBg, iconColor, trend, trendUp, ale
         </div>
       </div>
       <div style={{
-        fontSize: 32, fontWeight: 800,
-        color: alert ? "#b45309" : "#111827",
-        letterSpacing: "-0.04em",
-        lineHeight: 1, marginBottom: 6,
+        fontSize: 32, fontWeight: 800, color: "#111827",
+        letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 6,
       }}>
         {value}
       </div>
       <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 500, marginBottom: 6 }}>{label}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-        {trendUp
-          ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 9L6 3L10 9" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          : alert ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3L6 9L10 3" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> : null
-        }
-        <span style={{ color: trendUp ? "#22c55e" : alert ? "#ef4444" : "#9ca3af", fontWeight: 500 }}>
-          {trend}
-        </span>
+        {pct !== null && pct !== 0 && (
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            {up
+              ? <path d="M2 9L6 3L10 9" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              : <path d="M2 3L6 9L10 3" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            }
+          </svg>
+        )}
+        <span style={{ color: trendColor, fontWeight: 500 }}>{trendText}</span>
       </div>
     </div>
   );

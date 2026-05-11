@@ -49,6 +49,15 @@ const LINKS = [
     ),
   },
   {
+    href: "/panel/agenda", label: "Agenda IA", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <circle cx="8.5" cy="8.5" r="6" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8.5 5.5V8.5L10.5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/canales", label: "Canales", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
