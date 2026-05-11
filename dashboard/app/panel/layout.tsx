@@ -64,6 +64,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         @media (max-width: 767px) {
           #panel-main-content { margin-left: 0 !important; }
           #panel-header { padding-left: 64px !important; }
+          #panel-main { padding: 16px !important; }
         }
       `}</style>
       <PanelSidebar clinicName={clinica.nombre} />
@@ -142,7 +143,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: "28px 32px" }}>
+        <main id="panel-main" style={{ flex: 1, padding: "28px 32px" }}>
           {children}
         </main>
       </div>
