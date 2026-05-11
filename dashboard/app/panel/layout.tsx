@@ -60,9 +60,15 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f6f7f9" }}>
+      <style>{`
+        @media (max-width: 767px) {
+          #panel-main-content { margin-left: 0 !important; }
+          #panel-header { padding-left: 64px !important; }
+        }
+      `}</style>
       <PanelSidebar clinicName={clinica.nombre} />
 
-      <div style={{ flex: 1, marginLeft: 240, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <div id="panel-main-content" style={{ flex: 1, marginLeft: 240, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
         {/* Banner trial */}
         {trialDiasRestantes !== undefined && trialDiasRestantes <= 3 && (
           <div style={{
@@ -95,7 +101,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         )}
 
         {/* Top bar */}
-        <header style={{
+        <header id="panel-header" style={{
           height: 60,
           background: "white",
           borderBottom: "1px solid #e5e7eb",

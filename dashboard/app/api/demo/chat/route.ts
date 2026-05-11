@@ -11,6 +11,14 @@ type ChatMessage = {
 const SCRAPE_TIMEOUT_MS = 8000;
 const MAX_CONTENT_LENGTH = 2_000_000;
 
+const DEMO_CLINIC_CONTEXT = `Clínica: Sonrisa Dental Madrid
+Dirección: Calle Serrano 45, 1ºB, Madrid (barrio Salamanca)
+Teléfono: 91 234 56 78
+Horarios: Lunes a viernes 9:00-20:00, Sábados 9:00-14:00. Cerrado domingos y festivos.
+Servicios: Revisión dental (30 min, 40€), Limpieza dental profesional (45 min, 80€), Blanqueamiento dental (60 min, 250€), Ortodoncia invisible (desde 2800€), Implantes dentales (desde 950€/unidad), Carillas de porcelana (800€/pieza), Endodoncia (desde 300€).
+Profesionales: Dr. Carlos Vega (Director, especialista en implantes), Dra. Ana Ruiz (Ortodontista), Dra. Laura García (Odontología general y estética).
+Próximos huecos disponibles (simulados): Martes 15:00, Miércoles 10:30, Jueves 11:00, Viernes 16:30.`;
+
 function isPrivateIpv4(ip: string) {
   const parts = ip.split(".").map((p) => Number(p));
   if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return true;
@@ -104,7 +112,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OPENAI_API_KEY no configurada" }, { status: 500 });
   }
 
-  const { website, message, conversationId } = await req.json();
+  const {
+    website,
+    message,
+    conversationId,
+    cachedContext,
+    history,
+  } = await req.json();
 
   if (!website || typeof website !== "string") {
     return NextResponse.json({ error: "Falta website" }, { status: 400 });
@@ -114,18 +128,64 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Falta message" }, { status: 400 });
   }
 
-  let parsedWebsite: URL;
-  try {
-    parsedWebsite = new URL(website);
-    if (!(parsedWebsite.protocol === "http:" || parsedWebsite.protocol === "https:")) {
-      throw new Error("Protocolo no valido");
+  const isDemo = website === "demo";
+
+  // Validate URL unless it's the demo mode
+  if (!isDemo) {
+    try {
+      const parsedWebsite = new URL(website);
+      if (!(parsedWebsite.protocol === "http:" || parsedWebsite.protocol === "https:")) {
+        throw new Error("Protocolo no valido");
+      }
+    } catch {
+      return NextResponse.json({ error: "URL no valida" }, { status: 400 });
     }
-  } catch {
-    return NextResponse.json({ error: "URL no valida" }, { status: 400 });
   }
 
   try {
-    const scrapedText = await scrapeWebsite(parsedWebsite.toString());
+    // Resolve context: use cached, fictional demo, or scrape
+    let context: string;
+    if (cachedContext && typeof cachedContext === "string" && cachedContext.length > 0) {
+      context = cachedContext;
+    } else if (isDemo) {
+      context = DEMO_CLINIC_CONTEXT;
+    } else {
+      context = await scrapeWebsite(website);
+    }
+
+    const parsedUrl = isDemo ? null : new URL(website);
+    const contextLabel = isDemo ? "Clínica de ejemplo (Sonrisa Dental Madrid)" : parsedUrl!.hostname;
+
+    // Build history messages (last ~8 exchanges)
+    const historyMessages: ChatMessage[] = [];
+    if (Array.isArray(history) && history.length > 0) {
+      for (const msg of history.slice(-8)) {
+        if (msg.role === "user" || msg.role === "assistant") {
+          historyMessages.push({ role: msg.role, content: String(msg.content) });
+        }
+      }
+    }
+
+    const messages: ChatMessage[] = [
+      {
+        role: "system",
+        content:
+          "Eres la recepcionista virtual de una clínica. Responde en español, de forma natural y cercana.\n" +
+          "Tu objetivo: atender al paciente, responder sus dudas sobre servicios/precios/horarios y cerrar citas.\n" +
+          "Cuando el paciente quiera cita: pide nombre, teléfono y servicio deseado si no lo has preguntado aún.\n" +
+          "Propón huecos concretos disponibles según el contexto de la clínica.\n" +
+          "Sé breve (2-4 líneas máximo). Nunca inventes datos que no estén en el contexto.",
+      },
+      {
+        role: "system",
+        content: `CONTEXTO DE LA CLÍNICA (${contextLabel}):\n${context}`,
+      },
+      ...historyMessages,
+      {
+        role: "user",
+        content: message,
+      },
+    ];
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -135,21 +195,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Eres la recepcionista virtual de una clinica. Responde en espanol, breve y orientada a cerrar cita. Usa solo informacion visible en el contexto y si falta un dato, pide la informacion necesaria.",
-          },
-          {
-            role: "system",
-            content: `CONTEXTO WEB DE LA CLINICA (${parsedWebsite.hostname}):\n${scrapedText}`,
-          },
-          {
-            role: "user",
-            content: message,
-          },
-        ] as ChatMessage[],
+        messages,
         temperature: 0.3,
         max_tokens: 240,
       }),
@@ -171,7 +217,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       reply,
       conversationId: nextConversationId,
-      source: parsedWebsite.hostname,
+      context,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "No se pudo generar la demo" }, { status: 500 });

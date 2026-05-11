@@ -1,6 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 
 const LINKS = [
   {
@@ -86,95 +87,184 @@ interface Props {
 
 export default function PanelSidebar({ clinicName }: Props) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <aside style={{
-      position: "fixed", top: 0, left: 0, bottom: 0,
-      width: 240,
-      background: "white",
-      borderRight: "1px solid #e5e7eb",
-      display: "flex",
-      flexDirection: "column",
-      zIndex: 40,
-    }}>
-      {/* Logo */}
-      <div style={{
-        padding: "20px 20px 16px",
-        borderBottom: "1px solid #f3f4f6",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 36, height: 36,
-            background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
-            borderRadius: 10,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
+    <>
+      <style>{`
+        @media (min-width: 768px) {
+          .sidebar-mobile-toggle { display: none !important; }
+          .panel-sidebar { transform: none !important; position: fixed !important; }
+        }
+        @media (max-width: 767px) {
+          .panel-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; position: fixed; }
+          .panel-sidebar.open { transform: translateX(0); }
+        }
+      `}</style>
+
+      {/* Hamburger button — visible only on mobile, outside sidebar */}
+      <button
+        className="sidebar-mobile-toggle"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Abrir menú"
+        style={{
+          position: "fixed",
+          top: 14,
+          left: 16,
+          zIndex: 50,
+          width: 38,
+          height: 38,
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M3 5H15M3 9H15M3 13H15" stroke="#374151" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {/* Backdrop for mobile */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            zIndex: 39,
+          }}
+        />
+      )}
+
+      <aside
+        className={`panel-sidebar${mobileOpen ? " open" : ""}`}
+        style={{
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: 240,
+          background: "white",
+          borderRight: "1px solid #e5e7eb",
+          display: "flex",
+          flexDirection: "column",
+          zIndex: 40,
+        }}
+      >
+        {/* Logo */}
+        <div style={{
+          padding: "20px 20px 16px",
+          borderBottom: "1px solid #f3f4f6",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 36, height: 36,
+              background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
+              borderRadius: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M3 13V7.5L9 3.5L15 7.5V13" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
+                <rect x="7" y="8" width="4" height="5" rx="0.75" fill="white" fillOpacity="0.9" />
+                <circle cx="9" cy="6" r="1" fill="white" fillOpacity="0.6" />
+              </svg>
+            </div>
+            <div style={{ lineHeight: 1.3 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", letterSpacing: "-0.01em" }}>
+                Recepcionista IA
+              </div>
+              <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>
+                {clinicName}
+              </div>
+            </div>
+          </div>
+
+          {/* Close button — visible on mobile */}
+          <button
+            className="sidebar-mobile-toggle"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Cerrar menú"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 4,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#6b7280",
+            }}
+          >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M3 13V7.5L9 3.5L15 7.5V13" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
-              <rect x="7" y="8" width="4" height="5" rx="0.75" fill="white" fillOpacity="0.9" />
-              <circle cx="9" cy="6" r="1" fill="white" fillOpacity="0.6" />
+              <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
-          </div>
-          <div style={{ lineHeight: 1.3 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", letterSpacing: "-0.01em" }}>
-              Recepcionista IA
-            </div>
-            <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>
-              {clinicName}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav style={{ flex: 1, padding: "10px 12px", overflowY: "auto" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {LINKS.map(({ href, label, exact, icon }) => {
-            const active = exact ? pathname === href : pathname.startsWith(href);
-            return (
-              <Link key={href} href={href} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 12px",
-                borderRadius: 8,
-                textDecoration: "none",
-                background: active ? "#eff6ff" : "transparent",
-                color: active ? "#2563eb" : "#6b7280",
-                fontWeight: active ? 600 : 500,
-                fontSize: 13.5,
-                transition: "all 0.1s",
-              }}>
-                {icon}
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* Bottom: logout */}
-      <div style={{ padding: "12px 16px", borderTop: "1px solid #f3f4f6" }}>
-        <form action="/auth/logout" method="POST">
-          <button type="submit" style={{
-            width: "100%",
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "9px 12px",
-            borderRadius: 8,
-            border: "none",
-            background: "transparent",
-            color: "#9ca3af",
-            fontWeight: 500,
-            fontSize: 13.5,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}>
-            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <path d="M6.5 2.5H3C2.45 2.5 2 2.95 2 3.5V13.5C2 14.05 2.45 14.5 3 14.5H6.5M11.5 11.5L15 8.5L11.5 5.5M15 8.5H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Cerrar sesión
           </button>
-        </form>
-      </div>
-    </aside>
+        </div>
+
+        {/* Navigation */}
+        <nav style={{ flex: 1, padding: "10px 12px", overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {LINKS.map(({ href, label, exact, icon }) => {
+              const active = exact ? pathname === href : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 12px",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    background: active ? "#eff6ff" : "transparent",
+                    color: active ? "#2563eb" : "#6b7280",
+                    fontWeight: active ? 600 : 500,
+                    fontSize: 13.5,
+                    transition: "all 0.1s",
+                  }}
+                >
+                  {icon}
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Bottom: logout */}
+        <div style={{ padding: "12px 16px", borderTop: "1px solid #f3f4f6" }}>
+          <form action="/auth/logout" method="POST">
+            <button type="submit" style={{
+              width: "100%",
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "9px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "#9ca3af",
+              fontWeight: 500,
+              fontSize: 13.5,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}>
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                <path d="M6.5 2.5H3C2.45 2.5 2 2.95 2 3.5V13.5C2 14.05 2.45 14.5 3 14.5H6.5M11.5 11.5L15 8.5L11.5 5.5M15 8.5H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
+      </aside>
+    </>
   );
 }

@@ -38,8 +38,8 @@ export default function MarketingLanding() {
                 </p>
 
                 <div className={`${styles.heroConversionCta} ${styles.animFadeUp}`} style={{ animationDelay: "240ms" }}>
-                  <Link href="/demo" prefetch={false} className={styles.btnPrimary}>
-                    Pedir demo guiada
+                  <Link href="/onboarding" prefetch={false} className={styles.btnPrimary}>
+                    Empezar gratis — 7 días sin tarjeta
                   </Link>
                   <a href="#demo" className={styles.btnSecondary}>
                     Probar ahora
@@ -102,8 +102,8 @@ export default function MarketingLanding() {
                 <p>Respuesta media en hora punta</p>
               </article>
               <article className={styles.animFadeUp} style={{ animationDelay: "180ms" }}>
-                <strong>0 duplicados</strong>
-                <p>Un panel, toda la recepción</p>
+                <strong>7 días gratis</strong>
+                <p>Sin tarjeta. Sin compromiso.</p>
               </article>
             </div>
           </div>
@@ -113,12 +113,12 @@ export default function MarketingLanding() {
         <section className={`${styles.section} ${styles.demoSection}`} id="demo">
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
-              <p className={styles.sectionKicker}>Prueba interactiva</p>
+              <p className={styles.sectionKicker}>Prueba interactiva — sin registro</p>
               <h2 className={styles.sectionTitle}>
-                Habla con el agente ahora mismo
+                Habla con el agente. Ahora mismo.
               </h2>
               <p className={styles.sectionSubtitle}>
-                Sin registrarte. Escribe como si fueras un paciente y ve cómo responde.
+                Escribe la URL de tu clínica o usa la clínica de ejemplo. Ve cómo el agente responde como si fuera un paciente real.
               </p>
             </div>
             <AgentDemoSandbox />

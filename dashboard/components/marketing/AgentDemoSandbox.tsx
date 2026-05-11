@@ -17,6 +17,7 @@ function normalizeUrl(value: string) {
 }
 
 function getDomainLabel(value: string) {
+  if (value === "demo") return "Clínica de ejemplo";
   try {
     const parsed = new URL(normalizeUrl(value));
     return parsed.hostname.replace(/^www\./, "");
@@ -33,20 +34,24 @@ export default function AgentDemoSandbox() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [cachedContext, setCachedContext] = useState<string | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [voiceLive, setVoiceLive] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
 
   const recognitionRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const isDemo = website === "demo";
   const domainLabel = useMemo(() => getDomainLabel(website), [website]);
   const hasValidUrl = useMemo(() => {
+    if (isDemo) return true;
     try {
       return Boolean(new URL(normalizeUrl(website)).hostname);
     } catch {
       return false;
     }
-  }, [website]);
+  }, [website, isDemo]);
 
   useEffect(() => {
     const webkitSpeech = (window as any).webkitSpeechRecognition;
@@ -63,8 +68,11 @@ export default function AgentDemoSandbox() {
     };
   }, []);
 
+  // Only scroll when there are messages (not on initial mount)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, loading]);
 
   const speakAssistant = (text: string) => {
@@ -76,9 +84,27 @@ export default function AgentDemoSandbox() {
     window.speechSynthesis.speak(utter);
   };
 
+  const handleWebsiteChange = (val: string) => {
+    setWebsite(val);
+    setCachedContext(null);
+    setMessages([]);
+    setConversationId(null);
+    setError("");
+  };
+
+  const useExampleClinic = () => {
+    setWebsite("demo");
+    setCachedContext(null);
+    setMessages([]);
+    setConversationId(null);
+    setError("");
+  };
+
   const sendMessage = async (rawText: string) => {
     const text = rawText.trim();
     if (!text || !hasValidUrl || loading) return;
+
+    const effectiveWebsite = isDemo ? "demo" : normalizeUrl(website);
 
     setMessages((prev) => [...prev, { role: "user", text }]);
     setLoading(true);
@@ -89,9 +115,11 @@ export default function AgentDemoSandbox() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          website: normalizeUrl(website),
+          website: effectiveWebsite,
           message: text,
           conversationId,
+          cachedContext,
+          history: messages.slice(-8).map((m) => ({ role: m.role, content: m.text })),
         }),
       });
 
@@ -104,6 +132,7 @@ export default function AgentDemoSandbox() {
       const reply = data?.reply || "No se ha recibido respuesta del agente.";
 
       setConversationId(data?.conversationId || null);
+      if (data.context && !cachedContext) setCachedContext(data.context);
       setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
 
       if (mode === "voice") {
@@ -167,6 +196,7 @@ export default function AgentDemoSandbox() {
   const resetConversation = () => {
     setMessages([]);
     setConversationId(null);
+    setCachedContext(null);
     setError("");
     setVoiceTranscript("");
     if (recognitionRef.current) {
@@ -182,13 +212,56 @@ export default function AgentDemoSandbox() {
           URL de tu clinica
           <input
             type="url"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            placeholder="ejemplo: clinicabellaestetica.com"
+            value={isDemo ? "" : website}
+            onChange={(e) => handleWebsiteChange(e.target.value)}
+            placeholder={isDemo ? "Usando clínica de ejemplo..." : "ejemplo: clinicabellaestetica.com"}
             inputMode="url"
             autoComplete="url"
+            disabled={isDemo}
           />
         </label>
+
+        {!isDemo && (
+          <button
+            type="button"
+            onClick={useExampleClinic}
+            style={{
+              marginTop: 6,
+              background: "none",
+              border: "none",
+              color: "#0f4bd9",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "0 2px",
+              textDecoration: "underline",
+              textUnderlineOffset: 2,
+            }}
+          >
+            Probar con clínica de ejemplo →
+          </button>
+        )}
+
+        {isDemo && (
+          <button
+            type="button"
+            onClick={() => handleWebsiteChange("")}
+            style={{
+              marginTop: 6,
+              background: "none",
+              border: "none",
+              color: "#6b7280",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              padding: "0 2px",
+              textDecoration: "underline",
+              textUnderlineOffset: 2,
+            }}
+          >
+            ← Usar mi propia URL
+          </button>
+        )}
 
         <div className={styles.demoModeToggle}>
           <button
@@ -221,8 +294,10 @@ export default function AgentDemoSandbox() {
                 {messages.length === 0 && (
                   <div className={styles.demoPhoneEmpty}>
                     {hasValidUrl
-                      ? "Escribe como paciente y prueba la respuesta real del agente."
-                      : "Primero introduce una URL valida de clinica."}
+                      ? isDemo
+                        ? "Escribe como paciente y prueba la respuesta del agente con la clínica de ejemplo."
+                        : "Escribe como paciente y prueba la respuesta real del agente."
+                      : "Primero introduce una URL válida de clínica o usa la clínica de ejemplo."}
                   </div>
                 )}
 
@@ -245,7 +320,7 @@ export default function AgentDemoSandbox() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={onEnter}
-                  placeholder={hasValidUrl ? "Escribe como paciente..." : "Primero introduce la URL"}
+                  placeholder={hasValidUrl ? "Escribe como paciente..." : "Primero introduce la URL o usa la clínica de ejemplo"}
                   disabled={!hasValidUrl || loading}
                 />
                 <button
@@ -286,6 +361,9 @@ export default function AgentDemoSandbox() {
           <button type="button" className={styles.btnSecondary} onClick={resetConversation}>
             Reiniciar demo
           </button>
+          <span style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center" }}>
+            Demo gratuita — sin registro
+          </span>
         </div>
 
         {error && <p className={styles.demoNotice}>{error}</p>}
@@ -296,6 +374,7 @@ export default function AgentDemoSandbox() {
         <h3 className={styles.demoTitle}>Demo real en formato movil estilo WhatsApp</h3>
         <p className={styles.demoBody}>
           Escribe la URL de tu clinica y el sistema la analiza para responder con contexto de tu negocio.
+          Si no tienes URL a mano, usa la clínica de ejemplo para ver cómo funciona.
           Cambia entre chat y voz para validar ambas experiencias en la misma landing.
         </p>
         {!voiceSupported && (
