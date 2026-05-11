@@ -3,8 +3,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from config import settings
+from rate_limit import limiter
 from routers import admin, chat, whatsapp, retell, auth, invitaciones, configuracion, canales, registro
 
 logging.basicConfig(
@@ -30,12 +34,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 _origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
 _wildcard = "*" in _origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_credentials=not _wildcard,  # credentials incompatible with wildcard
+    allow_credentials=not _wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,27 +1,29 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from agent.core import run_agent
 from models.conversacion import ChatRequest
+from rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("")
-async def chat(request: ChatRequest):
+@limiter.limit("30/minute")
+async def chat(request: Request, body: ChatRequest):
     """
     Endpoint principal del chat web.
     Recibe un mensaje y devuelve la respuesta del agente.
     """
     try:
         respuesta, conversacion_id = await run_agent(
-            clinic_id=str(request.clinic_id),
-            conversacion_id=str(request.conversacion_id) if request.conversacion_id else None,
-            user_message=request.mensaje,
+            clinic_id=str(body.clinic_id),
+            conversacion_id=str(body.conversacion_id) if body.conversacion_id else None,
+            user_message=body.mensaje,
             canal="chat_web",
-            paciente_id=str(request.paciente_id) if request.paciente_id else None,
+            paciente_id=str(body.paciente_id) if body.paciente_id else None,
         )
         return {
             "respuesta": respuesta,

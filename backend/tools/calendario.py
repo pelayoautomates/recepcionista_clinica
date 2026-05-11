@@ -16,6 +16,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
+from audit import CITA_CANCELAR, CITA_CREAR, CITA_MOVER, audit
 from database.client import get_supabase
 from google_calendar import client as gcal
 
@@ -423,6 +424,23 @@ async def create_appointment_validated(
 
     logger.info("Cita %s creada — profesional=%s servicio=%s", cita_id, prof_nombre, servicio_nombre)
     _notificar_clinica_nueva_cita(clinic, servicio_nombre, prof_nombre, fecha_inicio, nombre_paciente, origen)
+
+    await audit(
+        clinic_id=clinic_id,
+        actor="ia",
+        accion=CITA_CREAR,
+        entidad="citas",
+        entidad_id=cita_id,
+        datos_despues={
+            "servicio": servicio_nombre,
+            "profesional": prof_nombre,
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "paciente_id": paciente_id,
+            "origen": origen,
+        },
+        canal=origen,
+    )
+
     return {
         "ok": True,
         "cita_id": cita_id,
@@ -590,6 +608,16 @@ async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
         "estado": "reprogramada",
     }).eq("id", cita_id).execute()
 
+    await audit(
+        clinic_id=clinic_id,
+        actor="ia",
+        accion=CITA_MOVER,
+        entidad="citas",
+        entidad_id=cita_id,
+        datos_antes={"fecha_inicio": cita["fecha_inicio"], "fecha_fin": cita["fecha_fin"]},
+        datos_despues={"fecha_inicio": nueva_fecha_inicio.isoformat(), "fecha_fin": nueva_fecha_fin.isoformat()},
+    )
+
     return {
         "cita_id": cita_id,
         "nueva_fecha_inicio": nueva_fecha_inicio.strftime("%d/%m/%Y %H:%M"),
@@ -614,4 +642,15 @@ async def cancelar_cita(cita_id: str) -> dict:
 
     db.table("citas").update({"estado": "cancelada"}).eq("id", cita_id).execute()
     logger.info("Cita %s cancelada", cita_id)
+
+    await audit(
+        clinic_id=cita["clinic_id"],
+        actor="ia",
+        accion=CITA_CANCELAR,
+        entidad="citas",
+        entidad_id=cita_id,
+        datos_antes={"estado": cita.get("estado"), "fecha_inicio": cita.get("fecha_inicio")},
+        datos_despues={"estado": "cancelada"},
+    )
+
     return {"cita_id": cita_id, "estado": "cancelada"}
