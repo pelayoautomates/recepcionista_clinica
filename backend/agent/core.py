@@ -15,15 +15,29 @@ logger = logging.getLogger(__name__)
 openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 # Dispatcher: mapea nombre de tool → función async
-async def _dispatch_tool(tool_name: str, args: dict, clinic_id: str) -> str:
+async def _dispatch_tool(
+    tool_name: str,
+    args: dict,
+    clinic_id: str,
+    conversacion_id: str | None = None,
+    canal: str = "chat_web",
+) -> str:
     from tools.calendario import consultar_disponibilidad, crear_cita, mover_cita, cancelar_cita
     from tools.pacientes import buscar_paciente, crear_lead, actualizar_estado_lead
     from tools.sistema import programar_seguimiento, escalar_a_humano
+
+    # Mapeo canal → origen
+    _CANAL_ORIGEN = {"chat_web": "ia_chat", "whatsapp": "ia_whatsapp", "voz": "ia_llamada"}
 
     try:
         if tool_name == "consultar_disponibilidad":
             result = await consultar_disponibilidad(clinic_id, **args)
         elif tool_name == "crear_cita":
+            # Inyectar conversacion_id y origen desde contexto si no los da el LLM
+            if conversacion_id and "conversacion_id" not in args:
+                args["conversacion_id"] = conversacion_id
+            if "origen" not in args:
+                args["origen"] = _CANAL_ORIGEN.get(canal, "ia_chat")
             result = await crear_cita(clinic_id, **args)
         elif tool_name == "mover_cita":
             result = await mover_cita(**args)
@@ -117,7 +131,10 @@ async def run_agent(
             for tool_call in msg.tool_calls:
                 args = json.loads(tool_call.function.arguments)
                 logger.info("Tool call: %s(%s)", tool_call.function.name, args)
-                result = await _dispatch_tool(tool_call.function.name, args, clinic_id)
+                result = await _dispatch_tool(
+                    tool_call.function.name, args, clinic_id,
+                    conversacion_id=conversacion_id, canal=canal,
+                )
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,

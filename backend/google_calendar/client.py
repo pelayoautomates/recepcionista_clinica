@@ -121,3 +121,16 @@ def cancelar_evento(clinic_id: UUID, event_id: str) -> None:
     service = _build_service(clinic_id)
     service.events().delete(calendarId="primary", eventId=event_id).execute()
     logger.info("Evento %s cancelado en GCal", event_id)
+
+
+def listar_eventos_rango(clinic_id: UUID, fecha_inicio: datetime, fecha_fin: datetime) -> list[dict]:
+    """Devuelve eventos de GCal que solapen con [fecha_inicio, fecha_fin]."""
+    service = _build_service(clinic_id)
+    result = service.events().list(
+        calendarId="primary",
+        timeMin=fecha_inicio.isoformat(),
+        timeMax=fecha_fin.isoformat(),
+        singleEvents=True,
+        orderBy="startTime",
+    ).execute()
+    return result.get("items", [])

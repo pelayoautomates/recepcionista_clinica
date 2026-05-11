@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import ModalCita, { type Cita, type Profesional, type Servicio, type ModalMode } from "./ModalCita";
+import ModalCita, { type Cita, type Profesional, type Servicio, type Sala, type ModalMode } from "./ModalCita";
 
 type BloqueAgenda = {
   id: string;
@@ -27,7 +27,9 @@ const ESTADO_STYLE: Record<string, { bg: string; color: string; border: string }
   reprogramada: { bg: "#dbeafe", color: "#1e40af", border: "#93c5fd" },
   completada:   { bg: "#e0e7ff", color: "#3730a3", border: "#a5b4fc" },
   cancelada:    { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
-  no_asistio:   { bg: "#f3f4f6", color: "#374151", border: "#d1d5db" },
+  no_asistio:        { bg: "#f3f4f6", color: "#374151", border: "#d1d5db" },
+  requiere_revision: { bg: "#fef3c7", color: "#92400e", border: "#fcd34d" },
+  sync_failed:       { bg: "#fce7f3", color: "#9d174d", border: "#f9a8d4" },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -118,6 +120,7 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
   const [bloques, setBloques] = useState<BloqueAgenda[]>([]);
   const [profesionales, setProfesionales] = useState<Profesional[]>([]);
   const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [salas, setSalas] = useState<Sala[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<ModalMode | null>(null);
   const [filtroProfesional, setFiltroProfesional] = useState<string>("todos");
@@ -161,9 +164,11 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
     Promise.all([
       fetch(`/api/clinicas/${clinicId}/profesionales`).then(r => r.ok ? r.json() : []),
       fetch(`/api/clinicas/${clinicId}/servicios`).then(r => r.ok ? r.json() : []),
-    ]).then(([profs, svcs]) => {
+      fetch(`/api/clinicas/${clinicId}/salas`).then(r => r.ok ? r.json() : []),
+    ]).then(([profs, svcs, sls]) => {
       setProfesionales(profs);
       setServicios(svcs);
+      setSalas(sls);
     }).catch(() => {});
   }, [clinicId]);
 
@@ -379,6 +384,7 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
           clinicId={clinicId}
           profesionales={profesionales}
           servicios={servicios}
+          salas={salas}
           onClose={() => setModal(null)}
           onSaved={() => {
             fetchData(vista, anchor);

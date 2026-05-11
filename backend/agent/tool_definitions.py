@@ -1,6 +1,6 @@
 """
 Schemas JSON de las tools que usa GPT-4o via function calling.
-Deben estar sincronizados con las funciones en tools/
+Sincronizados con tools/calendario.py y las funciones de pacientes/conversaciones.
 """
 
 TOOL_DEFINITIONS = [
@@ -10,18 +10,24 @@ TOOL_DEFINITIONS = [
             "name": "consultar_disponibilidad",
             "description": (
                 "Consulta los horarios disponibles para agendar una cita en una fecha concreta. "
-                "Úsala cuando el paciente quiera saber qué horas hay libres."
+                "SIEMPRE úsala antes de crear una cita para confirmar que el slot existe. "
+                "Comprueba horarios del profesional, bloques de vacaciones, citas existentes y Google Calendar. "
+                "Si no hay slots disponibles, propón fechas alternativas."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "fecha": {
                         "type": "string",
-                        "description": "Fecha en formato YYYY-MM-DD. Si el paciente dice 'mañana' o 'el lunes', convierte al formato correcto."
+                        "description": "Fecha en formato YYYY-MM-DD. Convierte 'mañana', 'el lunes', etc. al formato correcto."
                     },
                     "tipo_cita": {
                         "type": "string",
-                        "description": "Tipo de servicio o tratamiento que solicita el paciente."
+                        "description": "Nombre EXACTO del servicio tal como aparece en el catálogo de la clínica. Si no lo sabes, pregunta al paciente."
+                    },
+                    "profesional_id": {
+                        "type": "string",
+                        "description": "UUID del profesional preferido. Opcional — si no se especifica, el sistema asigna el primero disponible."
                     }
                 },
                 "required": ["fecha", "tipo_cita"]
@@ -33,8 +39,10 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "crear_cita",
             "description": (
-                "Crea una cita en el calendario de la clínica y registra al paciente. "
-                "Úsala solo cuando el paciente haya confirmado explícitamente la fecha y hora."
+                "Crea una cita en el calendario de la clínica. "
+                "SOLO úsala cuando el paciente haya confirmado explícitamente la fecha y hora de un slot que ya has consultado. "
+                "La función valida automáticamente: servicio, profesional, bloqueos, conflictos y Google Calendar. "
+                "Si devuelve error, comunica el problema al paciente y propón alternativas."
             ),
             "parameters": {
                 "type": "object",
@@ -45,15 +53,28 @@ TOOL_DEFINITIONS = [
                     },
                     "fecha_inicio_iso": {
                         "type": "string",
-                        "description": "Fecha y hora de inicio en ISO 8601 (ej: 2026-05-10T10:00:00+00:00)."
+                        "description": "Fecha y hora de inicio en ISO 8601 (ej: 2026-05-10T10:00:00+00:00). Usa el valor inicio_iso del slot consultado."
                     },
                     "tipo_cita": {
                         "type": "string",
-                        "description": "Tipo de servicio o tratamiento."
+                        "description": "Nombre del servicio, igual que en consultar_disponibilidad."
                     },
                     "nombre_paciente": {
                         "type": "string",
                         "description": "Nombre del paciente para el título del evento."
+                    },
+                    "profesional_id": {
+                        "type": "string",
+                        "description": "UUID del profesional del slot consultado. Usa el valor profesional_id devuelto por consultar_disponibilidad."
+                    },
+                    "conversacion_id": {
+                        "type": "string",
+                        "description": "UUID de la conversación actual. Se vincula automáticamente a la cita para trazabilidad."
+                    },
+                    "origen": {
+                        "type": "string",
+                        "enum": ["ia_llamada", "ia_whatsapp", "ia_chat"],
+                        "description": "Canal por el que se agenda la cita."
                     }
                 },
                 "required": ["paciente_id", "fecha_inicio_iso", "tipo_cita"]
@@ -66,6 +87,7 @@ TOOL_DEFINITIONS = [
             "name": "mover_cita",
             "description": (
                 "Mueve una cita existente a una nueva fecha y hora. "
+                "Valida que el nuevo slot esté libre antes de mover. "
                 "Úsala cuando el paciente quiera cambiar una cita ya agendada."
             ),
             "parameters": {
@@ -88,7 +110,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "cancelar_cita",
-            "description": "Cancela una cita del paciente.",
+            "description": "Cancela una cita del paciente en el calendario interno y en Google Calendar si está conectado.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -107,7 +129,7 @@ TOOL_DEFINITIONS = [
             "name": "buscar_paciente",
             "description": (
                 "Busca un paciente existente por número de teléfono. "
-                "Úsala antes de crear un lead nuevo para evitar duplicados."
+                "Úsala SIEMPRE antes de crear un lead nuevo para evitar duplicados."
             ),
             "parameters": {
                 "type": "object",
@@ -126,7 +148,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "crear_lead",
             "description": (
-                "Registra a un nuevo paciente/lead en el sistema, o actualiza uno existente si ya hay registro. "
+                "Registra a un nuevo paciente/lead en el sistema, o actualiza uno existente. "
                 "Úsala cuando el paciente proporcione sus datos de contacto."
             ),
             "parameters": {
@@ -157,7 +179,11 @@ TOOL_DEFINITIONS = [
                     "paciente_id": {"type": "string", "description": "UUID del paciente."},
                     "estado": {
                         "type": "string",
-                        "enum": ["anonimo", "nuevo", "contactado", "interesado", "cita_agendada", "completado", "perdido", "requiere_humano"],
+                        "enum": [
+                            "anonimo", "nuevo", "contactado", "interesado",
+                            "cita_agendada", "pendiente_confirmacion",
+                            "completado", "perdido", "requiere_humano"
+                        ],
                         "description": "Nuevo estado del lead."
                     }
                 },
@@ -189,10 +215,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "escalar_a_humano",
             "description": (
-                "Escala la conversación al equipo de la clínica cuando: "
-                "el paciente tiene dolor fuerte, sangrado, urgencia médica, queja, está enfadado, "
-                "es menor de edad, hace una pregunta médica compleja, pide hablar con una persona, "
-                "o solicita un presupuesto detallado."
+                "Escala la conversación al equipo de la clínica. Úsala cuando: "
+                "el paciente tiene urgencia médica, dolor fuerte, sangrado, está enfadado, "
+                "pide hablar con una persona, hace preguntas médicas complejas, "
+                "el servicio no existe en el catálogo, no hay disponibilidad disponible, "
+                "la cita requiere aprobación o el precio no está claro."
             ),
             "parameters": {
                 "type": "object",

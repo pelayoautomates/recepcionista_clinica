@@ -147,7 +147,8 @@ async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
 
 _CITAS_CAMPOS = [
     "tipo_servicio", "fecha_inicio", "fecha_fin", "estado",
-    "profesional", "notas_internas", "color", "duracion_min",
+    "profesional", "profesional_id", "sala_id", "conversacion_id",
+    "notas_internas", "color", "duracion_min",
     "paciente_nombre", "paciente_telefono", "origen",
 ]
 
@@ -294,6 +295,10 @@ async def crear_profesional(clinic_id: UUID, data: dict):
         "nombre": data["nombre"],
         "color": data.get("color", "#2563eb"),
         "especialidad": data.get("especialidad"),
+        "email": data.get("email"),
+        "telefono": data.get("telefono"),
+        "acepta_reservas_ia": data.get("acepta_reservas_ia", True),
+        "prioridad": data.get("prioridad", 0),
         "activo": True,
         "orden": data.get("orden", 0),
     }
@@ -304,7 +309,7 @@ async def crear_profesional(clinic_id: UUID, data: dict):
 @router.patch("/clinicas/{clinic_id}/profesionales/{prof_id}")
 async def actualizar_profesional(clinic_id: UUID, prof_id: UUID, data: dict):
     db = get_supabase()
-    campos = {k: v for k, v in data.items() if k in ["nombre", "color", "especialidad", "activo", "orden"] and v is not None}
+    campos = {k: v for k, v in data.items() if k in ["nombre", "color", "especialidad", "email", "telefono", "activo", "orden", "acepta_reservas_ia", "prioridad"] and v is not None}
     if not campos:
         raise HTTPException(status_code=400, detail="Sin datos")
     result = db.table("profesionales").update(campos).eq("id", str(prof_id)).eq("clinic_id", str(clinic_id)).execute()
@@ -344,9 +349,16 @@ async def crear_bloque(clinic_id: UUID, data: dict):
         "titulo": data["titulo"],
         "fecha_inicio": data["fecha_inicio"],
         "fecha_fin": data["fecha_fin"],
-        "profesional": data.get("profesional"),
         "tipo": data.get("tipo", "bloqueo"),
+        "notas": data.get("notas"),
     }
+    if data.get("profesional_id"):
+        bloque["profesional_id"] = str(data["profesional_id"])
+    if data.get("sala_id"):
+        bloque["sala_id"] = str(data["sala_id"])
+    # Compat: campo texto profesional (legacy)
+    if data.get("profesional") and not data.get("profesional_id"):
+        bloque["profesional"] = data["profesional"]
     result = db.table("bloques_agenda").insert(bloque).execute()
     return result.data[0]
 
@@ -360,7 +372,11 @@ async def eliminar_bloque(clinic_id: UUID, bloque_id: UUID):
 
 # ─── Servicios ────────────────────────────────────────────────────────────────
 
-_SERVICIOS_CAMPOS = ["nombre", "duracion_min", "color", "descripcion", "activo", "orden"]
+_SERVICIOS_CAMPOS = [
+    "nombre", "duracion_min", "color", "descripcion", "activo", "orden",
+    "precio", "buffer_antes_min", "buffer_despues_min", "reservable_ia",
+    "requiere_revision", "categoria", "sala_id",
+]
 
 
 @router.get("/clinicas/{clinic_id}/servicios")
@@ -394,7 +410,11 @@ async def crear_servicio(clinic_id: UUID, data: dict):
 @router.patch("/clinicas/{clinic_id}/servicios/{servicio_id}")
 async def actualizar_servicio(clinic_id: UUID, servicio_id: UUID, data: dict):
     db = get_supabase()
-    updates = {k: v for k, v in data.items() if k in _SERVICIOS_CAMPOS and v is not None}
+    updates = {k: v for k, v in data.items() if k in _SERVICIOS_CAMPOS}
+    # Permitir null explícito en campos opcionales
+    for campo_nullable in ["sala_id", "descripcion", "categoria", "color", "precio"]:
+        if campo_nullable in data:
+            updates[campo_nullable] = data[campo_nullable]
     if not updates:
         raise HTTPException(status_code=400, detail="Sin datos para actualizar")
     result = db.table("servicios").update(updates).eq("id", str(servicio_id)).eq("clinic_id", str(clinic_id)).execute()
@@ -408,6 +428,128 @@ async def eliminar_servicio(clinic_id: UUID, servicio_id: UUID):
     db = get_supabase()
     db.table("servicios").update({"activo": False}).eq("id", str(servicio_id)).eq("clinic_id", str(clinic_id)).execute()
     return {"ok": True}
+
+
+# ─── Servicio ↔ Profesional (many-to-many) ────────────────────────────────────
+
+@router.get("/clinicas/{clinic_id}/servicios/{servicio_id}/profesionales")
+async def listar_profesionales_servicio(clinic_id: UUID, servicio_id: UUID):
+    db = get_supabase()
+    result = db.table("servicio_profesional").select(
+        "profesional_id, profesionales(id, nombre, color, especialidad)"
+    ).eq("servicio_id", str(servicio_id)).execute()
+    return [r["profesionales"] for r in (result.data or []) if r.get("profesionales")]
+
+
+@router.post("/clinicas/{clinic_id}/servicios/{servicio_id}/profesionales")
+async def asignar_profesional_servicio(clinic_id: UUID, servicio_id: UUID, data: dict):
+    db = get_supabase()
+    prof_id = data.get("profesional_id")
+    if not prof_id:
+        raise HTTPException(status_code=400, detail="profesional_id requerido")
+    try:
+        result = db.table("servicio_profesional").insert({
+            "servicio_id": str(servicio_id),
+            "profesional_id": str(prof_id),
+        }).execute()
+        return result.data[0]
+    except Exception:
+        raise HTTPException(status_code=409, detail="El profesional ya está asignado a este servicio")
+
+
+@router.delete("/clinicas/{clinic_id}/servicios/{servicio_id}/profesionales/{prof_id}")
+async def desasignar_profesional_servicio(clinic_id: UUID, servicio_id: UUID, prof_id: UUID):
+    db = get_supabase()
+    db.table("servicio_profesional").delete().eq("servicio_id", str(servicio_id)).eq("profesional_id", str(prof_id)).execute()
+    return {"ok": True}
+
+
+# ─── Salas / Recursos ────────────────────────────────────────────────────────
+
+_SALAS_CAMPOS = ["nombre", "tipo", "capacidad", "activo", "orden"]
+
+
+@router.get("/clinicas/{clinic_id}/salas")
+async def listar_salas(clinic_id: UUID, solo_activas: bool = True):
+    db = get_supabase()
+    query = db.table("salas").select("*").eq("clinic_id", str(clinic_id))
+    if solo_activas:
+        query = query.eq("activo", True)
+    result = query.order("orden").order("nombre").execute()
+    return result.data
+
+
+@router.post("/clinicas/{clinic_id}/salas")
+async def crear_sala(clinic_id: UUID, data: dict):
+    db = get_supabase()
+    if not data.get("nombre"):
+        raise HTTPException(status_code=400, detail="nombre es obligatorio")
+    sala = {
+        "clinic_id": str(clinic_id),
+        "nombre": data["nombre"],
+        "tipo": data.get("tipo", "sala"),
+        "capacidad": data.get("capacidad", 1),
+        "activo": True,
+        "orden": data.get("orden", 0),
+    }
+    result = db.table("salas").insert(sala).execute()
+    return result.data[0]
+
+
+@router.patch("/clinicas/{clinic_id}/salas/{sala_id}")
+async def actualizar_sala(clinic_id: UUID, sala_id: UUID, data: dict):
+    db = get_supabase()
+    updates = {k: v for k, v in data.items() if k in _SALAS_CAMPOS and v is not None}
+    if "activo" in data:
+        updates["activo"] = data["activo"]
+    if not updates:
+        raise HTTPException(status_code=400, detail="Sin datos para actualizar")
+    result = db.table("salas").update(updates).eq("id", str(sala_id)).eq("clinic_id", str(clinic_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Sala no encontrada")
+    return result.data[0]
+
+
+@router.delete("/clinicas/{clinic_id}/salas/{sala_id}")
+async def eliminar_sala(clinic_id: UUID, sala_id: UUID):
+    db = get_supabase()
+    db.table("salas").update({"activo": False}).eq("id", str(sala_id)).eq("clinic_id", str(clinic_id)).execute()
+    return {"ok": True}
+
+
+# ─── Reglas de reserva ────────────────────────────────────────────────────────
+
+@router.get("/clinicas/{clinic_id}/reglas")
+async def obtener_reglas(clinic_id: UUID):
+    db = get_supabase()
+    result = db.table("clinicas").select("reglas_reserva").eq("id", str(clinic_id)).single().execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada")
+    return result.data.get("reglas_reserva") or {}
+
+
+@router.patch("/clinicas/{clinic_id}/reglas")
+async def actualizar_reglas(clinic_id: UUID, data: dict):
+    db = get_supabase()
+    campos_validos = {
+        "antelacion_min_horas", "max_dias_adelante", "intervalo_slots_min",
+        "permite_mismo_dia", "permite_cancelacion_ia", "permite_reprogramacion_ia",
+        "horas_limite_cancelar", "horas_limite_reprogramar", "max_citas_simultaneas",
+    }
+    reglas = {k: v for k, v in data.items() if k in campos_validos}
+    if not reglas:
+        raise HTTPException(status_code=400, detail="Sin campos válidos para actualizar")
+    # Merge con las reglas existentes
+    existing = db.table("clinicas").select("reglas_reserva").eq("id", str(clinic_id)).single().execute()
+    reglas_actuales = (existing.data or {}).get("reglas_reserva") or {}
+    reglas_actuales.update(reglas)
+    result = db.table("clinicas").update({"reglas_reserva": reglas_actuales}).eq("id", str(clinic_id)).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada")
+    return reglas_actuales
+
+
+# ─── Bloques (ampliado) ───────────────────────────────────────────────────────
 
 
 # ─── Disponibilidad por profesional ──────────────────────────────────────────

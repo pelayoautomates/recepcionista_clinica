@@ -31,6 +31,20 @@ export type Servicio = {
   duracion_min: number;
   color?: string;
   descripcion?: string;
+  precio?: number;
+  buffer_antes_min?: number;
+  buffer_despues_min?: number;
+  reservable_ia?: boolean;
+  requiere_revision?: boolean;
+  categoria?: string;
+  sala_id?: string | null;
+};
+
+export type Sala = {
+  id: string;
+  nombre: string;
+  tipo: string;
+  capacidad: number;
 };
 
 export type ModalMode =
@@ -58,10 +72,20 @@ const ORIGENES = [
 ];
 
 const TIPOS_BLOQUEO = [
-  { value: "bloqueo",    label: "Bloqueo general" },
-  { value: "vacaciones", label: "Vacaciones" },
-  { value: "formacion",  label: "Formación" },
-  { value: "otro",       label: "Otro" },
+  { value: "bloqueo",      label: "Bloqueo general" },
+  { value: "vacaciones",   label: "Vacaciones" },
+  { value: "formacion",    label: "Formación" },
+  { value: "comida",       label: "Comida / descanso" },
+  { value: "reunion",      label: "Reunión" },
+  { value: "festivo",      label: "Festivo" },
+  { value: "mantenimiento",label: "Mantenimiento" },
+  { value: "ausencia",     label: "Ausencia" },
+  { value: "otro",         label: "Otro" },
+];
+
+const ESTADOS_EXTRA = [
+  { value: "requiere_revision", label: "Requiere revisión", color: "#92400e", bg: "#fef3c7" },
+  { value: "sync_failed",       label: "Error sincronización", color: "#7f1d1d", bg: "#fce7f3" },
 ];
 
 const DURACIONES = [15, 20, 30, 45, 60, 90, 120];
@@ -108,6 +132,7 @@ export default function ModalCita({
   clinicId,
   profesionales,
   servicios,
+  salas = [],
   onClose,
   onSaved,
 }: {
@@ -115,6 +140,7 @@ export default function ModalCita({
   clinicId: string;
   profesionales: Profesional[];
   servicios: Servicio[];
+  salas?: Sala[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -138,6 +164,7 @@ export default function ModalCita({
   const [duracion, setDuracion]       = useState(initialCita?.duracion_min || 30);
   const [notas, setNotas]             = useState(initialCita?.notas_internas || "");
   const [origen, setOrigen]           = useState(initialCita?.origen || "manual");
+  const [salaId, setSalaId]           = useState<string>((initialCita as { sala_id?: string })?.sala_id || "");
   const [fechaInicio, setFechaInicio] = useState(() => {
     if (isVer && initialCita) return toLocalDatetimeValue(initialCita.fecha_inicio);
     if (isNueva && mode.type === "nueva") return toLocalDatetimeValue(buildSlotISO(mode.slotDate, mode.slotHour));
@@ -232,6 +259,7 @@ export default function ModalCita({
       fecha_fin:          computeFechaFin(fechaInicio, duracion),
       notas_internas:     notas || null,
       origen,
+      sala_id:            salaId || null,
     };
     try {
       const url = isVer
@@ -540,6 +568,15 @@ export default function ModalCita({
                   </select>
                 </Field>
               </div>
+
+              {salas.length > 0 && (
+                <Field label="Sala / Espacio">
+                  <select value={salaId} onChange={e => setSalaId(e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
+                    <option value="">Sin sala asignada</option>
+                    {salas.map(s => <option key={s.id} value={s.id}>{s.nombre} ({s.tipo})</option>)}
+                  </select>
+                </Field>
+              )}
 
               <Field label="Notas internas">
                 <textarea value={notas} onChange={e => setNotas(e.target.value)}
