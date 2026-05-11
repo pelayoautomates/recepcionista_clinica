@@ -3,15 +3,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 
-const LINKS = [
-  {
-    href: "/panel", label: "Inicio", exact: true,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M2 7.5L8.5 2.5L15 7.5V15H11V11H6V15H2V7.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
+const NAV_MAIN = [
   {
     href: "/panel/conversaciones", label: "Conversaciones", exact: false,
     icon: (
@@ -49,52 +41,15 @@ const LINKS = [
       </svg>
     ),
   },
+];
+
+const NAV_AJUSTES = [
   {
-    href: "/panel/agenda", label: "Agenda IA", exact: false,
+    href: "/panel/configuracion", label: "Configuración", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <circle cx="8.5" cy="8.5" r="6" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8.5 5.5V8.5L10.5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/canales", label: "Canales", exact: false,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M3.5 13.5C3.5 13.5 2 12 2 8.5C2 5 3.5 3.5 3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M5.5 11.5C5.5 11.5 4.5 10.5 4.5 8.5C4.5 6.5 5.5 5.5 5.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-        <path d="M11.5 5.5C11.5 5.5 12.5 6.5 12.5 8.5C12.5 10.5 11.5 11.5 11.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M13.5 3.5C13.5 3.5 15 5 15 8.5C15 12 13.5 13.5 13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/lista-espera", label: "Lista de espera", exact: false,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <circle cx="8.5" cy="8.5" r="6" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8.5 5.5V8.5L10.5 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M6 13.5H11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/recuperacion", label: "Recuperación", exact: false,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M14 8.5A5.5 5.5 0 112.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M2.5 3V6H5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/conocimiento", label: "Conocimiento", exact: false,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M8.5 2C5.46 2 3 4.46 3 7.5C3 9.5 4.04 11.26 5.62 12.27V14.5H11.38V12.27C12.96 11.26 14 9.5 14 7.5C14 4.46 11.54 2 8.5 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-        <path d="M6 14.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        <path d="M9.6 2.5a1.1 1.1 0 00-2.2 0l-.22 1.15c-.38.1-.74.26-1.07.47l-1.02-.38a1.1 1.1 0 00-1.34 1.34l.38 1.02c-.21.33-.37.69-.47 1.07L2.5 7.4a1.1 1.1 0 000 2.2l1.15.22c.1.38.26.74.47 1.07l-.38 1.02a1.1 1.1 0 001.34 1.34l1.02-.38c.33.21.69.37 1.07.47l.22 1.15a1.1 1.1 0 002.2 0l.22-1.15c.38-.1.74-.26 1.07-.47l1.02.38a1.1 1.1 0 001.34-1.34l-.38-1.02c.21-.33.37-.69.47-1.07l1.15-.22a1.1 1.1 0 000-2.2l-1.15-.22a4 4 0 00-.47-1.07l.38-1.02a1.1 1.1 0 00-1.34-1.34l-1.02.38a4 4 0 00-1.07-.47L9.6 2.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+        <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="1.3" />
       </svg>
     ),
   },
@@ -105,15 +60,6 @@ const LINKS = [
         <rect x="2" y="4" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
         <path d="M2 7H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         <path d="M5 10.5H7M10 10.5H12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: "/panel/configuracion", label: "Configuración", exact: false,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M9.6 2.5a1.1 1.1 0 00-2.2 0l-.22 1.15c-.38.1-.74.26-1.07.47l-1.02-.38a1.1 1.1 0 00-1.34 1.34l.38 1.02c-.21.33-.37.69-.47 1.07L2.5 7.4a1.1 1.1 0 000 2.2l1.15.22c.1.38.26.74.47 1.07l-.38 1.02a1.1 1.1 0 001.34 1.34l1.02-.38c.33.21.69.37 1.07.47l.22 1.15a1.1 1.1 0 002.2 0l.22-1.15c.38-.1.74-.26 1.07-.47l1.02.38a1.1 1.1 0 001.34-1.34l-.38-1.02c.21-.33.37-.69.47-1.07l1.15-.22a1.1 1.1 0 000-2.2l-1.15-.22a4 4 0 00-.47-1.07l.38-1.02a1.1 1.1 0 00-1.34-1.34l-1.02.38a4 4 0 00-1.07-.47L9.6 2.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-        <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="1.3" />
       </svg>
     ),
   },
@@ -128,6 +74,40 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  function NavLink({ href, label, exact, icon }: { href: string; label: string; exact: boolean; icon: React.ReactNode }) {
+    const active = exact ? pathname === href : pathname.startsWith(href);
+    return (
+      <Link
+        href={href}
+        onClick={() => setMobileOpen(false)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "9px 12px",
+          borderRadius: 8,
+          textDecoration: "none",
+          background: active ? "#eff6ff" : "transparent",
+          color: active ? "#2563eb" : "#6b7280",
+          fontWeight: active ? 600 : 500,
+          fontSize: 13.5,
+          transition: "all 0.1s",
+        }}
+      >
+        {icon}
+        <span style={{ flex: 1 }}>{label}</span>
+        {href === "/panel/conversaciones" && pendientesHumano > 0 && (
+          <span style={{
+            minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444",
+            color: "white", fontSize: 10.5, fontWeight: 700,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 5px",
+          }}>
+            {pendientesHumano > 99 ? "99+" : pendientesHumano}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -141,26 +121,16 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
         }
       `}</style>
 
-      {/* Hamburger button — visible only on mobile, outside sidebar */}
       <button
         className="sidebar-mobile-toggle"
         onClick={() => setMobileOpen(true)}
         aria-label="Abrir menú"
         style={{
-          position: "fixed",
-          top: 14,
-          left: 16,
-          zIndex: 50,
-          width: 38,
-          height: 38,
-          background: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+          position: "fixed", top: 14, left: 16, zIndex: 50,
+          width: 38, height: 38, background: "white",
+          border: "1px solid #e5e7eb", borderRadius: 8,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
         }}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -168,48 +138,30 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
         </svg>
       </button>
 
-      {/* Backdrop for mobile */}
       {mobileOpen && (
-        <div
-          onClick={() => setMobileOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            zIndex: 39,
-          }}
-        />
+        <div onClick={() => setMobileOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 39 }} />
       )}
 
       <aside
         className={`panel-sidebar${mobileOpen ? " open" : ""}`}
-        style={{
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: 240,
-          background: "white",
-          borderRight: "1px solid #e5e7eb",
-          display: "flex",
-          flexDirection: "column",
-          zIndex: 40,
-        }}
+        style={{ top: 0, left: 0, bottom: 0, width: 240, background: "white", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", zIndex: 40 }}
       >
-        {/* Logo */}
-        <div style={{
-          padding: "20px 20px 16px",
-          borderBottom: "1px solid #f3f4f6",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
+        {/* Logo → /panel */}
+        <Link
+          href="/panel"
+          onClick={() => setMobileOpen(false)}
+          style={{
+            padding: "20px 20px 16px",
+            borderBottom: "1px solid #f3f4f6",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            textDecoration: "none",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
               width: 36, height: 36,
               background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
-              borderRadius: 10,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
+              borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M3 13V7.5L9 3.5L15 7.5V13" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
@@ -227,84 +179,43 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
             </div>
           </div>
 
-          {/* Close button — visible on mobile */}
           <button
             className="sidebar-mobile-toggle"
-            onClick={() => setMobileOpen(false)}
+            onClick={e => { e.preventDefault(); setMobileOpen(false); }}
             aria-label="Cerrar menú"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
-              borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#6b7280",
-            }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, display: "flex", alignItems: "center", color: "#6b7280" }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </button>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: "10px 12px", overflowY: "auto" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {LINKS.map(({ href, label, exact, icon }) => {
-              const active = exact ? pathname === href : pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setMobileOpen(false)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "9px 12px",
-                    borderRadius: 8,
-                    textDecoration: "none",
-                    background: active ? "#eff6ff" : "transparent",
-                    color: active ? "#2563eb" : "#6b7280",
-                    fontWeight: active ? 600 : 500,
-                    fontSize: 13.5,
-                    transition: "all 0.1s",
-                  }}
-                >
-                  {icon}
-                  <span style={{ flex: 1 }}>{label}</span>
-                  {href === "/panel/conversaciones" && pendientesHumano > 0 && (
-                    <span style={{
-                      minWidth: 18, height: 18, borderRadius: 9, background: "#ef4444",
-                      color: "white", fontSize: 10.5, fontWeight: 700,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      padding: "0 5px",
-                    }}>
-                      {pendientesHumano > 99 ? "99+" : pendientesHumano}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+            {NAV_MAIN.map(item => (
+              <NavLink key={item.href} {...item} />
+            ))}
+
+            <div style={{ margin: "10px 4px 4px", fontSize: 10.5, fontWeight: 600, color: "#d1d5db", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Ajustes
+            </div>
+
+            {NAV_AJUSTES.map(item => (
+              <NavLink key={item.href} {...item} />
+            ))}
           </div>
         </nav>
 
-        {/* Bottom: logout */}
+        {/* Logout */}
         <div style={{ padding: "12px 16px", borderTop: "1px solid #f3f4f6" }}>
           <form action="/auth/logout" method="POST">
             <button type="submit" style={{
-              width: "100%",
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "9px 12px",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: "#9ca3af",
-              fontWeight: 500,
-              fontSize: 13.5,
-              cursor: "pointer",
-              fontFamily: "inherit",
+              width: "100%", display: "flex", alignItems: "center", gap: 10,
+              padding: "9px 12px", borderRadius: 8, border: "none",
+              background: "transparent", color: "#9ca3af",
+              fontWeight: 500, fontSize: 13.5, cursor: "pointer", fontFamily: "inherit",
             }}>
               <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
                 <path d="M6.5 2.5H3C2.45 2.5 2 2.95 2 3.5V13.5C2 14.05 2.45 14.5 3 14.5H6.5M11.5 11.5L15 8.5L11.5 5.5M15 8.5H6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

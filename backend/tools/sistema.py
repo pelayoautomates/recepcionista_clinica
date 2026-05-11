@@ -47,6 +47,8 @@ async def agregar_a_lista_espera(
     """Añade al paciente a la lista de espera cuando no hay disponibilidad."""
     db = get_supabase()
     paciente = db.table("pacientes").select("clinic_id").eq("id", paciente_id).single().execute()
+    if not paciente.data:
+        return {"ok": False, "error": "paciente_no_encontrado"}
     clinic_id = paciente.data["clinic_id"]
     result = db.table("lista_espera").insert({
         "clinic_id": clinic_id,

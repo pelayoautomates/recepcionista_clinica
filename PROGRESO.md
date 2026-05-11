@@ -1,6 +1,6 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-10
+Última actualización: 2026-05-11
 
 ---
 
@@ -175,6 +175,123 @@
 | 2026-05-07 | Rediseño UI: Plus Jakarta Sans, nuevo sistema de diseño | Minimalista, ejecutivo para agencia; médico-profesional para clínica |
 | 2026-05-07 | Configuración centrada en info extraída (sin migración DB) | Reducir complejidad para recepcionista y mantener persistencia en campos existentes |
 | 2026-05-05 | Next.js 15 con params async | Requisito del framework; `params` es Promise en Next.js 15 |
+
+---
+
+## Registro de cambios recientes (2026-05-11)
+
+### Bloque 2 — WhatsApp centralizado + Scheduler + Audit log
+
+- **`backend/whatsapp.py`** (nuevo módulo centralizado)
+  - Todas las funciones de envío WhatsApp aquí: `recordatorio_cita()`, `seguimiento_lead()`, `enviar_mensaje()`
+  - Routing per-clínica: `_phone_number_id(clinic_wa_number)` — usa número de clínica primero, fallback global
+  - Función `_template_message()` para plantillas aprobadas Meta
+
+- **`backend/jobs/scheduler.py`** refactorizado
+  - `_get_clinic_wa(db, clinic_id)` obtiene `whatsapp_number` de la clínica
+  - `_enviar_recordatorio_whatsapp()` y `_enviar_seguimiento_lead()` usan `whatsapp.py`
+  - `scheduler_status()` expuesto para `/health`
+
+- **`backend/main.py`**: `/health` incluye `scheduler_status()`
+
+- **`backend/database/migrations/008_audit_log.sql`**: tabla `audit_log` (clinic_id, tabla, accion, registro_id, antes/despues JSONB, created_at)
+
+### Bloque 3 — Panel Agenda mejorado
+
+- **`dashboard/app/panel/agenda/BloquesTab.tsx`** (nuevo)
+  - Lista de bloqueos de agenda (festivos, vacaciones, etc.)
+  - Modal crear: datetime-local, tipo (festivo/vacaciones/mantenimiento/otro), profesional, sala opcionales
+  - Color-coded left border por tipo; botón eliminar con confirm
+  - Auto-fetch en mount (no server-side)
+
+- **`dashboard/app/panel/agenda/ServiciosTab.tsx`** — añadido
+  - Componente `ProfAsignados`: lazy-load al pulsar botón, pill-buttons toggle asignación
+  - POST para asignar, DELETE para desasignar profesional a servicio
+  - Fix JSX: wrapper `<div>` en `.map()` para permitir `ProfAsignados` como hermano del card
+
+- **`dashboard/app/panel/agenda/AgendaConfig.tsx`**: 5 tabs ahora (servicios / profesionales / salas / reglas / bloqueos)
+
+### Bloque 4 — Stripe Billing
+
+- **`backend/billing.py`** (nuevo)
+  - `check_plan_active(clinic_id)`: lanza `PlanInactivo` o `MinutosAgotados`; pasa si `plan=null/trial` sin expirar
+  - `incrementar_minutos(clinic_id, minutos)`: silent failure
+  - Planes: starter=300min, pro=750min, growth=1800min
+
+- **`backend/routers/stripe_billing.py`** (nuevo router)
+  - `POST /billing/checkout`: crea/reutiliza Stripe Customer, crea Checkout Session
+  - `POST /billing/portal`: Customer Portal
+  - `POST /billing/webhook`: maneja `checkout.session.completed`, `subscription.updated/deleted`, `invoice.payment_failed`
+  - `metadata.clinic_id` en Checkout Session para tenant isolation
+
+- **`backend/config.py`**: campos `stripe_secret_key`, `stripe_webhook_secret`, `stripe_price_*`, `dashboard_url`
+
+- **`backend/routers/chat.py`**: enforcement `check_plan_active()` al inicio; HTTP 402 si plan inactivo o minutos agotados
+
+- **`dashboard/app/api/billing/checkout/route.ts`** y **`portal/route.ts`**: auth-gated proxies; usan `access.clinicId` (camelCase)
+
+- **`dashboard/app/panel/facturacion/page.tsx`** + **`FacturacionClient.tsx`**:
+  - Badge plan + estado suscripción
+  - Barra de uso de minutos (azul→naranja→rojo en 90%)
+  - Botón Customer Portal (si tiene Stripe customer)
+  - Cards de upgrade condicionales según plan actual
+
+- **Pendiente manual Railway**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER/PRO/GROWTH`
+- **Pendiente Stripe Dashboard**: webhook apuntando a `https://<backend>/billing/webhook`
+
+### Bloque 5 — Base de conocimiento (conocimientos)
+
+- **`backend/database/migrations/009_conocimiento.sql`**: tabla `conocimientos` (clinic_id, titulo, contenido, tipo, activo, orden)
+  - tipos: faq / proceso / precio / politica / otro
+
+- **`backend/agent/prompts.py`**: `build_system_prompt()` acepta `conocimiento=` list; inyecta entradas activas como sección `## Base de conocimiento` en el system prompt
+
+- **`backend/routers/admin.py`**: CRUD `/admin/clinicas/{id}/conocimiento` + `/{entry_id}`
+
+- **`dashboard/app/panel/conocimiento/page.tsx`** + **`ConocimientoClient.tsx`**:
+  - Lista de entradas por tipo, toggle activo, drag-reorder (orden), crear/editar/eliminar
+  - `dashboard/app/api/clinicas/[id]/conocimiento/route.ts` + `[entryId]/route.ts`
+
+- **`dashboard/app/panel/layout.tsx`**: fetch `metricas` paralelo a `clinica`; pasa `pendientesHumano` al sidebar
+
+- **`dashboard/components/PanelSidebar.tsx`**: badge rojo en Conversaciones si `pendientesHumano > 0`; links Conocimiento + Facturación
+
+### Bloque 6 — Lead scoring + Lista de espera + Recuperación
+
+- **`backend/scoring.py`** (nuevo)
+  - `calcular_score(lead)`: rule-based 0-100; factores: nombre/tel/email (+10/+20/+10), canal (voz+25/wa+20), estado (cita_agendada+45...), historial+10, recencia (<24h+10, <7d+5)
+  - `enriquecer_leads(leads)`: añade `scoring` a cada lead
+  - NOTA: `pendiente_confirmacion` eliminado del scoring (no existe en DB CHECK constraint)
+
+- **`backend/database/migrations/010_bloque6.sql`**: tabla `lista_espera` (clinic_id, paciente_id, servicio_nombre, profesional_id, notas, estado, notificado_at)
+  - estados: esperando / notificado / agendado / cancelado
+
+- **`backend/tools/sistema.py`**: `agregar_a_lista_espera(paciente_id, servicio_nombre, notas)` — con guard si paciente no existe
+
+- **`backend/agent/tool_definitions.py`**: tool `agregar_a_lista_espera` añadida; `pendiente_confirmacion` eliminado del enum de `actualizar_estado_lead`
+
+- **`backend/agent/core.py`**: dispatch para `agregar_a_lista_espera`
+
+- **`backend/routers/admin.py`** (añadido):
+  - GET `/admin/clinicas/{id}/leads` → incluye scoring via `enriquecer_leads()`
+  - CRUD `/admin/clinicas/{id}/lista-espera` + `/{entrada_id}`
+  - GET `/admin/clinicas/{id}/recuperacion` → leads perdidos + sin actividad >3d con teléfono
+  - POST `/admin/clinicas/{id}/leads/{lead_id}/seguimiento` → job inmediato de seguimiento WhatsApp
+
+- **`dashboard/app/panel/leads/LeadsClient.tsx`**: columna Score + `ScoreBadge` (verde/amarillo/rojo), sort por fecha/score, colSpan corregido a 7
+
+- **`dashboard/app/panel/lista-espera/page.tsx`** + **`ListaEsperaClient.tsx`**:
+  - Lista con badges estado; Notificar (PATCH estado+notificado_at), Marcar agendado, Cancelar, Eliminar
+
+- **`dashboard/app/panel/recuperacion/page.tsx`** + **`RecuperacionClient.tsx`**:
+  - Lista de leads para re-enganchar; botón "Re-enganchar" → POST seguimiento; feedback ok/error por fila
+
+- **`dashboard/app/api/clinicas/[id]/lista-espera/route.ts`** + **`[entradaId]/route.ts`**
+- **`dashboard/app/api/clinicas/[id]/leads/[leadId]/seguimiento/route.ts`**
+
+- **`dashboard/components/PanelSidebar.tsx`**: links Lista de espera (reloj) + Recuperación (refresh)
+
+- **Pendiente manual Supabase**: ejecutar `009_conocimiento.sql` y `010_bloque6.sql` en SQL Editor
 
 ---
 

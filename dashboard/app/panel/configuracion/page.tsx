@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { adminFetch } from "@/lib/api";
-import ConfiguracionForm from "./ConfiguracionForm";
+import ConfiguracionWrapper from "./ConfiguracionWrapper";
 
 export default async function ConfiguracionPage() {
   const supabase = await createClient();
@@ -15,13 +15,21 @@ export default async function ConfiguracionPage() {
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`, { noStore: true });
+  const clinicId: string = rol.clinic_id;
+
+  const [clinicaRes, conocimientoRes] = await Promise.all([
+    adminFetch(`/admin/clinicas/${clinicId}`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinicId}/conocimiento`, { noStore: true }),
+  ]);
+
   const clinica = await clinicaRes.json();
+  const conocimiento = conocimientoRes.ok ? await conocimientoRes.json() : [];
 
   return (
-    <ConfiguracionForm
+    <ConfiguracionWrapper
       clinica={clinica}
-      clinicId={rol.clinic_id}
+      clinicId={clinicId}
+      conocimiento={Array.isArray(conocimiento) ? conocimiento : []}
     />
   );
 }

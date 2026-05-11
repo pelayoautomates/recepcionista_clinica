@@ -42,7 +42,6 @@ def calcular_score(lead: dict) -> dict:
         "requiere_humano":        20,
         "contactado":             15,
         "nuevo":                  5,
-        "pendiente_confirmacion": 20,
         "perdido":               -15,
         "anonimo":                0,
     }

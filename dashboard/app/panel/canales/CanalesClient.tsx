@@ -5,6 +5,7 @@ interface Props {
   clinicId: string;
   telefono: string | null;
   whatsappNumber: string | null;
+  compact?: boolean;
 }
 
 const PAISES = [
@@ -239,7 +240,7 @@ const styles = {
   } as React.CSSProperties,
 };
 
-export default function CanalesClient({ clinicId, telefono, whatsappNumber }: Props) {
+export default function CanalesClient({ clinicId, telefono, whatsappNumber, compact }: Props) {
   // Voice channel state
   const [mode, setMode] = useState<"idle" | "connect-existing" | "search-numbers">("idle");
   const [existingNumber, setExistingNumber] = useState("");
@@ -342,12 +343,13 @@ export default function CanalesClient({ clinicId, telefono, whatsappNumber }: Pr
   }
 
   return (
-    <div style={styles.page}>
-      {/* Header */}
-      <div style={styles.header}>
-        <h1 style={styles.title}>Canales de comunicación</h1>
-        <p style={styles.subtitle}>Configura los canales por los que los pacientes contactarán con la clínica</p>
-      </div>
+    <div style={compact ? {} : styles.page}>
+      {!compact && (
+        <div style={styles.header}>
+          <h1 style={styles.title}>Canales de comunicación</h1>
+          <p style={styles.subtitle}>Configura los canales por los que los pacientes contactarán con la clínica</p>
+        </div>
+      )}
 
       <div style={styles.grid}>
         {/* ── Voz Card ── */}

@@ -317,6 +317,16 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
             </span>
           )}
 
+          <a
+            href="/panel/agenda"
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "white", border: "1px solid #e5e7eb", borderRadius: 7, padding: "5px 12px", fontSize: 12.5, fontWeight: 500, color: "#374151", textDecoration: "none" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M6.5 1.5v2M6.5 9.5v2M1.5 6.5h2M9.5 6.5h2M3.4 3.4l1.4 1.4M8.2 8.2l1.4 1.4M3.4 9.6l1.4-1.4M8.2 4.8l1.4-1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+            Disponibilidad
+          </a>
+
           {/* View switcher */}
           <div style={{ display: "flex", gap: 2, background: "#f3f4f6", borderRadius: 8, padding: 3 }}>
             {(["dia", "semana", "mes"] as Vista[]).map(v => (

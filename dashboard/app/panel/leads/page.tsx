@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { adminFetch } from "@/lib/api";
-import LeadsClient from "./LeadsClient";
+import LeadsWrapper from "./LeadsWrapper";
 
 export default async function PanelLeadsPage() {
   const supabase = await createClient();
@@ -12,8 +12,24 @@ export default async function PanelLeadsPage() {
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const res = await adminFetch(`/admin/clinicas/${rol.clinic_id}/leads`, { noStore: true });
-  const leads = res.ok ? await res.json() : [];
+  const clinicId: string = rol.clinic_id;
 
-  return <LeadsClient leads={leads} />;
+  const [leadsRes, listaRes, recRes] = await Promise.all([
+    adminFetch(`/admin/clinicas/${clinicId}/leads`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinicId}/lista-espera`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinicId}/recuperacion`, { noStore: true }),
+  ]);
+
+  const leads = leadsRes.ok ? await leadsRes.json() : [];
+  const listaEspera = listaRes.ok ? await listaRes.json() : [];
+  const recuperacion = recRes.ok ? await recRes.json() : [];
+
+  return (
+    <LeadsWrapper
+      leads={Array.isArray(leads) ? leads : []}
+      listaEspera={Array.isArray(listaEspera) ? listaEspera : []}
+      recuperacion={Array.isArray(recuperacion) ? recuperacion : []}
+      clinicId={clinicId}
+    />
+  );
 }

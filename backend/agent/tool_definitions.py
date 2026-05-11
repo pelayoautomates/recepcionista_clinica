@@ -202,7 +202,7 @@ TOOL_DEFINITIONS = [
                         "type": "string",
                         "enum": [
                             "anonimo", "nuevo", "contactado", "interesado",
-                            "cita_agendada", "pendiente_confirmacion",
+                            "cita_agendada",
                             "completado", "perdido", "requiere_humano"
                         ],
                         "description": "Nuevo estado del lead."
