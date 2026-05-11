@@ -23,10 +23,35 @@ def start_scheduler():
         replace_existing=True,
     )
     _scheduler.start()
+    logger.info("Scheduler iniciado: procesar_jobs (1min), programar_recordatorios (1h)")
 
 
 def stop_scheduler():
     _scheduler.shutdown(wait=False)
+    logger.info("Scheduler detenido")
+
+
+def scheduler_status() -> dict:
+    """Estado del scheduler para el endpoint /health."""
+    jobs = []
+    for job in _scheduler.get_jobs():
+        jobs.append({
+            "id": job.id,
+            "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
+        })
+    return {
+        "running": _scheduler.running,
+        "jobs": jobs,
+    }
+
+
+def _get_clinic_wa(db, clinic_id: str) -> str | None:
+    """Devuelve whatsapp_number de la clínica (phone_number_id per-clinic)."""
+    try:
+        row = db.table("clinicas").select("whatsapp_number").eq("id", clinic_id).single().execute()
+        return row.data.get("whatsapp_number")
+    except Exception:
+        return None
 
 
 def _procesar_jobs_pendientes():
@@ -50,7 +75,6 @@ def _ejecutar_job(job: dict):
     db = get_supabase()
     job_id = job["id"]
 
-    # Marcar como ejecutando (evita doble ejecución)
     db.table("jobs").update({"estado": "ejecutando"}).eq("id", job_id).execute()
 
     try:
@@ -65,12 +89,11 @@ def _ejecutar_job(job: dict):
             _enviar_resumen_diario(job)
 
         db.table("jobs").update({"estado": "ejecutado"}).eq("id", job_id).execute()
-        logger.info("Job %s (%s) ejecutado correctamente", job_id, tipo)
+        logger.info("Job %s (%s) ejecutado OK", job_id, tipo)
 
     except Exception as e:
         intentos = job.get("intentos", 0) + 1
         nuevo_estado = "fallido" if intentos >= 3 else "pendiente"
-        # Backoff: reintentar en 5, 15 minutos
         nueva_fecha = datetime.now(timezone.utc) + timedelta(minutes=5 * intentos)
 
         db.table("jobs").update({
@@ -84,9 +107,7 @@ def _ejecutar_job(job: dict):
 
 
 def _enviar_recordatorio_whatsapp(job: dict, tipo: str):
-    """Envía plantilla de recordatorio por WhatsApp."""
-    import httpx
-    from config import settings
+    import whatsapp as wa
     from database.client import get_supabase
 
     db = get_supabase()
@@ -101,37 +122,22 @@ def _enviar_recordatorio_whatsapp(job: dict, tipo: str):
         return
 
     payload = job.get("payload", {})
-    fecha_cita = payload.get("fecha_cita", "")
-    nombre_clinica = payload.get("nombre_clinica", "la clínica")
-    tipo_servicio = payload.get("tipo_servicio", "")
-    servicio_txt = f" ({tipo_servicio})" if tipo_servicio else ""
+    clinic_id = job.get("clinic_id")
+    wa_number = _get_clinic_wa(db, clinic_id) if clinic_id else None
 
-    if tipo == "24h":
-        texto = f"Hola {nombre}, te recordamos que tienes una cita mañana en {nombre_clinica}{servicio_txt}: {fecha_cita}. Responde CANCELAR o MOVER si necesitas cambiarla."
-    else:
-        texto = f"Hola {nombre}, tu cita{servicio_txt} en {nombre_clinica} es en aproximadamente 1 hora: {fecha_cita}. ¡Te esperamos!"
-
-    import httpx as _httpx
-    with _httpx.Client() as client:
-        client.post(
-            f"https://graph.facebook.com/v21.0/{settings.meta_phone_number_id}/messages",
-            json={
-                "messaging_product": "whatsapp",
-                "to": telefono,
-                "type": "text",
-                "text": {"body": texto},
-            },
-            headers={
-                "Authorization": f"Bearer {settings.meta_access_token}",
-                "Content-Type": "application/json",
-            },
-        )
+    wa.recordatorio_cita(
+        to=telefono,
+        nombre_paciente=nombre,
+        nombre_clinica=payload.get("nombre_clinica", "la clínica"),
+        servicio=payload.get("tipo_servicio", ""),
+        fecha_texto=payload.get("fecha_cita", ""),
+        tipo=tipo,
+        clinic_whatsapp_number=wa_number,
+    )
 
 
 def _enviar_seguimiento_lead(job: dict):
-    """Envía mensaje de seguimiento a un lead frío."""
-    import httpx
-    from config import settings
+    import whatsapp as wa
     from database.client import get_supabase
 
     db = get_supabase()
@@ -147,26 +153,17 @@ def _enviar_seguimiento_lead(job: dict):
     if not telefono or estado in ("cita_agendada", "completado"):
         return
 
-    texto = f"Hola{f' {nombre}' if nombre else ''}, ¿pudiste agendar tu cita? Estamos aquí para ayudarte cuando lo necesites."
+    clinic_id = job.get("clinic_id")
+    wa_number = _get_clinic_wa(db, clinic_id) if clinic_id else None
 
-    with httpx.Client() as client:
-        client.post(
-            f"https://graph.facebook.com/v21.0/{settings.meta_phone_number_id}/messages",
-            json={
-                "messaging_product": "whatsapp",
-                "to": telefono,
-                "type": "text",
-                "text": {"body": texto},
-            },
-            headers={
-                "Authorization": f"Bearer {settings.meta_access_token}",
-                "Content-Type": "application/json",
-            },
-        )
+    wa.seguimiento_lead(
+        to=telefono,
+        nombre_paciente=nombre,
+        clinic_whatsapp_number=wa_number,
+    )
 
 
 def _enviar_resumen_diario(job: dict):
-    """Genera y envía el resumen diario a la clínica."""
     from database.client import get_supabase
     from openai import OpenAI
     from config import settings
@@ -198,12 +195,12 @@ def _enviar_resumen_diario(job: dict):
         "detalle_citas": citas[:10],
     }
 
-    openai = OpenAI(api_key=settings.openai_api_key)
-    respuesta = openai.chat.completions.create(
+    openai_client = OpenAI(api_key=settings.openai_api_key)
+    respuesta = openai_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "Eres un asistente que genera resúmenes diarios concisos para clínicas dentales."},
-            {"role": "user", "content": f"Genera un resumen diario breve en español basado en estos datos: {resumen_datos}"}
+            {"role": "system", "content": "Eres un asistente que genera resúmenes diarios concisos para clínicas."},
+            {"role": "user", "content": f"Genera un resumen diario breve en español: {resumen_datos}"}
         ]
     )
     resumen_texto = respuesta.choices[0].message.content
@@ -213,12 +210,8 @@ def _enviar_resumen_diario(job: dict):
 
 
 def _programar_recordatorios_pendientes():
-    """
-    Busca citas en las próximas 25h sin recordatorio programado y los crea.
-    Corre cada hora.
-    """
+    """Busca citas en próximas 25h sin recordatorio y los crea. Corre cada hora."""
     from database.client import get_supabase
-    from datetime import datetime, timedelta, timezone
 
     db = get_supabase()
     ahora = datetime.now(timezone.utc)
@@ -231,7 +224,7 @@ def _programar_recordatorios_pendientes():
         .lte("fecha_inicio", limite.isoformat()) \
         .execute().data
 
-    clinicas_cache = {}
+    clinicas_cache: dict[str, str] = {}
     for cita in citas:
         clinic_id = cita["clinic_id"]
         if clinic_id not in clinicas_cache:

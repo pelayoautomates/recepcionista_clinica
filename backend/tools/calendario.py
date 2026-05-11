@@ -19,6 +19,7 @@ from uuid import UUID
 from audit import CITA_CANCELAR, CITA_CREAR, CITA_MOVER, audit
 from database.client import get_supabase
 from google_calendar import client as gcal
+import whatsapp as wa
 
 logger = logging.getLogger(__name__)
 
@@ -424,6 +425,23 @@ async def create_appointment_validated(
 
     logger.info("Cita %s creada — profesional=%s servicio=%s", cita_id, prof_nombre, servicio_nombre)
     _notificar_clinica_nueva_cita(clinic, servicio_nombre, prof_nombre, fecha_inicio, nombre_paciente, origen)
+
+    # Confirmación al paciente por WhatsApp (si tiene teléfono y WhatsApp configurado)
+    try:
+        pac = db.table("pacientes").select("telefono").eq("id", paciente_id).single().execute()
+        telefono_pac = pac.data.get("telefono") if pac.data else None
+        if telefono_pac:
+            wa.confirmacion_cita(
+                to=telefono_pac,
+                nombre_paciente=nombre_paciente,
+                nombre_clinica=clinic.get("nombre", "la clínica"),
+                servicio=servicio_nombre,
+                profesional=prof_nombre,
+                fecha_texto=fecha_inicio.strftime("%d/%m/%Y a las %H:%M"),
+                clinic_whatsapp_number=clinic.get("whatsapp_number"),
+            )
+    except Exception as exc:
+        logger.warning("Confirmación WA paciente fallida para cita %s: %s", cita_id, exc)
 
     await audit(
         clinic_id=clinic_id,

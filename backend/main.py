@@ -63,6 +63,7 @@ app.include_router(registro.router, prefix="/saas", tags=["registro"])
 @app.get("/health")
 async def health():
     from database.client import get_supabase
+    from jobs.scheduler import scheduler_status
     db_ok = False
     try:
         get_supabase().table("clinicas").select("id").limit(1).execute()
@@ -73,4 +74,5 @@ async def health():
         "status": "ok" if db_ok else "degraded",
         "database": db_ok,
         "environment": settings.environment,
+        "scheduler": scheduler_status(),
     }
