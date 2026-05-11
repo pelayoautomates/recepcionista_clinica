@@ -36,8 +36,8 @@ export default function MobileNav() {
               </Link>
             ))}
             <div className={styles.mobileNavActions}>
-              <Link href="/#demo" className={styles.btnSecondary} onClick={() => setOpen(false)} prefetch={false} style={{ textAlign: "center" }}>
-                Probar demo gratis
+              <Link href="/login" className={styles.btnSecondary} onClick={() => setOpen(false)} prefetch={false} style={{ textAlign: "center" }}>
+                Acceder a mi panel
               </Link>
               <Link href="/demo" className={styles.btnPrimary} onClick={() => setOpen(false)} prefetch={false} style={{ textAlign: "center" }}>
                 Pedir demo guiada

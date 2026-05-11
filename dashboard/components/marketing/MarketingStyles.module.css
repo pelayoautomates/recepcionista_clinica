@@ -3106,6 +3106,91 @@
   }
 }
 
+/* ─── Animations ─── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.animFadeUp {
+  animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animFadeIn {
+  animation: fadeIn 0.7s ease both;
+}
+
+/* ─── Hero badge row ─── */
+
+.heroBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: #f0f4ff;
+  color: #2d436f;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid #dbe6ff;
+}
+
+/* ─── FAQ item (enhanced existing faqGrid) ─── */
+
+.faqGrid details {
+  transition: box-shadow 0.2s;
+}
+
+.faqGrid details:hover {
+  box-shadow: 0 4px 16px rgba(15, 75, 217, 0.08);
+}
+
+.faqGrid summary::after {
+  content: "+";
+  float: right;
+  font-size: 20px;
+  font-weight: 300;
+  color: #6b7280;
+  transition: transform 0.2s;
+}
+
+.faqGrid details[open] summary::after {
+  transform: rotate(45deg);
+}
+
+/* Card hover lift */
+.featureCard,
+.stepCard,
+.whoCard,
+.answerCard,
+.painCard {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.featureCard:hover,
+.stepCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(15, 75, 217, 0.12);
+}
+
 /* ─── Mobile-first: visibility helpers ─── */
 
 .desktopOnly {
@@ -3276,6 +3361,7 @@
 @media (max-width: 900px) {
   .stickyMobileCta {
     display: flex;
+    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
   }
 }
 

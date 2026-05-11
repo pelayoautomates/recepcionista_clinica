@@ -58,8 +58,8 @@ export default function MarketingShell({
             </nav>
 
             <div className={styles.navActions}>
-              <Link href="/#demo" className={styles.btnGhost} prefetch={false}>Probar demo</Link>
-              <Link href="/demo" className={styles.btnPrimary} prefetch={false}>Pedir demo guiada</Link>
+              <Link href="/login" className={styles.btnGhost} prefetch={false}>Acceder</Link>
+              <Link href="/demo" className={styles.btnPrimary} prefetch={false}>Pedir demo</Link>
             </div>
             <MobileNav />
           </div>
