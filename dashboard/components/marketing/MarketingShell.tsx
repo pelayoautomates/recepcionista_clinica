@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus_Jakarta_Sans, Manrope } from "next/font/google";
 import styles from "./MarketingStyles.module.css";
 import { NAV_ITEMS } from "@/lib/marketing-content";
+import MobileNav from "./MobileNav";
 
 const headingFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default function MarketingShell({
               <Link href="/#demo" className={styles.btnGhost} prefetch={false}>Probar demo</Link>
               <Link href="/demo" className={styles.btnPrimary} prefetch={false}>Pedir demo guiada</Link>
             </div>
+            <MobileNav />
           </div>
         </div>
       </header>

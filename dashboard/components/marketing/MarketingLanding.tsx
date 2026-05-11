@@ -21,6 +21,16 @@ import {
 export default function MarketingLanding() {
   return (
     <MarketingShell active="landing">
+      {/* Sticky mobile CTA bar — only shown on mobile */}
+      <div className={styles.stickyMobileCta}>
+        <Link href="/#demo" prefetch={false} className={styles.stickyMobileCtaBtn}>
+          💬 Probar demo gratis
+        </Link>
+        <Link href="/demo" prefetch={false} className={styles.stickyMobileCtaBtnSecondary}>
+          Pedir demo
+        </Link>
+      </div>
+
       <main>
         <section className={styles.heroSectionConversion}>
           <div className={styles.container}>
@@ -56,7 +66,7 @@ export default function MarketingLanding() {
                 </div>
               </div>
 
-              <div className={styles.heroConversionVisual}>
+              <div className={`${styles.heroConversionVisual} ${styles.desktopOnly}`}>
                 <div className={styles.heroOrbitalGlow} aria-hidden="true" />
                 <div className={styles.hero3dStack}>
                   <article className={styles.stackCardMain}>
@@ -96,6 +106,21 @@ export default function MarketingLanding() {
             </div>
           </div>
         </section>
+
+        {/* Mobile-only quick demo teaser (after hero, before proof) */}
+        <div className={`${styles.mobileDemoTeaser} ${styles.mobileOnly}`}>
+          <div className={styles.container}>
+            <div className={styles.mobileDemoTeaserInner}>
+              <div className={styles.mobileDemoTeaserText}>
+                <strong>¿De donde vienes?</strong>
+                <p>Prueba en 30 segundos como responderia el agente IA a un paciente de tu clinica.</p>
+              </div>
+              <Link href="/#demo" prefetch={false} className={styles.btnPrimary}>
+                Probar ahora →
+              </Link>
+            </div>
+          </div>
+        </div>
 
         <section className={`${styles.section} ${styles.sectionSoft} ${styles.proofSection}`}>
           <div className={styles.container}>
@@ -300,7 +325,7 @@ export default function MarketingLanding() {
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.sectionSoft}`} id="panel-real">
+        <section className={`${styles.section} ${styles.sectionSoft} ${styles.desktopOnlySection}`} id="panel-real">
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Panel operativo</p>
@@ -376,7 +401,7 @@ export default function MarketingLanding() {
           </div>
         </section>
 
-        <section className={styles.section} id="demo">
+        <section className={`${styles.section} ${styles.demoSection}`} id="demo">
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Prueba interactiva</p>

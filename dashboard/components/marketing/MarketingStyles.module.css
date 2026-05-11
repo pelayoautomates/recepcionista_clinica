@@ -3105,3 +3105,285 @@
     height: 72px;
   }
 }
+
+/* ─── Mobile-first: visibility helpers ─── */
+
+.desktopOnly {
+  display: block;
+}
+
+.mobileOnly {
+  display: none;
+}
+
+.desktopOnlySection {
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .desktopOnly {
+    display: none !important;
+  }
+
+  .mobileOnly {
+    display: block;
+  }
+
+  .desktopOnlySection {
+    display: none !important;
+  }
+}
+
+/* ─── Hamburger button (mobile only) ─── */
+
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 10px;
+  color: #0a1733;
+  transition: background 0.15s;
+}
+
+.hamburger:hover {
+  background: #dde8ff;
+}
+
+@media (max-width: 900px) {
+  .hamburger {
+    display: inline-flex;
+  }
+}
+
+/* ─── Mobile nav drawer ─── */
+
+.mobileNavOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(10, 23, 51, 0.45);
+  backdrop-filter: blur(4px);
+  animation: fadeOverlay 0.18s ease;
+}
+
+@keyframes fadeOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mobileNavPanel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 88vw);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 24px;
+  box-shadow: -8px 0 32px rgba(10, 23, 51, 0.18);
+  animation: slidePanel 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+@keyframes slidePanel {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.mobileNavTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e8edf5;
+  margin-bottom: 8px;
+}
+
+.mobileNavBrand {
+  font-family: var(--marketing-font-heading), sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0a1733;
+}
+
+.mobileNavClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f2f5fb;
+  border-radius: 9px;
+  cursor: pointer;
+  color: #3f4f6f;
+  transition: background 0.15s;
+}
+
+.mobileNavClose:hover {
+  background: #dde8ff;
+  color: #0a3cb4;
+}
+
+.mobileNavItem {
+  display: block;
+  padding: 13px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2d3f60;
+  text-decoration: none;
+  border-bottom: 1px solid #f0f3f9;
+  transition: background 0.15s, color 0.15s;
+}
+
+.mobileNavItem:hover {
+  background: #f4f7fc;
+  color: #0a3cb4;
+}
+
+.mobileNavActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 20px 0;
+  margin-top: auto;
+}
+
+/* ─── Sticky mobile CTA bar ─── */
+
+.stickyMobileCta {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: rgba(244, 247, 252, 0.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(10, 23, 51, 0.1);
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .stickyMobileCta {
+    display: flex;
+  }
+}
+
+.stickyMobileCtaBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  background: linear-gradient(135deg, #0f4bd9 0%, #1a8fd1 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(15, 75, 217, 0.35);
+  transition: opacity 0.15s;
+}
+
+.stickyMobileCtaBtn:hover {
+  opacity: 0.9;
+}
+
+.stickyMobileCtaBtnSecondary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  background: #fff;
+  color: #0f4bd9;
+  border: 2px solid #0f4bd9;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stickyMobileCtaBtnSecondary:hover {
+  background: #0f4bd9;
+  color: #fff;
+}
+
+/* ─── Mobile demo teaser (shown only on mobile, near hero) ─── */
+
+.mobileDemoTeaser {
+  background: linear-gradient(135deg, #0f4bd9 0%, #1a8fd1 100%);
+  border-radius: 18px;
+  margin: 0 0 8px;
+  overflow: hidden;
+}
+
+.mobileDemoTeaserInner {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.mobileDemoTeaserText {
+  color: rgba(255,255,255,0.88);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.mobileDemoTeaserText strong {
+  display: block;
+  font-family: var(--marketing-font-heading), sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+/* ─── Demo section order on mobile ─── */
+
+.demoSection {
+  /* stays in place — order only if needed via specific parent context */
+}
+
+/* ─── Fix channelRail to span full grid width ─── */
+
+.heroConversionGrid .channelRail {
+  grid-column: 1 / -1;
+}
+
+/* ─── proofGrid: 2×2 on mobile instead of 4→1 ─── */
+
+@media (max-width: 1140px) {
+  .proofGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─── Reduce section padding on mobile ─── */
+
+@media (max-width: 900px) {
+  .section,
+  .sectionDark {
+    padding: 44px 0;
+  }
+
+  /* Extra body space for sticky CTA bar */
+  body {
+    padding-bottom: 80px;
+  }
+}
