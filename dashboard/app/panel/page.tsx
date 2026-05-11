@@ -58,11 +58,8 @@ const ESTADO_CITA: Record<string, { label: string; bg: string; color: string }> 
 };
 
 function getLocalDateISO() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  // sv-SE locale gives YYYY-MM-DD format; force Spain timezone so server (UTC) shows correct date
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 }
 
 function getInitials(name: string) {
@@ -204,7 +201,7 @@ export default async function PanelPage() {
                 {convsHoy.map((conv: any, i: number) => {
                   const est = ESTADO_CONV[conv.estado] || ESTADO_CONV.activa;
                   const hora = conv.updated_at
-                    ? new Date(conv.updated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+                    ? new Date(conv.updated_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" })
                     : "—";
                   const nombre = conv.pacientes?.nombre || conv.paciente_id?.slice(0, 8) || "Desconocido";
                   const pal = AVATAR_PALETTES[i % AVATAR_PALETTES.length];
@@ -284,7 +281,7 @@ export default async function PanelPage() {
             <div style={{ padding: "6px 0" }}>
               {citasHoy.slice(0, 6).map((cita: any, i: number) => {
                 const hora = cita.fecha_inicio
-                  ? new Date(cita.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+                  ? new Date(cita.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" })
                   : "—";
                 const estadoStyle = ESTADO_CITA[cita.estado] || ESTADO_CITA.confirmada;
                 return (

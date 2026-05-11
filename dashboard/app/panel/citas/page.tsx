@@ -4,11 +4,7 @@ import { adminFetch } from "@/lib/api";
 import CitasClient from "./CitasClient";
 
 function getLocalDateISO() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 }
 
 export default async function PanelCitasPage() {
@@ -24,7 +20,7 @@ export default async function PanelCitasPage() {
   const res = await adminFetch(`/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}`, { noStore: true });
   const citas = res.ok ? await res.json() : [];
 
-  const fechaLabel = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+  const fechaLabel = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" });
 
   return <CitasClient citas={citas} fechaLabel={fechaLabel} />;
 }
