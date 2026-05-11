@@ -13,8 +13,14 @@ type Message = {
 
 const CALL_MAX_SECONDS = 50;
 
-const VALERIA_GREETING =
-  "Hola, gracias por llamar a Clínica Estética Luna, le atiende Valeria. ¿En qué puedo ayudarle?";
+const VALERIA_CALL_GREETING =
+  "Hola, Clínica Estética Luna, le atiende Valeria. Tenemos disponibilidad esta semana. ¿Le puedo ayudar a reservar una cita o tiene alguna consulta?";
+
+const VALERIA_CHAT_GREETING: Message = {
+  role: "assistant",
+  text: "¡Hola! Soy Valeria, de Clínica Estética Luna 👋 Tenemos disponibilidad mañana a las 10:30, 12:00 y 17:00. ¿Te gustaría reservar una cita o tienes alguna duda sobre nuestros tratamientos?",
+  time: "",
+};
 
 function getNow() {
   return new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
@@ -22,25 +28,24 @@ function getNow() {
 
 export default function AgentDemoSandbox() {
   const [mode, setMode] = useState<DemoMode>("chat");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([{ ...VALERIA_CHAT_GREETING, time: getNow() }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
 
-  // Call state
   const [callState, setCallState] = useState<CallState>("idle");
   const [callSeconds, setCallSeconds] = useState(0);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
-  const [callStatus, setCallStatus] = useState(""); // descriptive status line
+  const [callStatus, setCallStatus] = useState("");
 
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ringingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const callEndedRef = useRef(false);
+  const callActiveRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -49,21 +54,22 @@ export default function AgentDemoSandbox() {
     return () => {
       ringingTimerRef.current && clearTimeout(ringingTimerRef.current);
       callTimerRef.current && clearInterval(callTimerRef.current);
-      stopEverything();
+      stopAll();
     };
   }, []);
 
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 1) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, loading]);
 
-  const stopEverything = () => {
+  const stopAll = () => {
     recognitionRef.current?.abort();
     recognitionRef.current = null;
     if (audioRef.current) {
       audioRef.current.onended = null;
+      audioRef.current.onerror = null;
       audioRef.current.pause();
       audioRef.current = null;
     }
@@ -74,9 +80,45 @@ export default function AgentDemoSandbox() {
     return `${m}:${(s % 60).toString().padStart(2, "0")}`;
   };
 
-  // ── Start listening (STT) ────────────────────────────────────────────────
+  // ── TTS ─────────────────────────────────────────────────────────────────
+  const speakTTS = useCallback(async (text: string, onDone?: () => void) => {
+    if (!callActiveRef.current) return;
+    stopAll();
+    try {
+      setTtsPlaying(true);
+      setCallStatus("Valeria hablando...");
+      const res = await fetch("/api/demo/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok || !callActiveRef.current) { setTtsPlaying(false); if (callActiveRef.current) onDone?.(); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        setTtsPlaying(false);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        if (callActiveRef.current) onDone?.();
+      };
+      audio.onerror = () => {
+        setTtsPlaying(false);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        if (callActiveRef.current) onDone?.();
+      };
+      await audio.play().catch(() => { setTtsPlaying(false); if (callActiveRef.current) onDone?.(); });
+    } catch {
+      setTtsPlaying(false);
+      if (callActiveRef.current) onDone?.();
+    }
+  }, []);
+
+  // ── STT ─────────────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
-    if (callEndedRef.current) return;
+    if (!callActiveRef.current || ttsPlaying) return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
 
@@ -87,22 +129,23 @@ export default function AgentDemoSandbox() {
     recognition.continuous = false;
 
     recognition.onresult = (event: any) => {
-      const transcript = event?.results?.[0]?.[0]?.transcript || "";
-      if (!transcript.trim() || callEndedRef.current) return;
+      const transcript = event?.results?.[0]?.[0]?.transcript?.trim() || "";
+      recognitionRef.current = null;
       setIsListening(false);
+      if (!transcript || !callActiveRef.current) return;
       setCallStatus("Procesando...");
       void sendVoiceMessage(transcript);
     };
 
     recognition.onerror = (e: any) => {
+      recognitionRef.current = null;
       setIsListening(false);
-      if (callEndedRef.current) return;
+      if (!callActiveRef.current) return;
       if (e.error === "no-speech") {
-        setCallStatus("No te escuché, vuelve a hablar...");
-        // retry after short delay
-        setTimeout(() => { if (!callEndedRef.current) startListening(); }, 1000);
+        setCallStatus("No te he escuchado, habla cuando quieras...");
+        setTimeout(() => { if (callActiveRef.current) startListening(); }, 1500);
       } else {
-        setCallStatus("Error de micrófono");
+        setCallStatus("Error de micrófono — " + e.error);
       }
     };
 
@@ -112,44 +155,9 @@ export default function AgentDemoSandbox() {
 
     recognitionRef.current = recognition;
     setIsListening(true);
-    setCallStatus("Escuchando...");
-    recognition.start();
-  }, []);
-
-  // ── TTS ─────────────────────────────────────────────────────────────────
-  const speakTTS = useCallback(async (text: string, onDone?: () => void) => {
-    if (callEndedRef.current) return;
-    try {
-      setTtsPlaying(true);
-      setCallStatus("Valeria hablando...");
-      const res = await fetch("/api/demo/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok || callEndedRef.current) { setTtsPlaying(false); onDone?.(); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => {
-        setTtsPlaying(false);
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-        if (!callEndedRef.current) onDone?.();
-      };
-      audio.onerror = () => {
-        setTtsPlaying(false);
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-        if (!callEndedRef.current) onDone?.();
-      };
-      await audio.play();
-    } catch {
-      setTtsPlaying(false);
-      if (!callEndedRef.current) onDone?.();
-    }
-  }, []);
+    setCallStatus("Escuchándote...");
+    try { recognition.start(); } catch { setIsListening(false); }
+  }, [ttsPlaying]);
 
   // ── Chat API ─────────────────────────────────────────────────────────────
   const sendChatMessage = async (text: string) => {
@@ -170,9 +178,8 @@ export default function AgentDemoSandbox() {
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
       const data = await res.json();
-      const reply = data?.reply || "Sin respuesta.";
       setConversationId(data?.conversationId || null);
-      setMessages((prev) => [...prev, { role: "assistant", text: reply, time: getNow() }]);
+      setMessages((prev) => [...prev, { role: "assistant", text: data?.reply || "Sin respuesta.", time: getNow() }]);
     } catch (e: any) {
       setError(e?.message || "Error al conectar.");
       setMessages((prev) => prev.slice(0, -1));
@@ -181,9 +188,9 @@ export default function AgentDemoSandbox() {
     }
   };
 
-  // Voice message — sends to API then speaks response then listens again
+  // Voice message — API → TTS → listen loop
   const sendVoiceMessage = async (text: string) => {
-    if (callEndedRef.current) return;
+    if (!callActiveRef.current) return;
     setMessages((prev) => [...prev, { role: "user", text, time: getNow() }]);
     setLoading(true);
     try {
@@ -196,94 +203,96 @@ export default function AgentDemoSandbox() {
           history: messages.slice(-8).map((m) => ({ role: m.role, content: m.text })),
         }),
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
+      if (!res.ok) throw new Error(`Error ${res.status}`);
       const data = await res.json();
       const reply = data?.reply || "Sin respuesta.";
       setConversationId(data?.conversationId || null);
       setMessages((prev) => [...prev, { role: "assistant", text: reply, time: getNow() }]);
       setLoading(false);
-      // Speak then auto-listen again
-      speakTTS(reply, () => { if (!callEndedRef.current) startListening(); });
-    } catch (e: any) {
+      speakTTS(reply, () => { if (callActiveRef.current) startListening(); });
+    } catch {
       setLoading(false);
-      if (!callEndedRef.current) {
+      if (callActiveRef.current) {
         setCallStatus("Error, volviendo a escuchar...");
-        setTimeout(() => { if (!callEndedRef.current) startListening(); }, 1200);
+        setTimeout(() => { if (callActiveRef.current) startListening(); }, 1200);
       }
     }
   };
 
-  // ── Call flow ────────────────────────────────────────────────────────────
+  // ── Call flow ─────────────────────────────────────────────────────────────
   const hangUp = useCallback(() => {
-    callEndedRef.current = true;
+    callActiveRef.current = false;
     ringingTimerRef.current && clearTimeout(ringingTimerRef.current);
     callTimerRef.current && clearInterval(callTimerRef.current);
-    stopEverything();
+    stopAll();
     setCallState("ended");
     setIsListening(false);
     setTtsPlaying(false);
     setCallStatus("Llamada finalizada");
-    setCallSeconds(0);
+    setLoading(false);
   }, []);
 
   const beginConnected = useCallback(() => {
-    callEndedRef.current = false;
+    callActiveRef.current = true;
     setCallState("connected");
     setCallSeconds(0);
-    setCallStatus("Conectando...");
     setMessages([]);
     setConversationId(null);
+    setError("");
 
-    // 50s max call timer
     callTimerRef.current = setInterval(() => {
       setCallSeconds((s) => {
-        if (s + 1 >= CALL_MAX_SECONDS) {
-          hangUp();
-          return s;
-        }
+        if (s + 1 >= CALL_MAX_SECONDS) { hangUp(); return s; }
         return s + 1;
       });
     }, 1000);
 
-    // Greet then start continuous listen loop
-    const greeting: Message = { role: "assistant", text: VALERIA_GREETING, time: getNow() };
+    const greeting: Message = { role: "assistant", text: VALERIA_CALL_GREETING, time: getNow() };
     setMessages([greeting]);
-    speakTTS(VALERIA_GREETING, () => { if (!callEndedRef.current) startListening(); });
+    speakTTS(VALERIA_CALL_GREETING, () => { if (callActiveRef.current) startListening(); });
   }, [speakTTS, startListening, hangUp]);
 
   const initiateCall = () => {
-    if (callState !== "idle" && callState !== "ended") return;
+    if (callState === "ringing" || callState === "connected") return;
+    callActiveRef.current = false;
     setCallState("ringing");
+    setCallStatus("");
     setError("");
-    ringingTimerRef.current = setTimeout(() => beginConnected(), 3000);
+    // Valeria auto-answers after 2.5s
+    ringingTimerRef.current = setTimeout(() => beginConnected(), 2500);
   };
 
   const resetCall = () => {
     hangUp();
     setTimeout(() => {
-      callEndedRef.current = false;
+      callActiveRef.current = false;
       setCallState("idle");
       setCallStatus("");
       setMessages([]);
       setError("");
-    }, 300);
+    }, 200);
   };
 
   const switchMode = (m: DemoMode) => {
     hangUp();
     setTimeout(() => {
-      callEndedRef.current = false;
+      callActiveRef.current = false;
       setMode(m);
       setCallState("idle");
       setCallStatus("");
-      setMessages([]);
       setConversationId(null);
       setError("");
       setInput("");
-    }, 300);
+      setLoading(false);
+      if (m === "chat") {
+        setMessages([{ ...VALERIA_CHAT_GREETING, time: getNow() }]);
+      } else {
+        setMessages([]);
+      }
+    }, 200);
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <section style={{
       display: "flex",
@@ -293,7 +302,7 @@ export default function AgentDemoSandbox() {
       justifyContent: "center",
     }}>
 
-      {/* Phone shell wrapper — centered */}
+      {/* Phone + toggle wrapper — always centered */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
 
         {/* Mode toggle */}
@@ -303,28 +312,20 @@ export default function AgentDemoSandbox() {
           borderRadius: 12,
           padding: 4,
           gap: 4,
-          width: 320,
+          width: 300,
           maxWidth: "calc(100vw - 48px)",
+          boxSizing: "border-box",
         }}>
           {(["chat", "voice"] as DemoMode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => switchMode(m)}
-              style={{
-                flex: 1,
-                padding: "8px 0",
-                borderRadius: 9,
-                border: "none",
-                background: mode === m ? "white" : "transparent",
-                color: mode === m ? "#111827" : "#6b7280",
-                fontWeight: mode === m ? 700 : 500,
-                fontSize: 13.5,
-                cursor: "pointer",
-                boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                transition: "all 0.15s",
-              }}
-            >
+            <button key={m} type="button" onClick={() => switchMode(m)} style={{
+              flex: 1, padding: "8px 0", borderRadius: 9, border: "none",
+              background: mode === m ? "white" : "transparent",
+              color: mode === m ? "#111827" : "#6b7280",
+              fontWeight: mode === m ? 700 : 500,
+              fontSize: 13.5, cursor: "pointer",
+              boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              transition: "all 0.15s",
+            }}>
               {m === "chat" ? "💬 Chat" : "📞 Llamada"}
             </button>
           ))}
@@ -332,7 +333,7 @@ export default function AgentDemoSandbox() {
 
         {/* Phone shell */}
         <div style={{
-          width: 320,
+          width: 300,
           maxWidth: "calc(100vw - 48px)",
           borderRadius: 36,
           overflow: "hidden",
@@ -340,72 +341,46 @@ export default function AgentDemoSandbox() {
           background: mode === "chat" ? "#ECE5DD" : "#1C1C1E",
           border: "8px solid #1a1a1a",
           position: "relative",
+          boxSizing: "border-box",
         }}>
           {/* Notch */}
           <div style={{
-            position: "absolute",
-            top: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 110,
-            height: 24,
-            background: "#1a1a1a",
-            borderRadius: "0 0 18px 18px",
-            zIndex: 10,
+            position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+            width: 100, height: 22, background: "#1a1a1a", borderRadius: "0 0 16px 16px", zIndex: 10,
           }} />
 
-          {/* ── CHAT MODE ─────────────────────────────────────────── */}
+          {/* ── CHAT ─────────────────────────────────────────────────── */}
           {mode === "chat" && (
             <>
-              {/* Header */}
-              <div style={{
-                background: "#075E54",
-                padding: "28px 14px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}>
+              <div style={{ background: "#075E54", padding: "26px 12px 10px", display: "flex", alignItems: "center", gap: 9 }}>
                 <div style={{
-                  width: 38, height: 38, borderRadius: "50%",
+                  width: 36, height: 36, borderRadius: "50%",
                   background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, flexShrink: 0,
+                  fontSize: 17, flexShrink: 0,
                 }}>👩‍⚕️</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: "white", fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>
-                    Valeria · Clínica Luna
-                  </div>
-                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>
-                    {loading ? "escribiendo..." : "en línea"}
-                  </div>
+                  <div style={{ color: "white", fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>Valeria · Clínica Luna</div>
+                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11 }}>{loading ? "escribiendo..." : "en línea"}</div>
                 </div>
-                {messages.length > 0 && (
-                  <button type="button" onClick={() => { setMessages([]); setConversationId(null); setError(""); }}
-                    style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16, padding: 4 }}>
-                    ↺
-                  </button>
+                {messages.length > 1 && (
+                  <button type="button" onClick={() => {
+                    setMessages([{ ...VALERIA_CHAT_GREETING, time: getNow() }]);
+                    setConversationId(null); setError("");
+                  }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16, padding: 4 }}>↺</button>
                 )}
               </div>
 
-              {/* Messages */}
-              <div style={{ height: 360, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 3 }}>
-                {messages.length === 0 && (
-                  <div style={{ textAlign: "center", color: "#6b7280", fontSize: 13, padding: "50px 16px", lineHeight: 1.6 }}>
-                    Escribe como si fueras un paciente y prueba la respuesta de Valeria.
-                  </div>
-                )}
+              <div style={{ height: 340, overflowY: "auto", padding: "10px 8px", display: "flex", flexDirection: "column", gap: 3 }}>
                 {messages.map((msg, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 1 }}>
                     <div style={{
-                      maxWidth: "80%",
+                      maxWidth: "82%",
                       background: msg.role === "user" ? "#DCF8C6" : "white",
                       borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
                       padding: "7px 9px",
                       boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                      fontSize: 13,
-                      color: "#111",
-                      lineHeight: 1.45,
-                      wordBreak: "break-word",
+                      fontSize: 13, color: "#111", lineHeight: 1.45, wordBreak: "break-word",
                     }}>
                       {msg.text}
                       <div style={{ fontSize: 10, color: "#9ca3af", textAlign: "right", marginTop: 2 }}>{msg.time}</div>
@@ -424,8 +399,7 @@ export default function AgentDemoSandbox() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Input */}
-              <div style={{ background: "#F0F0F0", padding: "7px 8px", display: "flex", gap: 7, alignItems: "flex-end" }}>
+              <div style={{ background: "#F0F0F0", padding: "6px 8px", display: "flex", gap: 6, alignItems: "flex-end" }}>
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -439,24 +413,23 @@ export default function AgentDemoSandbox() {
                   disabled={loading}
                   rows={1}
                   style={{
-                    flex: 1, border: "none", borderRadius: 20, padding: "8px 12px",
+                    flex: 1, border: "none", borderRadius: 20, padding: "8px 11px",
                     fontSize: 13, resize: "none", outline: "none", fontFamily: "inherit",
-                    background: "white", maxHeight: 72, overflowY: "auto",
+                    background: "white", maxHeight: 70, overflowY: "auto",
                   }}
                 />
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => { const msg = input; setInput(""); void sendChatMessage(msg); }}
                   disabled={!input.trim() || loading}
                   style={{
-                    width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
                     background: !input.trim() || loading ? "#ccc" : "#25D366",
                     border: "none", cursor: !input.trim() || loading ? "not-allowed" : "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "background 0.15s",
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
                     <path d="M2 21L23 12 2 3v7l15 2-15 2v7z" />
                   </svg>
                 </button>
@@ -464,52 +437,56 @@ export default function AgentDemoSandbox() {
             </>
           )}
 
-          {/* ── VOICE/CALL MODE ──────────────────────────────────────── */}
+          {/* ── VOICE/CALL ────────────────────────────────────────────── */}
           {mode === "voice" && (
             <div style={{
-              minHeight: 480,
+              minHeight: 460,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "space-between",
               padding: "36px 20px 28px",
             }}>
-              {/* Avatar */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+                {/* Avatar */}
                 <div style={{
-                  width: 88, height: 88, borderRadius: "50%",
+                  width: 84, height: 84, borderRadius: "50%",
                   background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 38,
+                  fontSize: 36,
                   boxShadow: callState === "connected"
                     ? (isListening
-                      ? "0 0 0 8px rgba(52,211,153,0.25), 0 0 0 18px rgba(52,211,153,0.1)"
-                      : "0 0 0 8px rgba(167,139,250,0.2), 0 0 0 16px rgba(167,139,250,0.08)")
+                      ? "0 0 0 8px rgba(52,211,153,0.3), 0 0 0 18px rgba(52,211,153,0.1)"
+                      : ttsPlaying
+                      ? "0 0 0 8px rgba(167,139,250,0.25), 0 0 0 18px rgba(167,139,250,0.08)"
+                      : "none")
+                    : callState === "ringing"
+                    ? "0 0 0 8px rgba(37,211,102,0.2), 0 0 0 18px rgba(37,211,102,0.08)"
                     : "none",
                   transition: "box-shadow 0.4s",
-                }}>
-                  👩‍⚕️
-                </div>
+                  animation: callState === "ringing" ? "ring-pulse 1s ease-in-out infinite" : "none",
+                }}>👩‍⚕️</div>
+
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ color: "white", fontWeight: 700, fontSize: 19 }}>Valeria</div>
+                  <div style={{ color: "white", fontWeight: 700, fontSize: 18 }}>Valeria</div>
                   <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 3 }}>Clínica Estética Luna</div>
                 </div>
 
-                {/* Timer */}
+                {/* Status */}
                 <div style={{
-                  fontSize: 26, fontVariantNumeric: "tabular-nums", fontWeight: 600, letterSpacing: 1,
-                  color: callState === "connected" ? "#34D399" : "rgba(255,255,255,0.4)",
-                  minHeight: 34,
+                  fontSize: 22, fontVariantNumeric: "tabular-nums", fontWeight: 600, letterSpacing: 1,
+                  color: callState === "connected" ? "#34D399" : callState === "ringing" ? "#FCD34D" : "rgba(255,255,255,0.35)",
+                  minHeight: 30, textAlign: "center",
                 }}>
                   {callState === "idle" && "—"}
                   {callState === "ringing" && "Llamando..."}
                   {callState === "connected" && formatTime(callSeconds)}
-                  {callState === "ended" && "Llamada terminada"}
+                  {callState === "ended" && "Llamada finalizada"}
                 </div>
 
-                {/* 50s bar */}
+                {/* Progress bar */}
                 {callState === "connected" && (
-                  <div style={{ width: 200, height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: 180, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{
                       height: "100%",
                       width: `${(callSeconds / CALL_MAX_SECONDS) * 100}%`,
@@ -519,100 +496,85 @@ export default function AgentDemoSandbox() {
                   </div>
                 )}
 
-                {/* Status line */}
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center", minHeight: 18 }}>
+                {/* Call status line */}
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center", minHeight: 18 }}>
+                  {callState === "ringing" && "Valeria va a coger en un momento..."}
                   {callState === "connected" && callStatus}
                 </div>
 
-                {/* Last transcript (small) */}
+                {/* Last message preview */}
                 {callState === "connected" && messages.length > 0 && (
                   <div style={{
-                    background: "rgba(255,255,255,0.06)",
-                    borderRadius: 10,
-                    padding: "6px 12px",
-                    fontSize: 11.5,
+                    background: "rgba(255,255,255,0.06)", borderRadius: 10,
+                    padding: "6px 12px", fontSize: 11.5,
                     color: "rgba(255,255,255,0.5)",
-                    maxWidth: 240,
-                    textAlign: "center",
-                    lineHeight: 1.4,
-                    maxHeight: 60,
-                    overflowY: "auto",
+                    maxWidth: 230, textAlign: "center", lineHeight: 1.4,
+                    maxHeight: 55, overflowY: "auto",
                   }}>
                     {messages[messages.length - 1].text}
                   </div>
                 )}
 
                 {!voiceSupported && (
-                  <p style={{ color: "#EF4444", fontSize: 11, textAlign: "center", maxWidth: 220, lineHeight: 1.4 }}>
+                  <p style={{ color: "#FCA5A5", fontSize: 11, textAlign: "center", maxWidth: 210, lineHeight: 1.5 }}>
                     Tu navegador no soporta micrófono. Prueba Chrome o Edge.
                   </p>
                 )}
               </div>
 
-              {/* Controls */}
-              <div>
+              {/* Buttons */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                {/* IDLE / ENDED — big green call button */}
                 {(callState === "idle" || callState === "ended") && (
-                  <button type="button" onClick={initiateCall} style={{
-                    width: 70, height: 70, borderRadius: "50%",
-                    background: "#25D366", border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: "0 4px 16px rgba(37,211,102,0.4)",
-                  }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                      <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
-                    </svg>
-                  </button>
-                )}
-
-                {callState === "ringing" && (
-                  <div style={{ display: "flex", gap: 36, alignItems: "center" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <button type="button" onClick={resetCall} style={{
-                        width: 62, height: 62, borderRadius: "50%",
-                        background: "#EF4444", border: "none", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: "0 4px 16px rgba(239,68,68,0.4)",
-                        margin: "0 auto 6px",
-                      }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white" style={{ transform: "rotate(135deg)" }}>
-                          <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
-                        </svg>
-                      </button>
-                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Rechazar</span>
-                    </div>
-                    <div style={{ textAlign: "center" }}>
-                      <button type="button" onClick={beginConnected} style={{
-                        width: 62, height: 62, borderRadius: "50%",
-                        background: "#25D366", border: "none", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: "0 4px 16px rgba(37,211,102,0.4)",
-                        margin: "0 auto 6px",
-                        animation: "pulse-green 1s ease-in-out infinite",
-                      }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                          <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
-                        </svg>
-                      </button>
-                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Aceptar</span>
-                    </div>
-                  </div>
-                )}
-
-                {callState === "connected" && (
-                  <div style={{ textAlign: "center" }}>
-                    <button type="button" onClick={hangUp} style={{
-                      width: 66, height: 66, borderRadius: "50%",
-                      background: "#EF4444", border: "none", cursor: "pointer",
+                  <>
+                    <button type="button" onClick={initiateCall} style={{
+                      width: 68, height: 68, borderRadius: "50%",
+                      background: "#25D366", border: "none", cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      boxShadow: "0 4px 16px rgba(239,68,68,0.4)",
-                      margin: "0 auto 8px",
+                      boxShadow: "0 4px 16px rgba(37,211,102,0.45)",
                     }}>
-                      <svg width="26" height="26" viewBox="0 0 24 24" fill="white" style={{ transform: "rotate(135deg)" }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
                         <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
                       </svg>
                     </button>
-                    <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>Colgar</span>
-                  </div>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>
+                      {callState === "ended" ? "Volver a llamar" : "Llamar a Clínica Luna"}
+                    </span>
+                  </>
+                )}
+
+                {/* RINGING — only hang up option (user is the caller) */}
+                {callState === "ringing" && (
+                  <>
+                    <button type="button" onClick={resetCall} style={{
+                      width: 64, height: 64, borderRadius: "50%",
+                      background: "#EF4444", border: "none", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 16px rgba(239,68,68,0.4)",
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" style={{ transform: "rotate(135deg)" }}>
+                        <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
+                      </svg>
+                    </button>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>Cancelar</span>
+                  </>
+                )}
+
+                {/* CONNECTED — hang up */}
+                {callState === "connected" && (
+                  <>
+                    <button type="button" onClick={hangUp} style={{
+                      width: 64, height: 64, borderRadius: "50%",
+                      background: "#EF4444", border: "none", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 16px rgba(239,68,68,0.4)",
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="white" style={{ transform: "rotate(135deg)" }}>
+                        <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
+                      </svg>
+                    </button>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>Colgar</span>
+                  </>
                 )}
               </div>
             </div>
@@ -620,12 +582,12 @@ export default function AgentDemoSandbox() {
         </div>
 
         {error && (
-          <p style={{ color: "#EF4444", fontSize: 12, textAlign: "center", maxWidth: 300 }}>{error}</p>
+          <p style={{ color: "#EF4444", fontSize: 12, textAlign: "center", maxWidth: 280, lineHeight: 1.4 }}>{error}</p>
         )}
       </div>
 
       {/* Copy side */}
-      <div style={{ flex: 1, minWidth: 240, maxWidth: 460, paddingTop: 8 }}>
+      <div style={{ flex: 1, minWidth: 240, maxWidth: 440, paddingTop: 8 }}>
         <p style={{
           display: "inline-block", background: "#eff6ff", color: "#2563eb",
           fontWeight: 700, fontSize: 12, borderRadius: 6, padding: "3px 10px",
@@ -634,22 +596,20 @@ export default function AgentDemoSandbox() {
           Demo interactiva
         </p>
         <h3 style={{
-          fontSize: "clamp(20px, 3vw, 28px)", fontWeight: 800, color: "#111827",
+          fontSize: "clamp(20px, 3vw, 27px)", fontWeight: 800, color: "#111827",
           lineHeight: 1.2, marginBottom: 14,
         }}>
           Habla o escribe con Valeria, tu recepcionista IA
         </h3>
         <p style={{ fontSize: 15, color: "#4b5563", lineHeight: 1.7, marginBottom: 18 }}>
-          Valeria está entrenada como recepcionista de Clínica Estética Luna.
-          En la llamada habla con normalidad — ella te escucha, responde con voz IA y vuelve a escucharte automáticamente.
-          Máximo 50 segundos de demo.
+          En el <strong>chat</strong>, Valeria arranca la conversación y te orienta hacia una cita. En la <strong>llamada</strong>, ella descuelga automáticamente — habla con normalidad, ella te escucha y responde con voz IA real.
         </p>
         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 9 }}>
           {[
-            "Chat estilo WhatsApp en tiempo real",
-            "Llamada continua con voz IA (OpenAI TTS)",
-            "Escucha automática tras cada respuesta",
-            "Gestión de citas, precios y horarios",
+            "Valeria arranca la conversación sola, sin que tú preguntes",
+            "Llamada continua: hablas → responde → escucha → repite",
+            "Voz real de IA (OpenAI TTS), no la del navegador",
+            "Gestiona citas, precios y horarios con contexto real",
           ].map((item) => (
             <li key={item} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 14, color: "#374151" }}>
               <span style={{ color: "#16a34a", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>✓</span>
@@ -664,9 +624,9 @@ export default function AgentDemoSandbox() {
           0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
           40% { transform: scale(1); opacity: 1; }
         }
-        @keyframes pulse-green {
-          0%, 100% { box-shadow: 0 4px 16px rgba(37,211,102,0.4); }
-          50% { box-shadow: 0 4px 28px rgba(37,211,102,0.7); }
+        @keyframes ring-pulse {
+          0%, 100% { box-shadow: 0 0 0 8px rgba(37,211,102,0.2), 0 0 0 18px rgba(37,211,102,0.08); }
+          50% { box-shadow: 0 0 0 12px rgba(37,211,102,0.3), 0 0 0 26px rgba(37,211,102,0.1); }
         }
       `}</style>
     </section>

@@ -2817,9 +2817,10 @@
 
   .heroConversionCta .btnPrimary,
   .heroConversionCta .btnSecondary {
-    flex: 1;
-    min-width: 170px;
+    flex: 1 1 140px;
+    min-width: 0;
     min-height: 46px;
+    max-width: 100%;
   }
 
   .heroConversionVisual {
@@ -2875,9 +2876,10 @@
 
   .finalActionRow .btnPrimary,
   .finalActionRow .btnGhostLight {
-    flex: 1;
-    min-width: 170px;
+    flex: 1 1 140px;
+    min-width: 0;
     min-height: 46px;
+    max-width: 100%;
   }
 }
 

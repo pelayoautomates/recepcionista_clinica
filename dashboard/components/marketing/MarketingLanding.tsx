@@ -133,13 +133,39 @@ export default function MarketingLanding() {
               <h2 className={styles.sectionTitle}>Activo en 3 pasos, sin programar nada</h2>
             </div>
 
-            <div className={styles.stepsGrid}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 0, flexWrap: "wrap", justifyContent: "center" }}>
               {PROCESS_STEPS.map((step, i) => (
-                <article key={step.title} className={`${styles.stepCard} ${styles.animFadeUp}`} style={{ animationDelay: `${i * 80}ms` }}>
-                  <span>{i + 1}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </article>
+                <div key={step.title} style={{ display: "flex", alignItems: "flex-start", flex: "1 1 220px", maxWidth: 340, minWidth: 200 }}>
+                  <div style={{
+                    background: "white",
+                    border: "1px solid #d6e0f4",
+                    borderRadius: 20,
+                    padding: "28px 24px",
+                    boxShadow: "0 4px 20px rgba(15,75,217,0.06)",
+                    flex: 1,
+                    position: "relative",
+                  }}>
+                    <div style={{
+                      width: 52, height: 52,
+                      borderRadius: "50%",
+                      background: i === 0 ? "linear-gradient(135deg,#0f4bd9,#17a0d6)" : i === 1 ? "linear-gradient(135deg,#7c3aed,#a78bfa)" : "linear-gradient(135deg,#059669,#34d399)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 22, fontWeight: 900, color: "white",
+                      marginBottom: 16, boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
+                    }}>
+                      {i + 1}
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#0a1733", lineHeight: 1.2, marginBottom: 8 }}>{step.title}</h3>
+                    <p style={{ margin: 0, fontSize: 14.5, color: "#4b5563", lineHeight: 1.55 }}>{step.text}</p>
+                  </div>
+                  {i < PROCESS_STEPS.length - 1 && (
+                    <div style={{ display: "flex", alignItems: "center", paddingTop: 52, color: "#93c5fd", flexShrink: 0, paddingLeft: 8, paddingRight: 8 }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
