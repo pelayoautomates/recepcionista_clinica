@@ -62,9 +62,10 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <div style={{ display: "flex", minHeight: "100vh", background: "#f6f7f9" }}>
       <style>{`
         @media (max-width: 767px) {
-          #panel-main-content { margin-left: 0 !important; }
+          #panel-main-content { margin-left: 0 !important; overflow-x: hidden !important; }
           #panel-header { padding-left: 64px !important; }
-          #panel-main { padding: 16px !important; }
+          #panel-main { padding: 16px !important; overflow-x: hidden !important; }
+          #panel-main * { max-width: 100% !important; box-sizing: border-box !important; }
         }
       `}</style>
       <PanelSidebar clinicName={clinica.nombre} />
