@@ -27,6 +27,7 @@ export default async function PanelConversacionesPage() {
       clinicId={rol.clinic_id}
       telefono={canales.telefono || null}
       whatsappNumber={canales.whatsapp_number || null}
+      dialog360={canales.whatsapp_360dialog || undefined}
       esperando={esperando}
     />
   );

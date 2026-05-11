@@ -33,10 +33,11 @@ interface Props {
   clinicId: string;
   telefono: string | null;
   whatsappNumber: string | null;
+  dialog360?: { configured: boolean; phone_id: string | null; waba_id: string | null };
   esperando: number;
 }
 
-export default function ConversacionesWrapper({ conversaciones, clinicId, telefono, whatsappNumber, esperando }: Props) {
+export default function ConversacionesWrapper({ conversaciones, clinicId, telefono, whatsappNumber, dialog360, esperando }: Props) {
   const [tab, setTab] = useState<Tab>("conversaciones");
 
   return (
@@ -120,6 +121,7 @@ export default function ConversacionesWrapper({ conversaciones, clinicId, telefo
           clinicId={clinicId}
           telefono={telefono}
           whatsappNumber={whatsappNumber}
+          dialog360={dialog360}
           compact
         />
       )}

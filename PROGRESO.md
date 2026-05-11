@@ -1,6 +1,6 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-11
+Última actualización: 2026-05-11 (sesión tarde)
 
 ---
 
@@ -52,7 +52,7 @@
 
 | # | Bug | Estado | Detalle |
 |---|---|---|---|
-| B1 | Google Calendar OAuth: "Error guardando tokens" | 🔄 Pendiente de fix | GOOGLE_REDIRECT_URI mal configurado en Railway o Google Console |
+| B1 | Google Calendar OAuth: "Error guardando tokens" | ✅ Corregido en código | auth.py reescrito: páginas de error con URI configurado + endpoint /auth/google/debug/config (X-Admin-Key) |
 | B2 | Conflicto rutas /auth/google/callback vs /{clinic_id} | 🔄 Corregido en código, pendiente deploy | El orden de rutas en auth.py ya es correcto; verificar que Railway tiene el último deploy |
 | B3 | CEO no puede entrar a panel agencia | ✅ Corregido | Middleware usa `AGENCY_EMAIL`/`NEXT_PUBLIC_AGENCY_EMAIL`; `DEFAULT_AGENCY_EMAIL` corregido a `pelayo.negueruela@gmail.com` |
 
@@ -175,6 +175,90 @@
 | 2026-05-07 | Rediseño UI: Plus Jakarta Sans, nuevo sistema de diseño | Minimalista, ejecutivo para agencia; médico-profesional para clínica |
 | 2026-05-07 | Configuración centrada en info extraída (sin migración DB) | Reducir complejidad para recepcionista y mantener persistencia en campos existentes |
 | 2026-05-05 | Next.js 15 con params async | Requisito del framework; `params` es Promise en Next.js 15 |
+
+---
+
+## Registro de cambios recientes (2026-05-11 — sesión tarde)
+
+### Bloque 7 — B1 fix + Retell per-clínica + 360dialog + Widget + Tests
+
+- **`backend/routers/auth.py`** — reescrito completamente (Fix B1)
+  - Callback robusto: `?error=` → HTML denegado; sin `code`/`state` → 400 con URI configurado; state no-UUID → 400; token save error → 500 con URI para diagnóstico
+  - `_error_html()` y `_SUCCESS_HTML` — páginas HTML inline claras para el clínico
+  - `GET /auth/google/debug/config` (X-Admin-Key) — devuelve `google_redirect_uri` e instrucciones de fix
+
+- **`backend/database/migrations/011_retell_dialog360.sql`** (nuevo)
+  - Columnas en `clinicas`: `retell_agent_id`, `dialog360_api_key`, `dialog360_phone_id`, `dialog360_waba_id`, `dialog360_webhook_url`
+  - Índices parciales en ambas columnas para lookup eficiente
+  - **Ejecutar manualmente en Supabase SQL Editor**
+
+- **`backend/retell_manager.py`** (nuevo)
+  - `create_agent_for_clinic(clinic_id, clinic_name)` — POST a Retell API con `metadata: {clinic_id}`, `llm_websocket_url` apunta al backend
+  - `provision_clinic_agent(clinic_id, clinic_name)` — idempotente: verifica DB antes de crear
+  - Admins pueden provisionar via `POST /admin/clinicas/{id}/retell/agent`
+
+- **`backend/dialog360.py`** (nuevo)
+  - `send_message(api_key, to, text)` — POST a `https://waba.360dialog.io/v1/messages` con `D360-API-KEY`
+  - `send_template(api_key, to, template_name, lang, components)` — mensajes de plantilla
+  - `download_media(api_key, media_id)` — descarga audio/imagen
+  - `transcribe_audio(api_key, audio_id, openai_api_key)` — Whisper transcripción
+  - `get_clinic_by_phone_id(phone_number_id)` — lookup en Supabase por `dialog360_phone_id`
+
+- **`backend/routers/whatsapp.py`** — reescrito con soporte 360dialog
+  - `_process_wa_message()` — helper compartido entre Meta y 360dialog
+  - Endpoint `GET/POST /whatsapp/360dialog` — verifica webhook + lookup por `dialog360_phone_id`
+  - Endpoint Meta existente sin cambios funcionales
+
+- **`backend/routers/canales.py`** — añadido
+  - `PATCH /clinicas/{id}/canales/360dialog` — guarda credenciales 360dialog
+  - `DELETE /clinicas/{id}/canales/360dialog` — elimina credenciales
+
+- **`backend/routers/admin.py`** — añadido
+  - `POST /admin/clinicas/{id}/retell/agent` — provisionar agente Retell
+  - `GET /admin/clinicas/{id}/retell/agent` — info agente actual
+  - `DELETE /admin/clinicas/{id}/retell/agent` — eliminar agente
+
+- **`dashboard/components/PanelSidebar.tsx`** — rediseño sidebar
+  - `NAV_MAIN`: Conversaciones, Leads, Citas, Calendario
+  - `NAV_AJUSTES`: Configuración, Facturación
+  - Logo = `<Link href="/panel">` (clickable)
+  - Eliminados: Inicio, Canales, Agenda IA, Conocimiento, Lista de espera, Recuperación (integrados en tabs)
+
+- **`dashboard/app/panel/conversaciones/ConversacionesWrapper.tsx`** (nuevo)
+  - Tabs: Conversaciones | Canales
+  - `CanalesClient` con prop `compact` embebido en tab Canales
+
+- **`dashboard/app/panel/leads/LeadsWrapper.tsx`** (nuevo)
+  - Tabs: Leads | Lista de espera | Recuperación (con count badges)
+
+- **`dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`** (nuevo)
+  - Tabs: Clínica y agente | Conocimiento
+
+- **`dashboard/app/panel/canales/CanalesClient.tsx`** — actualizado
+  - Sección WhatsApp: UI de setup 360dialog (instrucciones paso a paso + form API Key + Phone ID + WABA ID)
+  - Prop `compact?: boolean` para uso embebido en tab
+
+- **`dashboard/app/api/canales/whatsapp-360/route.ts`** (nuevo)
+  - POST/DELETE para guardar/eliminar credenciales 360dialog
+
+- **`dashboard/app/widget/[clinicId]/page.tsx`** (nuevo — público)
+  - Sin auth, `force-dynamic`
+  - Muestra: nombre clínica + botón WhatsApp (`wa.me`) + botón llamar (`tel:`)
+  - NO chat IA, NO booking — solo info + redirección
+  - URL: `/widget/{clinicId}`
+
+- **`dashboard/middleware.ts`**: `/widget` añadido a `PUBLIC_PREFIXES` (sin auth)
+
+- **`backend/tests/conftest.py`** (nuevo): env vars dummy + fixtures `sample_clinic_id`, `sample_lead`
+- **`backend/tests/test_scoring.py`** (nuevo): 7 tests (score completo, mínimo, capped, sin datos, estado inválido, enriquecer)
+- **`backend/tests/test_billing.py`** (nuevo): 7 tests (trial activo/expirado/sin expires, plan cancelado, minutos agotados, starter activo/cancelado)
+- **`backend/tests/test_retell.py`** (nuevo): 10 tests (extract_clinic_id, conversation_id, retell_response, signature)
+- **`backend/tests/test_dialog360.py`** (nuevo): 5 tests async (send_message ok/fail/network, get_clinic_by_phone_id found/not_found)
+- **`backend/tests/test_auth_gcal.py`** (nuevo): 7 tests async (callback: missing/denied/invalid_state/token_error/success, debug sin/con admin key)
+- **`backend/requirements.txt`**: añadido `pytest>=8.0`, `pytest-asyncio>=0.23`
+
+### Pendiente manual (ejecutar en Supabase)
+- `011_retell_dialog360.sql`
 
 ---
 

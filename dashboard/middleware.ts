@@ -16,7 +16,7 @@ const PUBLIC_PATHS = [
   "/sitemap.xml",
   "/opengraph-image",
 ];
-const PUBLIC_PREFIXES = ["/auth", "/api"];
+const PUBLIC_PREFIXES = ["/auth", "/api", "/widget"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

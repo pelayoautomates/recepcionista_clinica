@@ -53,17 +53,45 @@ async def get_canales(clinic_id: UUID):
     """Devuelve el estado de los canales de una clínica."""
     db = get_supabase()
     res = db.table("clinicas").select(
-        "telefono, telefono_ia, whatsapp_number, retell_agent_id"
+        "telefono, telefono_ia, whatsapp_number, retell_agent_id, dialog360_api_key, dialog360_phone_id, dialog360_waba_id"
     ).eq("id", str(clinic_id)).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
+    d = res.data
     return {
-        "telefono": res.data.get("telefono"),
-        "telefono_ia": res.data.get("telefono_ia"),
-        "whatsapp_number": res.data.get("whatsapp_number"),
-        "retell_agent_id": res.data.get("retell_agent_id"),
-        "tiene_numero_ia": bool(res.data.get("telefono_ia")),
+        "telefono": d.get("telefono"),
+        "telefono_ia": d.get("telefono_ia"),
+        "whatsapp_number": d.get("whatsapp_number"),
+        "retell_agent_id": d.get("retell_agent_id"),
+        "tiene_numero_ia": bool(d.get("telefono_ia")),
+        "whatsapp_360dialog": {
+            "configured": bool(d.get("dialog360_api_key")),
+            "phone_id": d.get("dialog360_phone_id"),
+            "waba_id": d.get("dialog360_waba_id"),
+        },
     }
+
+
+@router.patch("/clinicas/{clinic_id}/canales/360dialog")
+async def configure_360dialog(clinic_id: UUID, body: dict):
+    """Guarda credenciales 360dialog para una clínica."""
+    allowed = {"dialog360_api_key", "dialog360_phone_id", "dialog360_waba_id"}
+    update = {k: v for k, v in body.items() if k in allowed and v}
+    if not update:
+        raise HTTPException(status_code=400, detail="No hay campos válidos")
+    db = get_supabase()
+    db.table("clinicas").update(update).eq("id", str(clinic_id)).execute()
+    return {"ok": True}
+
+
+@router.delete("/clinicas/{clinic_id}/canales/360dialog")
+async def disconnect_360dialog(clinic_id: UUID):
+    """Elimina credenciales 360dialog de una clínica."""
+    db = get_supabase()
+    db.table("clinicas").update({
+        "dialog360_api_key": None, "dialog360_phone_id": None, "dialog360_waba_id": None,
+    }).eq("id", str(clinic_id)).execute()
+    return {"ok": True}
 
 
 @router.get("/telnyx/numeros")

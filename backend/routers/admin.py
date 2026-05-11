@@ -824,3 +824,56 @@ async def disparar_seguimiento(clinic_id: UUID, lead_id: UUID):
         "payload": {"motivo": "recovery_manual"},
     }, on_conflict="idempotency_key").execute()
     return {"ok": True, "job_id": result.data[0]["id"]}
+
+
+# ── Retell agent management ───────────────────────────────────────────────────
+
+@router.post("/clinicas/{clinic_id}/retell/agent")
+async def provision_retell_agent(clinic_id: UUID):
+    """Creates or returns the Retell agent for a clinic. Internal use only."""
+    db = get_supabase()
+    row = db.table("clinicas").select("nombre, retell_agent_id").eq("id", str(clinic_id)).single().execute()
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada")
+    clinica = row.data
+    try:
+        from retell_manager import provision_clinic_agent
+        agent_id = await provision_clinic_agent(str(clinic_id), clinica["nombre"])
+        return {"agent_id": agent_id, "clinic_id": str(clinic_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error Retell: {e}")
+
+
+@router.get("/clinicas/{clinic_id}/retell/agent")
+async def get_retell_agent_info(clinic_id: UUID):
+    """Returns Retell agent info for a clinic."""
+    db = get_supabase()
+    row = db.table("clinicas").select("retell_agent_id, nombre").eq("id", str(clinic_id)).single().execute()
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada")
+    agent_id = row.data.get("retell_agent_id")
+    if not agent_id:
+        return {"configured": False, "agent_id": None}
+    try:
+        from retell_manager import get_agent
+        agent = await get_agent(agent_id)
+        return {"configured": True, "agent_id": agent_id, "agent": agent}
+    except Exception as e:
+        return {"configured": True, "agent_id": agent_id, "error": str(e)}
+
+
+@router.delete("/clinicas/{clinic_id}/retell/agent")
+async def delete_retell_agent(clinic_id: UUID):
+    """Deletes the Retell agent for a clinic."""
+    db = get_supabase()
+    row = db.table("clinicas").select("retell_agent_id").eq("id", str(clinic_id)).single().execute()
+    agent_id = (row.data or {}).get("retell_agent_id")
+    if not agent_id:
+        return {"ok": True, "message": "No agent configured"}
+    from retell_manager import delete_agent
+    await delete_agent(agent_id)
+    db.table("clinicas").update({"retell_agent_id": None}).eq("id", str(clinic_id)).execute()
+    return {"ok": True}
+
+
+# Note: /clinicas/{clinic_id}/canales GET + 360dialog PATCH/DELETE are in routers/canales.py
