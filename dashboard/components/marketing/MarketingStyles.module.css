@@ -3382,8 +3382,4 @@
     padding: 44px 0;
   }
 
-  /* Extra body space for sticky CTA bar */
-  body {
-    padding-bottom: 80px;
-  }
 }
