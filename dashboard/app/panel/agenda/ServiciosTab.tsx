@@ -17,6 +17,7 @@ type Servicio = {
 };
 
 type Sala = { id: string; nombre: string };
+type Prof = { id: string; nombre: string };
 
 const COLORES = ["#2563eb", "#7c3aed", "#059669", "#dc2626", "#d97706", "#0891b2", "#9333ea", "#65a30d"];
 
@@ -27,10 +28,11 @@ const EMPTY: Partial<Servicio> = {
 };
 
 export default function ServiciosTab({
-  clinicId, initialServicios, salas,
-}: { clinicId: string; initialServicios: Servicio[]; salas: Sala[] }) {
+  clinicId, initialServicios, salas, profesionales,
+}: { clinicId: string; initialServicios: Servicio[]; salas: Sala[]; profesionales: Prof[] }) {
   const [servicios, setServicios] = useState<Servicio[]>(initialServicios);
   const [editing, setEditing] = useState<Servicio | Partial<Servicio> | null>(null);
+  const [showProfs, setShowProfs] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -106,12 +108,18 @@ export default function ServiciosTab({
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowProfs(showProfs === s.id ? null : s.id)} style={btnGhostStyle}>
+                Profesionales
+              </button>
               <button onClick={() => setEditing({ ...s })} style={btnGhostStyle}>Editar</button>
               <button onClick={() => toggleActivo(s)} style={btnGhostStyle}>
                 {s.activo ? "Desactivar" : "Activar"}
               </button>
             </div>
           </div>
+          {showProfs === s.id && (
+            <ProfAsignados clinicId={clinicId} servicioId={s.id} allProfs={profesionales} />
+          )}
         ))}
         {servicios.length === 0 && (
           <div style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af", fontSize: 14 }}>
@@ -196,6 +204,85 @@ export default function ServiciosTab({
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProfAsignados({
+  clinicId, servicioId, allProfs,
+}: { clinicId: string; servicioId: string; allProfs: Prof[] }) {
+  const [assigned, setAssigned] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    const res = await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales`);
+    const data = await res.json();
+    setAssigned((Array.isArray(data) ? data : []).map((r: any) => r.profesional_id ?? r.id));
+    setLoading(false);
+  }
+
+  async function toggle(profId: string) {
+    if (!assigned) return;
+    setToggling(profId);
+    const isAssigned = assigned.includes(profId);
+    if (isAssigned) {
+      await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales/${profId}`, { method: "DELETE" });
+      setAssigned(prev => (prev ?? []).filter(id => id !== profId));
+    } else {
+      await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profesional_id: profId }),
+      });
+      setAssigned(prev => [...(prev ?? []), profId]);
+    }
+    setToggling(null);
+  }
+
+  if (assigned === null) {
+    return (
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #f3f4f6" }}>
+        <button onClick={load} disabled={loading} style={{ ...btnGhostStyle, fontSize: 12.5 }}>
+          {loading ? "Cargando..." : "Cargar profesionales asignados"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #f3f4f6" }}>
+      <p style={{ margin: "0 0 10px", fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
+        Profesionales que ofrecen este servicio
+      </p>
+      {allProfs.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "#9ca3af", margin: 0 }}>No hay profesionales configurados.</p>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {allProfs.map(p => {
+            const active = assigned.includes(p.id);
+            const busy = toggling === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => toggle(p.id)}
+                disabled={busy}
+                style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 12.5, cursor: "pointer",
+                  fontFamily: "inherit", fontWeight: active ? 600 : 400,
+                  border: active ? "1.5px solid #2563eb" : "1px solid #d1d5db",
+                  background: active ? "#eff6ff" : "white",
+                  color: active ? "#2563eb" : "#6b7280",
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                {active ? "✓ " : ""}{p.nombre}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

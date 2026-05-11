@@ -4,14 +4,16 @@ import ServiciosTab from "./ServiciosTab";
 import ProfesionalesTab from "./ProfesionalesTab";
 import SalasTab from "./SalasTab";
 import ReglasTab from "./ReglasTab";
+import BloquesTab from "./BloquesTab";
 
-type Tab = "servicios" | "profesionales" | "salas" | "reglas";
+type Tab = "servicios" | "profesionales" | "salas" | "reglas" | "bloqueos";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "servicios", label: "Servicios" },
   { id: "profesionales", label: "Profesionales" },
   { id: "salas", label: "Salas / Recursos" },
   { id: "reglas", label: "Reglas de reserva" },
+  { id: "bloqueos", label: "Bloqueos" },
 ];
 
 export default function AgendaConfig({
@@ -69,7 +71,12 @@ export default function AgendaConfig({
       </div>
 
       {tab === "servicios" && (
-        <ServiciosTab clinicId={clinicId} initialServicios={initialServicios} salas={initialSalas} />
+        <ServiciosTab
+          clinicId={clinicId}
+          initialServicios={initialServicios}
+          salas={initialSalas}
+          profesionales={initialProfesionales.map((p: any) => ({ id: p.id, nombre: p.nombre }))}
+        />
       )}
       {tab === "profesionales" && (
         <ProfesionalesTab clinicId={clinicId} initialProfesionales={initialProfesionales} servicios={initialServicios} />
@@ -79,6 +86,13 @@ export default function AgendaConfig({
       )}
       {tab === "reglas" && (
         <ReglasTab clinicId={clinicId} initialReglas={initialReglas} />
+      )}
+      {tab === "bloqueos" && (
+        <BloquesTab
+          clinicId={clinicId}
+          profesionales={initialProfesionales.map((p: any) => ({ id: p.id, nombre: p.nombre }))}
+          salas={initialSalas.map((s: any) => ({ id: s.id, nombre: s.nombre }))}
+        />
       )}
     </div>
   );
