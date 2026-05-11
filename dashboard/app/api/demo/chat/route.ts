@@ -4,7 +4,7 @@ import { isIP } from "node:net";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 type ChatMessage = {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 };
 
