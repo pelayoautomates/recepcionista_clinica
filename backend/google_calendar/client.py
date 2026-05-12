@@ -1,10 +1,13 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from googleapiclient.discovery import build
 
 from google_calendar.auth import get_credentials
+
+TZ = ZoneInfo("Europe/Madrid")
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +43,8 @@ def listar_slots_libres(clinic_id: UUID, fecha: str, duracion_min: int = 60) -> 
         else:
             return []  # Clínica cerrada ese día concreto
 
-    hora_inicio = datetime.strptime(f"{fecha} {horario_dia['start']}", "%Y-%m-%d %H:%M").replace(
-        tzinfo=timezone.utc
-    )
-    hora_fin = datetime.strptime(f"{fecha} {horario_dia['end']}", "%Y-%m-%d %H:%M").replace(
-        tzinfo=timezone.utc
-    )
+    hora_inicio = datetime.strptime(f"{fecha} {horario_dia['start']}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ)
+    hora_fin = datetime.strptime(f"{fecha} {horario_dia['end']}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ)
 
     # Obtener eventos del día
     events_result = service.events().list(
@@ -100,8 +99,8 @@ def crear_evento(
     evento = {
         "summary": titulo,
         "description": descripcion,
-        "start": {"dateTime": fecha_inicio.isoformat(), "timeZone": "UTC"},
-        "end": {"dateTime": fecha_fin.isoformat(), "timeZone": "UTC"},
+        "start": {"dateTime": fecha_inicio.isoformat(), "timeZone": "Europe/Madrid"},
+        "end": {"dateTime": fecha_fin.isoformat(), "timeZone": "Europe/Madrid"},
     }
     result = service.events().insert(calendarId="primary", body=evento).execute()
     logger.info("Evento creado en GCal: %s", result["id"])
@@ -111,8 +110,8 @@ def crear_evento(
 def mover_evento(clinic_id: UUID, event_id: str, nueva_fecha_inicio: datetime, nueva_fecha_fin: datetime) -> None:
     service = _build_service(clinic_id)
     evento = service.events().get(calendarId="primary", eventId=event_id).execute()
-    evento["start"] = {"dateTime": nueva_fecha_inicio.isoformat(), "timeZone": "UTC"}
-    evento["end"] = {"dateTime": nueva_fecha_fin.isoformat(), "timeZone": "UTC"}
+    evento["start"] = {"dateTime": nueva_fecha_inicio.isoformat(), "timeZone": "Europe/Madrid"}
+    evento["end"] = {"dateTime": nueva_fecha_fin.isoformat(), "timeZone": "Europe/Madrid"}
     service.events().update(calendarId="primary", eventId=event_id, body=evento).execute()
     logger.info("Evento %s movido en GCal", event_id)
 
