@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     base_url: str = "http://localhost:8000"
     environment: str = "development"
 
+    # Twilio WhatsApp
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_number: str = "whatsapp:+14155238886"  # sandbox por defecto
+
     # Notificaciones (opcional)
     notify_webhook_url: str = ""  # URL para notificar escaladas a humano (Slack/Make/etc.)
 

@@ -171,6 +171,41 @@ async def _send_meta(to: str, text: str) -> None:
         )
 
 
+# ── Twilio WhatsApp ───────────────────────────────────────────────────────────
+
+@router.post("/twilio")
+async def receive_message_twilio(request: Request):
+    """Receive WhatsApp messages from Twilio sandbox or production."""
+    form = await request.form()
+
+    from_number = str(form.get("From", "")).replace("whatsapp:", "")
+    to_number = str(form.get("To", ""))
+    body = str(form.get("Body", "")).strip()
+
+    if not from_number or not body:
+        return {"status": "ok"}
+
+    try:
+        import twilio_wa
+        clinic_row = await twilio_wa.get_clinic_by_twilio_number(to_number)
+        if not clinic_row:
+            logger.warning("Twilio WA: número %s no asociado a clínica", to_number)
+            return {"status": "ok"}
+
+        clinic_id = clinic_row["id"]
+
+        await _process_wa_message(
+            clinic_id, from_number, body,
+            lambda to, reply: twilio_wa.send_message(to, reply),
+        )
+    except Exception as e:
+        logger.error("Error procesando mensaje Twilio WA: %s", e)
+
+    # Twilio espera respuesta TwiML vacía si no queremos respuesta inmediata
+    from fastapi.responses import Response
+    return Response(content="<Response/>", media_type="application/xml")
+
+
 # ── 360dialog ────────────────────────────────────────────────────────────────
 
 @router.get("/360dialog")
