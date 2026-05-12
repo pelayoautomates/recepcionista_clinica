@@ -238,6 +238,19 @@
 
 - **`dashboard/app/panel/canales/page.tsx`** — Props actualizados: `twilioNumber` + `twilioConfigured` en vez de `whatsappNumber` + `dialog360`.
 
+### Configuración UX — página unificada (2026-05-12)
+
+- **`dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`** — reescrito completamente:
+  - Sin tabs: una sola página scroll vertical
+  - Sección "Rellenar con IA" colapsable (URL + docs)
+  - Sección "Información" — textarea editable (el cerebro del agente)
+  - Sección "Cómo habla" — 3 preset cards: Profesional / Cercano / Formal
+  - Sección "Cuándo atiende llamadas" — routing selector inline
+  - Sección "Email de notificaciones"
+  - Un solo botón "Guardar todo" — persiste todos los campos
+  - Botón "Probar agente" → drawer lateral deslizante (no tab separado)
+  - Tono guardado en `servicios._tono` para persistencia entre sesiones
+
 ### SMS Telnyx para recordatorios (2026-05-12)
 
 - **`backend/telnyx_sms.py`** (nuevo): `send_sms()`, `recordatorio_cita()`, `seguimiento_lead()` via Telnyx REST API. Más barato que Twilio (~$0.04-0.08/SMS ES). Usa misma API key de Telnyx ya configurada.
