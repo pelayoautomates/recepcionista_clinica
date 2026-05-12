@@ -6,6 +6,7 @@ interface Props {
   telefono: string | null;
   twilioNumber: string | null;
   twilioConfigured: boolean;
+  smsActivo: boolean;
   compact?: boolean;
 }
 
@@ -62,7 +63,7 @@ const dot = (color: string): React.CSSProperties => ({
   width: 6, height: 6, borderRadius: "50%", background: color, display: "inline-block",
 });
 
-export default function CanalesClient({ clinicId, telefono, twilioNumber, twilioConfigured, compact }: Props) {
+export default function CanalesClient({ clinicId, telefono, twilioNumber, twilioConfigured, smsActivo, compact }: Props) {
   // Voice state
   const [voiceMode, setVoiceMode] = useState<"idle" | "connect-existing" | "search-numbers">("idle");
   const [existingNumber, setExistingNumber] = useState("");
@@ -209,6 +210,42 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
 
               {voiceError && <p style={errorStyle}>{voiceError}</p>}
               {voiceSuccess && <p style={successStyle}>Número conectado correctamente</p>}
+            </div>
+          )}
+        </div>
+
+        {/* ── SMS (Telnyx) ── */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="4" width="16" height="12" rx="2" stroke="#7c3aed" strokeWidth="1.5" />
+              <path d="M2 7l8 5 8-5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#111827", margin: 0 }}>SMS (recordatorios)</h2>
+          </div>
+
+          {smsActivo ? (
+            <div>
+              <span style={badgeGreen}><span style={dot("#16a34a")} />Activo</span>
+              <p style={{ ...helpText, marginTop: 10 }}>
+                Los recordatorios de cita (24h y 1h antes) y el seguimiento de leads se envían
+                automáticamente por SMS vía Telnyx.
+              </p>
+              <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#5b21b6" }}>
+                Canal compartido con voz — mismo número Telnyx, sin coste adicional de setup.
+              </div>
+            </div>
+          ) : (
+            <div>
+              <span style={badgeGray}>Pendiente configurar</span>
+              <p style={{ ...helpText, marginTop: 10 }}>
+                SMS automáticos para recordatorios de cita y seguimiento de leads.
+                Requiere añadir <strong>TELNYX_SMS_NUMBER</strong> en Railway.
+              </p>
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#374151" }}>
+                Coste aprox: <strong>~$0.04–0.08 / SMS</strong> según país.
+                Sin setup adicional — usa tu cuenta Telnyx existente.
+              </div>
             </div>
           )}
         </div>

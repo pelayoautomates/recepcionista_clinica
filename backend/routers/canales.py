@@ -69,6 +69,7 @@ async def get_canales(clinic_id: UUID):
         "tiene_numero_ia": bool(d.get("telefono_ia")),
         "twilio_whatsapp_number": twilio_display,
         "twilio_configured": bool(twilio_num),
+        "sms_activo": bool(settings.telnyx_sms_number),
     }
 
 

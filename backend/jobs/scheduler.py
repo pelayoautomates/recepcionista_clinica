@@ -45,15 +45,6 @@ def scheduler_status() -> dict:
     }
 
 
-def _get_clinic_wa(db, clinic_id: str) -> str | None:
-    """Devuelve whatsapp_number de la clínica (phone_number_id per-clinic)."""
-    try:
-        row = db.table("clinicas").select("whatsapp_number").eq("id", clinic_id).single().execute()
-        return row.data.get("whatsapp_number")
-    except Exception:
-        return None
-
-
 def _procesar_jobs_pendientes():
     """Ejecuta todos los jobs pendientes cuya fecha_programada ya pasó."""
     from database.client import get_supabase
@@ -80,9 +71,9 @@ def _ejecutar_job(job: dict):
     try:
         tipo = job["tipo"]
         if tipo == "recordatorio_24h":
-            _enviar_recordatorio_whatsapp(job, "24h")
+            _enviar_recordatorio_sms(job, "24h")
         elif tipo == "recordatorio_1h":
-            _enviar_recordatorio_whatsapp(job, "1h")
+            _enviar_recordatorio_sms(job, "1h")
         elif tipo == "seguimiento_lead":
             _enviar_seguimiento_lead(job)
         elif tipo == "resumen_diario":
@@ -106,8 +97,8 @@ def _ejecutar_job(job: dict):
         logger.error("Job %s (%s) falló (intento %d): %s", job_id, job["tipo"], intentos, e)
 
 
-def _enviar_recordatorio_whatsapp(job: dict, tipo: str):
-    import whatsapp as wa
+def _enviar_recordatorio_sms(job: dict, tipo: str):
+    import telnyx_sms as sms
     from database.client import get_supabase
 
     db = get_supabase()
@@ -122,22 +113,18 @@ def _enviar_recordatorio_whatsapp(job: dict, tipo: str):
         return
 
     payload = job.get("payload", {})
-    clinic_id = job.get("clinic_id")
-    wa_number = _get_clinic_wa(db, clinic_id) if clinic_id else None
-
-    wa.recordatorio_cita(
+    sms.recordatorio_cita(
         to=telefono,
         nombre_paciente=nombre,
         nombre_clinica=payload.get("nombre_clinica", "la clínica"),
         servicio=payload.get("tipo_servicio", ""),
         fecha_texto=payload.get("fecha_cita", ""),
         tipo=tipo,
-        clinic_whatsapp_number=wa_number,
     )
 
 
 def _enviar_seguimiento_lead(job: dict):
-    import whatsapp as wa
+    import telnyx_sms as sms
     from database.client import get_supabase
 
     db = get_supabase()
@@ -154,12 +141,13 @@ def _enviar_seguimiento_lead(job: dict):
         return
 
     clinic_id = job.get("clinic_id")
-    wa_number = _get_clinic_wa(db, clinic_id) if clinic_id else None
+    clinica = db.table("clinicas").select("nombre").eq("id", clinic_id).single().execute() if clinic_id else None
+    nombre_clinica = (clinica.data or {}).get("nombre", "la clínica") if clinica else "la clínica"
 
-    wa.seguimiento_lead(
+    sms.seguimiento_lead(
         to=telefono,
         nombre_paciente=nombre,
-        clinic_whatsapp_number=wa_number,
+        nombre_clinica=nombre_clinica,
     )
 
 
