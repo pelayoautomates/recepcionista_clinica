@@ -230,70 +230,191 @@ async def listar_citas(
 
 @router.post("/clinicas/{clinic_id}/citas")
 async def crear_cita(clinic_id: UUID, data: dict):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    from google_calendar import client as gcal
+    TZ = ZoneInfo("Europe/Madrid")
+
     db = get_supabase()
     if not data.get("fecha_inicio"):
         raise HTTPException(status_code=400, detail="fecha_inicio es obligatorio")
 
-    fecha_inicio = data["fecha_inicio"]
-    fecha_fin = data.get("fecha_fin")
+    fecha_inicio_str = data["fecha_inicio"]
+    fecha_fin_str = data.get("fecha_fin")
     profesional = data.get("profesional")
 
-    # Calcular fecha_fin si no viene pero sí duracion_min
-    if not fecha_fin and data.get("duracion_min"):
-        from datetime import datetime, timedelta, timezone
-        fi = datetime.fromisoformat(fecha_inicio.replace("Z", "+00:00"))
-        fecha_fin = (fi + timedelta(minutes=int(data["duracion_min"]))).isoformat()
-        data["fecha_fin"] = fecha_fin
+    if not fecha_fin_str and data.get("duracion_min"):
+        fi = datetime.fromisoformat(fecha_inicio_str.replace("Z", "+00:00"))
+        fecha_fin_str = (fi + timedelta(minutes=int(data["duracion_min"]))).isoformat()
+        data["fecha_fin"] = fecha_fin_str
 
-    # Validar conflictos de horario
-    if _check_conflicts(db, str(clinic_id), fecha_inicio, fecha_fin or "", profesional):
-        raise HTTPException(
-            status_code=409,
-            detail=f"El profesional '{profesional}' ya tiene una cita en ese horario"
-        )
+    if _check_conflicts(db, str(clinic_id), fecha_inicio_str, fecha_fin_str or "", profesional):
+        raise HTTPException(status_code=409, detail=f"El profesional '{profesional}' ya tiene una cita en ese horario")
 
     cita = {"clinic_id": str(clinic_id), "estado": data.get("estado", "confirmada")}
     for k in _CITAS_CAMPOS:
         if data.get(k) is not None:
             cita[k] = data[k]
     result = db.table("citas").insert(cita).execute()
-    return result.data[0]
+    nueva_cita = result.data[0]
+
+    # Sincronizar con Google Calendar
+    try:
+        clinica = db.table("clinicas").select("google_tokens_enc, nombre").eq("id", str(clinic_id)).single().execute()
+        if clinica.data and clinica.data.get("google_tokens_enc"):
+            fi = datetime.fromisoformat(fecha_inicio_str.replace("Z", "+00:00"))
+            ff = datetime.fromisoformat(fecha_fin_str.replace("Z", "+00:00")) if fecha_fin_str else fi + timedelta(hours=1)
+            titulo = data.get("tipo_servicio") or "Cita"
+            if data.get("paciente_nombre"):
+                titulo += f" — {data['paciente_nombre']}"
+            event_id = gcal.crear_evento(
+                clinic_id=clinic_id,
+                titulo=titulo,
+                fecha_inicio=fi,
+                fecha_fin=ff,
+                descripcion=data.get("notas_internas") or "Creada desde panel Atiende360",
+            )
+            db.table("citas").update({"google_event_id": event_id}).eq("id", nueva_cita["id"]).execute()
+            nueva_cita["google_event_id"] = event_id
+    except Exception as exc:
+        logger.warning("GCal sync (crear) fallida para cita %s: %s", nueva_cita["id"], exc)
+
+    return nueva_cita
 
 
 @router.patch("/clinicas/{clinic_id}/citas/{cita_id}")
 async def actualizar_cita(clinic_id: UUID, cita_id: UUID, data: dict):
+    from datetime import datetime, timedelta
+    from google_calendar import client as gcal
+
     db = get_supabase()
     updates = {k: v for k, v in data.items() if k in _CITAS_CAMPOS and v is not None}
-    # Allow explicit null for notas_internas
     if "notas_internas" in data:
         updates["notas_internas"] = data["notas_internas"]
     if not updates:
         raise HTTPException(status_code=400, detail="Sin datos para actualizar")
 
-    # Validar conflictos si se cambia fecha o profesional
+    existing_res = db.table("citas").select("fecha_inicio, fecha_fin, profesional, google_event_id").eq("id", str(cita_id)).single().execute()
+    existing = existing_res.data or {}
+
     if "fecha_inicio" in updates or "profesional" in updates:
-        existing = db.table("citas").select("fecha_inicio, fecha_fin, profesional").eq("id", str(cita_id)).single().execute()
-        if existing.data:
-            fi = updates.get("fecha_inicio", existing.data["fecha_inicio"])
-            ff = updates.get("fecha_fin", existing.data.get("fecha_fin", ""))
-            prof = updates.get("profesional", existing.data.get("profesional"))
-            if _check_conflicts(db, str(clinic_id), fi, ff or "", prof, exclude_id=str(cita_id)):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"El profesional '{prof}' ya tiene una cita en ese horario"
-                )
+        fi = updates.get("fecha_inicio", existing.get("fecha_inicio", ""))
+        ff = updates.get("fecha_fin", existing.get("fecha_fin", ""))
+        prof = updates.get("profesional", existing.get("profesional"))
+        if _check_conflicts(db, str(clinic_id), fi, ff or "", prof, exclude_id=str(cita_id)):
+            raise HTTPException(status_code=409, detail=f"El profesional '{prof}' ya tiene una cita en ese horario")
 
     result = db.table("citas").update(updates).eq("id", str(cita_id)).eq("clinic_id", str(clinic_id)).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
+
+    # Sincronizar fecha con Google Calendar si cambió
+    event_id = existing.get("google_event_id")
+    if event_id and ("fecha_inicio" in updates or "fecha_fin" in updates):
+        try:
+            fi_str = updates.get("fecha_inicio", existing.get("fecha_inicio", ""))
+            ff_str = updates.get("fecha_fin", existing.get("fecha_fin", ""))
+            fi = datetime.fromisoformat(fi_str.replace("Z", "+00:00"))
+            ff = datetime.fromisoformat(ff_str.replace("Z", "+00:00")) if ff_str else fi + timedelta(hours=1)
+            gcal.mover_evento(clinic_id=clinic_id, event_id=event_id, nueva_fecha_inicio=fi, nueva_fecha_fin=ff)
+        except Exception as exc:
+            logger.warning("GCal sync (mover) fallida para cita %s: %s", cita_id, exc)
+
     return result.data[0]
 
 
 @router.delete("/clinicas/{clinic_id}/citas/{cita_id}")
 async def eliminar_cita(clinic_id: UUID, cita_id: UUID):
+    from google_calendar import client as gcal
+
     db = get_supabase()
+    existing = db.table("citas").select("google_event_id").eq("id", str(cita_id)).eq("clinic_id", str(clinic_id)).single().execute()
+    event_id = (existing.data or {}).get("google_event_id")
+
     db.table("citas").delete().eq("id", str(cita_id)).eq("clinic_id", str(clinic_id)).execute()
+
+    if event_id:
+        try:
+            gcal.cancelar_evento(clinic_id=clinic_id, event_id=event_id)
+        except Exception as exc:
+            logger.warning("GCal sync (cancelar) fallida para cita %s: %s", cita_id, exc)
+
     return {"ok": True}
+
+
+@router.post("/clinicas/{clinic_id}/citas/sync-gcal")
+async def sync_desde_gcal(clinic_id: UUID):
+    """Importa eventos de Google Calendar como citas en Atiende360 (últimos 7 días + próximos 60)."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    from google_calendar import client as gcal
+
+    TZ = ZoneInfo("Europe/Madrid")
+    db = get_supabase()
+
+    clinica = db.table("clinicas").select("google_tokens_enc").eq("id", str(clinic_id)).single().execute()
+    if not (clinica.data and clinica.data.get("google_tokens_enc")):
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+
+    ahora = datetime.now(TZ)
+    fecha_inicio = ahora - timedelta(days=7)
+    fecha_fin = ahora + timedelta(days=60)
+
+    try:
+        eventos = gcal.listar_eventos_rango(clinic_id, fecha_inicio, fecha_fin)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error leyendo Google Calendar: {exc}")
+
+    importados = 0
+    actualizados = 0
+
+    for ev in eventos:
+        event_id = ev.get("id")
+        if not event_id:
+            continue
+
+        # Ignorar eventos de día completo
+        start = ev.get("start", {})
+        if "date" in start and "dateTime" not in start:
+            continue
+
+        fi_str = start.get("dateTime", "")
+        ff_str = ev.get("end", {}).get("dateTime", "")
+        if not fi_str:
+            continue
+
+        fi = datetime.fromisoformat(fi_str.replace("Z", "+00:00"))
+        ff = datetime.fromisoformat(ff_str.replace("Z", "+00:00")) if ff_str else fi + timedelta(hours=1)
+
+        titulo = ev.get("summary", "Evento de Google Calendar")
+
+        # ¿Ya existe en DB por google_event_id?
+        existente = db.table("citas").select("id, fecha_inicio").eq("clinic_id", str(clinic_id)).eq("google_event_id", event_id).execute()
+
+        if existente.data:
+            # Actualizar si cambió la fecha
+            if existente.data[0]["fecha_inicio"] != fi.isoformat():
+                db.table("citas").update({
+                    "fecha_inicio": fi.isoformat(),
+                    "fecha_fin": ff.isoformat(),
+                    "tipo_servicio": titulo,
+                }).eq("id", existente.data[0]["id"]).execute()
+                actualizados += 1
+        else:
+            # Crear nueva cita importada
+            db.table("citas").insert({
+                "clinic_id": str(clinic_id),
+                "tipo_servicio": titulo,
+                "fecha_inicio": fi.isoformat(),
+                "fecha_fin": ff.isoformat(),
+                "estado": "confirmada",
+                "origen": "google_calendar",
+                "google_event_id": event_id,
+                "notas_internas": ev.get("description", "") or "",
+            }).execute()
+            importados += 1
+
+    return {"ok": True, "importados": importados, "actualizados": actualizados, "total_eventos": len(eventos)}
 
 
 # ─── Profesionales ───────────────────────────────────────────────────────────

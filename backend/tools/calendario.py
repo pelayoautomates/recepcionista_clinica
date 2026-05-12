@@ -15,11 +15,14 @@ import logging
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from audit import CITA_CANCELAR, CITA_CREAR, CITA_MOVER, audit
 from database.client import get_supabase
 from google_calendar import client as gcal
 import whatsapp as wa
+
+TZ = ZoneInfo("Europe/Madrid")
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +178,8 @@ async def find_available_slots(
     intervalo: int = reglas.get("intervalo_slots_min", 30)
     permite_mismo_dia: bool = reglas.get("permite_mismo_dia", True)
 
-    hoy = datetime.now(timezone.utc)
-    fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    hoy = datetime.now(TZ)
+    fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").replace(tzinfo=TZ)
     dias_adelante = (fecha_dt.date() - hoy.date()).days
 
     if dias_adelante < 0:
@@ -231,10 +234,10 @@ async def find_available_slots(
             continue  # ni prof ni clínica trabajan ese día
 
         rango_inicio = fecha_dt.replace(
-            hour=inicio_trabajo.hour, minute=inicio_trabajo.minute, second=0, microsecond=0
+            hour=inicio_trabajo.hour, minute=inicio_trabajo.minute, second=0, microsecond=0, tzinfo=TZ
         )
         rango_fin = fecha_dt.replace(
-            hour=fin_trabajo.hour, minute=fin_trabajo.minute, second=0, microsecond=0
+            hour=fin_trabajo.hour, minute=fin_trabajo.minute, second=0, microsecond=0, tzinfo=TZ
         )
 
         candidatos = _slots_en_rango(rango_inicio, rango_fin, duracion_total, intervalo)
@@ -329,7 +332,7 @@ async def create_appointment_validated(
 
     fecha_inicio = datetime.fromisoformat(fecha_inicio_iso)
     if fecha_inicio.tzinfo is None:
-        fecha_inicio = fecha_inicio.replace(tzinfo=timezone.utc)
+        fecha_inicio = fecha_inicio.replace(tzinfo=TZ)
     fecha_fin = fecha_inicio + timedelta(minutes=duracion)
     slot_inicio_con_buffer = fecha_inicio - timedelta(minutes=buffer_antes)
     slot_fin_con_buffer = fecha_fin + timedelta(minutes=buffer_despues)
@@ -586,7 +589,7 @@ async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
 
     nueva_fecha_inicio = datetime.fromisoformat(nueva_fecha_inicio_iso)
     if nueva_fecha_inicio.tzinfo is None:
-        nueva_fecha_inicio = nueva_fecha_inicio.replace(tzinfo=timezone.utc)
+        nueva_fecha_inicio = nueva_fecha_inicio.replace(tzinfo=TZ)
 
     fecha_inicio_orig = datetime.fromisoformat(cita["fecha_inicio"])
     fecha_fin_orig = datetime.fromisoformat(cita["fecha_fin"])
