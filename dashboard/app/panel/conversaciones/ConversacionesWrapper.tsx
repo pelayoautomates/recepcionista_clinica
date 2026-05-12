@@ -32,12 +32,13 @@ interface Props {
   conversaciones: Conv[];
   clinicId: string;
   telefono: string | null;
-  whatsappNumber: string | null;
-  dialog360?: { configured: boolean; phone_id: string | null; waba_id: string | null };
+  twilioNumber: string | null;
+  twilioConfigured: boolean;
+  smsActivo: boolean;
   esperando: number;
 }
 
-export default function ConversacionesWrapper({ conversaciones, clinicId, telefono, whatsappNumber, dialog360, esperando }: Props) {
+export default function ConversacionesWrapper({ conversaciones, clinicId, telefono, twilioNumber, twilioConfigured, smsActivo, esperando }: Props) {
   const [tab, setTab] = useState<Tab>("conversaciones");
 
   return (
@@ -120,8 +121,9 @@ export default function ConversacionesWrapper({ conversaciones, clinicId, telefo
         <CanalesClient
           clinicId={clinicId}
           telefono={telefono}
-          whatsappNumber={whatsappNumber}
-          dialog360={dialog360}
+          twilioNumber={twilioNumber}
+          twilioConfigured={twilioConfigured}
+          smsActivo={smsActivo}
           compact
         />
       )}

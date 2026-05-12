@@ -25,9 +25,10 @@ export default async function PanelConversacionesPage() {
     <ConversacionesWrapper
       conversaciones={Array.isArray(conversaciones) ? conversaciones : []}
       clinicId={rol.clinic_id}
-      telefono={canales.telefono || null}
-      whatsappNumber={canales.whatsapp_number || null}
-      dialog360={canales.whatsapp_360dialog || undefined}
+      telefono={canales.telefono_ia || canales.telefono || null}
+      twilioNumber={canales.twilio_whatsapp_number || null}
+      twilioConfigured={canales.twilio_configured ?? false}
+      smsActivo={canales.sms_activo ?? false}
       esperando={esperando}
     />
   );
