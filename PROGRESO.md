@@ -228,10 +228,20 @@
 - **Handoff a humano**: de momento solo visual en panel — notificaciones (Telegram/email) en siguiente fase
 - **Google OAuth scope**: `calendar.events` en vez de `calendar` completo (recomendación correcta)
 
+### Sesión tarde — WA reply + Canales UI Twilio (2026-05-12)
+
+- **`backend/routers/admin.py`** — `responder_manualmente` ahora envía el mensaje al WhatsApp del paciente via Twilio tras guardarlo en DB. Lookup de `canal` y `paciente.telefono` desde la conversación.
+
+- **`backend/routers/canales.py`** — GET `/canales` devuelve `twilio_whatsapp_number` + `twilio_configured` en vez de campos `dialog360_*`. SELECT actualizado para no pedir columnas 360dialog.
+
+- **`dashboard/app/panel/canales/CanalesClient.tsx`** — Sección WhatsApp reescrita: reemplaza 360dialog por UI Twilio. Si configurado → badge Activo + número. Si no → badge "Sandbox activo", instrucciones contactar `hola@atiende360.com` + número sandbox `+1 415 523 8886`.
+
+- **`dashboard/app/panel/canales/page.tsx`** — Props actualizados: `twilioNumber` + `twilioConfigured` en vez de `whatsappNumber` + `dialog360`.
+
 ### Pendiente manual
 - Ejecutar `012_routing_notif_twilio.sql` en Supabase
 - Añadir `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` en Railway
-- Configurar webhook Twilio → `https://api.atiende360.com/whatsapp/twilio`
+- Configurar webhook Twilio → `https://api.atiende360.com/webhook/whatsapp/twilio`
 - Completar cuenta `hola@atiende360.com` en Hostinger
 
 ---
