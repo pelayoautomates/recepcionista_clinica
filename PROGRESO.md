@@ -1,6 +1,6 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-11 (sesión tarde)
+Última actualización: 2026-05-12
 
 ---
 
@@ -175,6 +175,64 @@
 | 2026-05-07 | Rediseño UI: Plus Jakarta Sans, nuevo sistema de diseño | Minimalista, ejecutivo para agencia; médico-profesional para clínica |
 | 2026-05-07 | Configuración centrada en info extraída (sin migración DB) | Reducir complejidad para recepcionista y mantener persistencia en campos existentes |
 | 2026-05-05 | Next.js 15 con params async | Requisito del framework; `params` es Promise en Next.js 15 |
+
+---
+
+## Registro de cambios recientes (2026-05-12)
+
+### Google OAuth + Legal + WhatsApp Twilio + Routing + Test agente
+
+- **`backend/google_calendar/auth.py`**: scope cambiado a `calendar.events` (mínimo necesario, más fácil verificación Google)
+
+- **`dashboard/app/privacidad/page.tsx`** (nuevo): Política de privacidad completa RGPD + LOPDGDD, datos de salud art.9, tabla subprocesadores, derechos interesados. URL pública: `/privacidad`
+
+- **`dashboard/app/terminos/page.tsx`** (nuevo): Términos de servicio completos, DPA art.28 RGPD integrado, limitación responsabilidad, jurisdicción Madrid. URL pública: `/terminos`
+
+- **`dashboard/components/marketing/MarketingShell.tsx`**: links Privacidad + Términos en footer (requerido por Google OAuth verification)
+
+- **`dashboard/middleware.ts`**: `/privacidad`, `/terminos`, `/widget` añadidos a rutas públicas
+
+- **Google OAuth verification**: branding verificado ✅. Scope `calendar.events` enviado para revisión.
+
+- **`backend/database/migrations/012_routing_notif_twilio.sql`** (nuevo — unifica 012+013):
+  - `routing_mode` TEXT CHECK (siempre/fuera_horario/si_no_contestan)
+  - `notification_email` TEXT
+  - `twilio_whatsapp_number` TEXT
+  - **Ejecutar manualmente en Supabase SQL Editor**
+
+- **`backend/routers/configuracion.py`**: acepta `routing_mode` y `notification_email` en `guardar_configuracion`
+
+- **`backend/agent/prompts.py`**: inyecta contexto de routing en el prompt según modo seleccionado
+
+- **`backend/routers/admin.py`**: `POST /admin/clinicas/{id}/test-chat` — chat de prueba sin billing check
+
+- **`backend/twilio_wa.py`** (nuevo): cliente Twilio WhatsApp — `send_message()` + `get_clinic_by_twilio_number()`
+
+- **`backend/routers/whatsapp.py`**: endpoint `POST /whatsapp/twilio` para recibir mensajes del sandbox/producción Twilio
+
+- **`backend/config.py`**: vars `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`
+
+- **`dashboard/app/panel/configuracion/RoutingConfig.tsx`** (nuevo): UI routing — selector 3 modos + email notificaciones
+
+- **`dashboard/app/panel/configuracion/TestAgente.tsx`** (nuevo): chat UI completo para probar agente sin consumir minutos
+
+- **`dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`**: 4 tabs (Clínica y agente / Conocimiento / Llamadas / Probar agente)
+
+- **`dashboard/app/api/clinicas/[id]/test-chat/route.ts`** (nuevo): proxy autenticado al endpoint de test
+
+### Decisiones tomadas hoy
+
+- **WhatsApp BSP**: Twilio en vez de 360dialog (360dialog partner = 500€/mes mínimo, inviable para MVP)
+- **Meta for Developers**: cuenta personal baneada — no usar Facebook para esto
+- **Modelo WhatsApp**: número por clínica en DB, un solo `TWILIO_ACCOUNT_SID` en Railway (escalable)
+- **Handoff a humano**: de momento solo visual en panel — notificaciones (Telegram/email) en siguiente fase
+- **Google OAuth scope**: `calendar.events` en vez de `calendar` completo (recomendación correcta)
+
+### Pendiente manual
+- Ejecutar `012_routing_notif_twilio.sql` en Supabase
+- Añadir `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` en Railway
+- Configurar webhook Twilio → `https://api.atiende360.com/whatsapp/twilio`
+- Completar cuenta `hola@atiende360.com` en Hostinger
 
 ---
 
