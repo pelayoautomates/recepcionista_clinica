@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   "/integraciones",
   "/sobre-atiende360",
   "/comparativa/chatbot-generico",
+  "/privacidad",
+  "/terminos",
   "/robots.txt",
   "/sitemap.xml",
   "/opengraph-image",
