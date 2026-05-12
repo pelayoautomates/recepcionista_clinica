@@ -17,10 +17,21 @@ export default async function PanelCitasPage() {
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
   const hoy = getLocalDateISO();
-  const res = await adminFetch(`/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}`, { noStore: true });
-  const citas = res.ok ? await res.json() : [];
+  const [citasRes, canalesRes] = await Promise.all([
+    adminFetch(`/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${rol.clinic_id}/canales`, { noStore: true }),
+  ]);
+  const citas = citasRes.ok ? await citasRes.json() : [];
+  const canales = canalesRes.ok ? await canalesRes.json() : {};
 
   const fechaLabel = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" });
 
-  return <CitasClient citas={citas} fechaLabel={fechaLabel} />;
+  return (
+    <CitasClient
+      citas={citas}
+      fechaLabel={fechaLabel}
+      clinicId={rol.clinic_id}
+      tieneGcal={canales.tiene_gcal ?? false}
+    />
+  );
 }

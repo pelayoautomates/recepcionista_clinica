@@ -21,17 +21,54 @@ function fmtFecha(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function CitasClient({ citas, fechaLabel }: { citas: any[]; fechaLabel: string }) {
+export default function CitasClient({ citas, fechaLabel, clinicId, tieneGcal }: { citas: any[]; fechaLabel: string; clinicId: string; tieneGcal: boolean }) {
   const [selected, setSelected] = useState<any | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+
+  async function syncGcal() {
+    setSyncing(true); setSyncMsg("");
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/citas/sync-gcal`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Error");
+      setSyncMsg(`✓ ${data.importados} importadas, ${data.actualizados} actualizadas`);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (e: any) { setSyncMsg(`Error: ${e.message}`); }
+    finally { setSyncing(false); }
+  }
 
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
-          Citas
-        </h1>
-        <p style={{ margin: 0, fontSize: 13.5, color: "#6b7280" }}>Hoy — {fechaLabel}</p>
+      <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
+            Citas
+          </h1>
+          <p style={{ margin: 0, fontSize: 13.5, color: "#6b7280" }}>Hoy — {fechaLabel}</p>
+        </div>
+        {tieneGcal && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <button
+              onClick={syncGcal}
+              disabled={syncing}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                background: "white", border: "1px solid #e5e7eb",
+                borderRadius: 8, padding: "8px 14px", fontSize: 13,
+                fontWeight: 600, color: "#374151", cursor: syncing ? "wait" : "pointer",
+                opacity: syncing ? 0.7 : 1,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M12 7A5 5 0 1 1 7 2M7 2l2-2M7 2L5 0" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {syncing ? "Sincronizando…" : "Sincronizar Google Calendar"}
+            </button>
+            {syncMsg && <span style={{ fontSize: 12, color: syncMsg.startsWith("✓") ? "#166534" : "#dc2626" }}>{syncMsg}</span>}
+          </div>
+        )}
       </div>
 
       {citas.length === 0 ? (

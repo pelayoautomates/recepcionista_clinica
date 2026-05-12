@@ -53,7 +53,7 @@ async def get_canales(clinic_id: UUID):
     """Devuelve el estado de los canales de una clínica."""
     db = get_supabase()
     res = db.table("clinicas").select(
-        "telefono, telefono_ia, whatsapp_number, retell_agent_id, twilio_whatsapp_number"
+        "telefono, telefono_ia, whatsapp_number, retell_agent_id, twilio_whatsapp_number, google_tokens_enc"
     ).eq("id", str(clinic_id)).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
@@ -70,6 +70,7 @@ async def get_canales(clinic_id: UUID):
         "twilio_whatsapp_number": twilio_display,
         "twilio_configured": bool(twilio_num),
         "sms_activo": bool(settings.telnyx_sms_number),
+        "tiene_gcal": bool(d.get("google_tokens_enc")),
     }
 
 
