@@ -238,9 +238,28 @@
 
 - **`dashboard/app/panel/canales/page.tsx`** — Props actualizados: `twilioNumber` + `twilioConfigured` en vez de `whatsappNumber` + `dialog360`.
 
+### SMS Telnyx para recordatorios (2026-05-12)
+
+- **`backend/telnyx_sms.py`** (nuevo): `send_sms()`, `recordatorio_cita()`, `seguimiento_lead()` via Telnyx REST API. Más barato que Twilio (~$0.04-0.08/SMS ES). Usa misma API key de Telnyx ya configurada.
+
+- **`backend/config.py`**: `telnyx_sms_number` — número remitente SMS (añadir `TELNYX_SMS_NUMBER` en Railway)
+
+- **`backend/jobs/scheduler.py`**: recordatorios 24h/1h y seguimiento lead usan `telnyx_sms` en vez de `whatsapp`. Eliminado `_get_clinic_wa()` y dependencia de `whatsapp.py`.
+
+- **`backend/routers/canales.py`**: GET devuelve `sms_activo: bool` basado en `TELNYX_SMS_NUMBER` configurado.
+
+- **`dashboard/app/panel/canales/CanalesClient.tsx`**: nueva card SMS con badge Activo (verde) / Pendiente configurar (gris).
+
+### Decisión: WhatsApp producción
+
+- Producción requiere Meta Business Account de Atiende360 (no personal FB) + Twilio gestiona submission
+- Para MVP: sandbox Twilio para demos, SMS Telnyx para recordatorios reales
+- WhatsApp producción se activa cuando haya clientes reales pagando
+
 ### Pendiente manual
 - Ejecutar `012_routing_notif_twilio.sql` en Supabase
 - Añadir `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` en Railway
+- Añadir `TELNYX_SMS_NUMBER` en Railway (número Telnyx con messaging habilitado)
 - Configurar webhook Twilio → `https://api.atiende360.com/webhook/whatsapp/twilio`
 - Completar cuenta `hola@atiende360.com` en Hostinger
 
