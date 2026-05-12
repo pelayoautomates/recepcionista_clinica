@@ -53,22 +53,22 @@ async def get_canales(clinic_id: UUID):
     """Devuelve el estado de los canales de una clínica."""
     db = get_supabase()
     res = db.table("clinicas").select(
-        "telefono, telefono_ia, whatsapp_number, retell_agent_id, dialog360_api_key, dialog360_phone_id, dialog360_waba_id"
+        "telefono, telefono_ia, whatsapp_number, retell_agent_id, twilio_whatsapp_number"
     ).eq("id", str(clinic_id)).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
     d = res.data
+    twilio_num = d.get("twilio_whatsapp_number") or ""
+    # Strip "whatsapp:" prefix for display
+    twilio_display = twilio_num.replace("whatsapp:", "") if twilio_num else None
     return {
         "telefono": d.get("telefono"),
         "telefono_ia": d.get("telefono_ia"),
         "whatsapp_number": d.get("whatsapp_number"),
         "retell_agent_id": d.get("retell_agent_id"),
         "tiene_numero_ia": bool(d.get("telefono_ia")),
-        "whatsapp_360dialog": {
-            "configured": bool(d.get("dialog360_api_key")),
-            "phone_id": d.get("dialog360_phone_id"),
-            "waba_id": d.get("dialog360_waba_id"),
-        },
+        "twilio_whatsapp_number": twilio_display,
+        "twilio_configured": bool(twilio_num),
     }
 
 

@@ -1,17 +1,11 @@
 "use client";
 import { useState } from "react";
 
-interface Dialog360Config {
-  configured: boolean;
-  phone_id: string | null;
-  waba_id: string | null;
-}
-
 interface Props {
   clinicId: string;
-  telefono: string | null;         // voice phone (Telnyx/Retell)
-  whatsappNumber: string | null;   // legacy Meta WA
-  dialog360?: Dialog360Config;
+  telefono: string | null;
+  twilioNumber: string | null;
+  twilioConfigured: boolean;
   compact?: boolean;
 }
 
@@ -35,6 +29,11 @@ const badgeGreen: React.CSSProperties = {
 const badgeGray: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 5,
   background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 600,
+  borderRadius: 20, padding: "3px 10px",
+};
+const badgeBlue: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 5,
+  background: "#eff6ff", color: "#1d4ed8", fontSize: 12, fontWeight: 600,
   borderRadius: 20, padding: "3px 10px",
 };
 const btnPrimary: React.CSSProperties = {
@@ -63,7 +62,7 @@ const dot = (color: string): React.CSSProperties => ({
   width: 6, height: 6, borderRadius: "50%", background: color, display: "inline-block",
 });
 
-export default function CanalesClient({ clinicId, telefono, whatsappNumber, dialog360, compact }: Props) {
+export default function CanalesClient({ clinicId, telefono, twilioNumber, twilioConfigured, compact }: Props) {
   // Voice state
   const [voiceMode, setVoiceMode] = useState<"idle" | "connect-existing" | "search-numbers">("idle");
   const [existingNumber, setExistingNumber] = useState("");
@@ -73,17 +72,6 @@ export default function CanalesClient({ clinicId, telefono, whatsappNumber, dial
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceSuccess, setVoiceSuccess] = useState(false);
-
-  // 360dialog state
-  const [showWaForm, setShowWaForm] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [phoneId, setPhoneId] = useState("");
-  const [wabaId, setWabaId] = useState("");
-  const [waLoading, setWaLoading] = useState(false);
-  const [waError, setWaError] = useState<string | null>(null);
-  const [waSuccess, setWaSuccess] = useState(false);
-
-  const wa360Configured = dialog360?.configured ?? false;
 
   // ── Voice handlers ──────────────────────────────────────────────────────────
 
@@ -135,31 +123,6 @@ export default function CanalesClient({ clinicId, telefono, whatsappNumber, dial
       setVoiceSuccess(true);
       setTimeout(() => window.location.reload(), 800);
     } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
-  }
-
-  // ── 360dialog handlers ──────────────────────────────────────────────────────
-
-  async function handleConnect360() {
-    if (!apiKey.trim() || !phoneId.trim()) { setWaError("API Key y Phone ID son obligatorios"); return; }
-    setWaLoading(true); setWaError(null);
-    try {
-      const res = await fetch(`/api/canales/whatsapp-360`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clinic_id: clinicId, dialog360_api_key: apiKey.trim(), dialog360_phone_id: phoneId.trim(), dialog360_waba_id: wabaId.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error al conectar");
-      setWaSuccess(true);
-      setTimeout(() => window.location.reload(), 800);
-    } catch (e: any) { setWaError(e.message); } finally { setWaLoading(false); }
-  }
-
-  async function handleDisconnect360() {
-    setWaLoading(true);
-    try {
-      await fetch(`/api/canales/whatsapp-360`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clinic_id: clinicId }) });
-      window.location.reload();
-    } catch { } finally { setWaLoading(false); }
   }
 
   return (
@@ -250,7 +213,7 @@ export default function CanalesClient({ clinicId, telefono, whatsappNumber, dial
           )}
         </div>
 
-        {/* ── WhatsApp (360dialog) ── */}
+        {/* ── WhatsApp (Twilio) ── */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -260,63 +223,41 @@ export default function CanalesClient({ clinicId, telefono, whatsappNumber, dial
             <h2 style={{ fontSize: 15, fontWeight: 700, color: "#111827", margin: 0 }}>WhatsApp Business</h2>
           </div>
 
-          {wa360Configured ? (
+          {twilioConfigured ? (
             <div>
-              <span style={badgeGreen}><span style={dot("#16a34a")} />Conectado</span>
-              {dialog360?.phone_id && <div style={numberDisplay}>{dialog360.phone_id}</div>}
-              <p style={{ ...helpText, marginTop: 0 }}>Los pacientes pueden escribir por WhatsApp y la IA responde automáticamente.</p>
-              {waError && <p style={errorStyle}>{waError}</p>}
-              <button style={{ ...btnDanger, opacity: waLoading ? 0.7 : 1 }} onClick={handleDisconnect360} disabled={waLoading}>
-                {waLoading ? "Desconectando..." : "Desconectar WhatsApp"}
-              </button>
+              <span style={badgeGreen}><span style={dot("#16a34a")} />Activo</span>
+              {twilioNumber && <div style={numberDisplay}>{twilioNumber}</div>}
+              <p style={{ ...helpText, marginTop: 0 }}>
+                Los pacientes pueden escribir a este número de WhatsApp y la IA responde automáticamente.
+              </p>
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#166534" }}>
+                Canal gestionado por el equipo de Atiende360. Para cambiar el número, contacta con soporte.
+              </div>
             </div>
           ) : (
             <div>
               <span style={badgeGray}>Sin configurar</span>
               <p style={{ ...helpText, marginTop: 12 }}>
-                Usa <strong>360dialog</strong> para conectar tu número de WhatsApp Business.
-                Nosotros nos encargamos de la configuración técnica — solo necesitas las credenciales.
+                WhatsApp Business se gestiona a través de <strong>Twilio</strong>. Nuestro equipo
+                configura el número y el webhook — tú solo recibes los mensajes en el panel.
               </p>
 
-              {!showWaForm ? (
-                <div>
-                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 14 }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Pasos para conectar:</p>
-                    <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#6b7280", lineHeight: 1.8 }}>
-                      <li>Crea una cuenta en <strong>360dialog.com</strong></li>
-                      <li>Conecta tu número de WhatsApp Business</li>
-                      <li>Copia tu API Key y Phone Number ID</li>
-                      <li>Configura el webhook: <code style={{ background: "#e5e7eb", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>/webhook/whatsapp/360dialog</code></li>
-                    </ol>
-                  </div>
-                  <button style={btnPrimary} onClick={() => setShowWaForm(true)}>Tengo las credenciales</button>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>API Key <span style={{ color: "#dc2626" }}>*</span></label>
-                      <input style={input} placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Phone Number ID <span style={{ color: "#dc2626" }}>*</span></label>
-                      <input style={input} placeholder="123456789012345" value={phoneId} onChange={e => setPhoneId(e.target.value)} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>WABA ID <span style={{ color: "#9ca3af" }}>(opcional)</span></label>
-                      <input style={input} placeholder="987654321098765" value={wabaId} onChange={e => setWabaId(e.target.value)} />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button style={{ ...btnPrimary, opacity: waLoading ? 0.7 : 1 }} onClick={handleConnect360} disabled={waLoading}>
-                      {waLoading ? "Conectando..." : "Conectar"}
-                    </button>
-                    <button style={btnSecondary} onClick={() => setShowWaForm(false)}>Cancelar</button>
-                  </div>
-                  {waError && <p style={errorStyle}>{waError}</p>}
-                  {waSuccess && <p style={successStyle}>WhatsApp conectado correctamente</p>}
-                </div>
-              )}
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 14 }}>
+                <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>¿Cómo activarlo?</p>
+                <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#6b7280", lineHeight: 1.9 }}>
+                  <li>Escríbenos a <strong>hola@atiende360.com</strong></li>
+                  <li>Te asignamos un número de WhatsApp Business dedicado</li>
+                  <li>Listo — los mensajes llegan aquí automáticamente</li>
+                </ol>
+              </div>
+
+              <div style={{ ...badgeBlue, marginBottom: 14, fontSize: 12 }}>
+                <span style={dot("#2563eb")} />Sandbox activo para pruebas
+              </div>
+              <p style={{ ...helpText, marginBottom: 0 }}>
+                Mientras tanto, puedes probar enviando un mensaje al{" "}
+                <strong>+1 415 523 8886</strong> con el código que te indicamos al configurar.
+              </p>
             </div>
           )}
         </div>

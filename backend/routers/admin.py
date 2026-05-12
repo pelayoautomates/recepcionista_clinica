@@ -114,35 +114,53 @@ async def resolver_conversacion(clinic_id: UUID, conv_id: UUID):
 
 @router.post("/clinicas/{clinic_id}/conversaciones/{conv_id}/responder")
 async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
-    """Añade una respuesta manual del humano a la conversación."""
+    """Añade respuesta manual del humano y la envía al paciente por su canal."""
     from datetime import datetime, timezone
     db = get_supabase()
 
     conv = db.table("conversaciones") \
-        .select("mensajes") \
+        .select("mensajes, canal, paciente_id") \
         .eq("id", str(conv_id)) \
         .eq("clinic_id", str(clinic_id)) \
         .single() \
         .execute()
 
-    mensajes = conv.data.get("mensajes") or []
+    conv_data = conv.data or {}
+    mensajes = conv_data.get("mensajes") or []
+    canal = conv_data.get("canal", "")
+    paciente_id = conv_data.get("paciente_id")
+    mensaje = body.get("mensaje", "")
+
     mensajes.append({
         "role": "assistant",
-        "content": body.get("mensaje", ""),
+        "content": mensaje,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "from_human": True,
     })
 
+    db.table("conversaciones").update({
+        "mensajes": mensajes,
+        "estado": "activa",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", str(conv_id)).eq("clinic_id", str(clinic_id)).execute()
+
+    # Enviar mensaje por el canal correspondiente
+    if canal == "whatsapp" and paciente_id and mensaje:
+        try:
+            paciente = db.table("pacientes").select("telefono").eq("id", paciente_id).single().execute()
+            telefono = (paciente.data or {}).get("telefono")
+            if telefono:
+                import twilio_wa
+                await twilio_wa.send_message(telefono, mensaje)
+        except Exception as e:
+            logger.warning("No se pudo enviar respuesta humana por WhatsApp: %s", e)
+
     result = db.table("conversaciones") \
-        .update({
-            "mensajes": mensajes,
-            "estado": "activa",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }) \
+        .select("*") \
         .eq("id", str(conv_id)) \
-        .eq("clinic_id", str(clinic_id)) \
+        .single() \
         .execute()
-    return result.data[0]
+    return result.data
 
 
 # ─── Citas ───────────────────────────────────────────────────────────────────
