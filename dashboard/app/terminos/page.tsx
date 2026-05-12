@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 };
 
 const LAST_UPDATED = "12 de mayo de 2026";
-const CONTROLLER_EMAIL = "legal@atiende360.com";
+const CONTROLLER_EMAIL = "pelayo.automates@gmail.com";
 
 export default function TerminosPage() {
   return (

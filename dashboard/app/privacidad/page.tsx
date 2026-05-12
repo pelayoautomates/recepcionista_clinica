@@ -7,8 +7,8 @@ export const metadata: Metadata = {
 
 const LAST_UPDATED = "12 de mayo de 2026";
 const CONTROLLER_NAME = "Atiende360";
-const CONTROLLER_EMAIL = "privacidad@atiende360.com";
-const CONTACT_EMAIL = "pelayo.negueruela@gmail.com";
+const CONTROLLER_EMAIL = "pelayo.automates@gmail.com";
+const CONTACT_EMAIL = "pelayo.automates@gmail.com";
 
 export default function PrivacidadPage() {
   return (
