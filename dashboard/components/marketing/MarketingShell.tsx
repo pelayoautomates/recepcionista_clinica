@@ -80,6 +80,10 @@ export default function MarketingShell({
               <Link href="/integraciones">Integraciones</Link>
               {" · "}
               <Link href="/comparativa/chatbot-generico">Comparativa</Link>
+              {" · "}
+              <Link href="/privacidad">Privacidad</Link>
+              {" · "}
+              <Link href="/terminos">Términos</Link>
             </p>
           </div>
         </div>
