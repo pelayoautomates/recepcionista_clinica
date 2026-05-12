@@ -2,8 +2,10 @@
 import { useState } from "react";
 import ConfiguracionForm from "./ConfiguracionForm";
 import ConocimientoClient from "../conocimiento/ConocimientoClient";
+import RoutingConfig from "./RoutingConfig";
+import TestAgente from "./TestAgente";
 
-type Tab = "clinica" | "conocimiento";
+type Tab = "clinica" | "conocimiento" | "llamadas" | "test";
 
 interface Props {
   clinica: any;
@@ -14,15 +16,19 @@ interface Props {
 export default function ConfiguracionWrapper({ clinica, clinicId, conocimiento }: Props) {
   const [tab, setTab] = useState<Tab>("clinica");
 
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "clinica",      label: "Clínica y agente" },
+    { key: "conocimiento", label: "Conocimiento" },
+    { key: "llamadas",     label: "Llamadas" },
+    { key: "test",         label: "Probar agente" },
+  ];
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: "0 0 16px", fontSize: 22, fontWeight: 700, color: "#111827" }}>Configuración</h1>
         <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e5e7eb" }}>
-          {([
-            { key: "clinica" as Tab, label: "Clínica y agente" },
-            { key: "conocimiento" as Tab, label: "Conocimiento" },
-          ]).map(t => (
+          {tabs.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -41,8 +47,25 @@ export default function ConfiguracionWrapper({ clinica, clinicId, conocimiento }
         </div>
       </div>
 
-      {tab === "clinica" && <ConfiguracionForm clinica={clinica} clinicId={clinicId} />}
-      {tab === "conocimiento" && <ConocimientoClient clinicId={clinicId} initialEntradas={conocimiento} />}
+      {tab === "clinica" && (
+        <ConfiguracionForm clinica={clinica} clinicId={clinicId} />
+      )}
+      {tab === "conocimiento" && (
+        <ConocimientoClient clinicId={clinicId} initialEntradas={conocimiento} />
+      )}
+      {tab === "llamadas" && (
+        <RoutingConfig
+          clinicId={clinicId}
+          initialMode={clinica.routing_mode || "siempre"}
+          initialEmail={clinica.notification_email || ""}
+        />
+      )}
+      {tab === "test" && (
+        <TestAgente
+          clinicId={clinicId}
+          agenteName={clinica.agente_nombre || "Valeria"}
+        />
+      )}
     </div>
   );
 }

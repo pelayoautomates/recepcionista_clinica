@@ -69,7 +69,14 @@ async def guardar_configuracion(clinic_id: UUID, data: dict):
     if "servicios" in data:
         campos["servicios"] = data["servicios"]
     if "notif_webhook" in data:
-        campos["notif_webhook"] = data["notif_webhook"]  # None = borrar webhook
+        campos["notif_webhook"] = data["notif_webhook"]
+    if "routing_mode" in data:
+        allowed = {"siempre", "fuera_horario", "si_no_contestan"}
+        if data["routing_mode"] not in allowed:
+            raise HTTPException(status_code=400, detail=f"routing_mode debe ser uno de: {allowed}")
+        campos["routing_mode"] = data["routing_mode"]
+    if "notification_email" in data:
+        campos["notification_email"] = data["notification_email"] or None
     if not campos:
         raise HTTPException(status_code=400, detail="No hay datos para guardar")
     result = db.table("clinicas").update(campos).eq("id", str(clinic_id)).execute()

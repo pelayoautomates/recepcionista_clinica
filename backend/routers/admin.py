@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from database.client import get_supabase
 from models.clinica import ClinicaCreate, ClinicaUpdate
@@ -877,3 +878,25 @@ async def delete_retell_agent(clinic_id: UUID):
 
 
 # Note: /clinicas/{clinic_id}/canales GET + 360dialog PATCH/DELETE are in routers/canales.py
+
+
+# ── Test chat (bypasses billing) ──────────────────────────────────────────────
+
+class TestChatBody(BaseModel):
+    mensaje: str
+    conversacion_id: str | None = None
+
+
+@router.post("/clinicas/{clinic_id}/test-chat")
+async def test_chat(clinic_id: UUID, body: TestChatBody):
+    """Test the agent for a clinic without billing checks. Admin only."""
+    from agent.core import run_agent
+    conv_id = body.conversacion_id or f"test_{clinic_id}"
+    respuesta, conversacion_id = await run_agent(
+        clinic_id=str(clinic_id),
+        conversacion_id=conv_id,
+        user_message=body.mensaje,
+        canal="test",
+        paciente_id=None,
+    )
+    return {"respuesta": respuesta, "conversacion_id": conversacion_id}

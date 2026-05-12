@@ -48,7 +48,7 @@ Cuando escales, di exactamente: "Voy a pasarte con el equipo de la clínica, te 
 ## Información de la clínica
 {info_clinica}
 
-{conocimiento_texto}{prompt_personalizado}"""
+{routing_texto}{conocimiento_texto}{prompt_personalizado}"""
 
 
 def build_system_prompt(clinica: dict, servicios_tabla: list | None = None, conocimiento: list | None = None) -> str:
@@ -112,6 +112,24 @@ def build_system_prompt(clinica: dict, servicios_tabla: list | None = None, cono
         if entradas:
             conocimiento_texto = "\n## Base de conocimiento de la clínica\n" + "\n\n".join(entradas) + "\n\n"
 
+    routing_mode = clinica.get("routing_mode") or "siempre"
+    routing_texto = ""
+    if routing_mode == "fuera_horario":
+        routing_texto = (
+            "\n## Contexto de la llamada\n"
+            "Estás atendiendo porque la clínica está cerrada en este momento. "
+            "El paciente ha llamado fuera del horario de apertura. "
+            "Puedes gestionar citas con normalidad. Si el paciente pregunta si hay alguien, "
+            "explica amablemente que la clínica está cerrada pero que puedes ayudarle tú ahora mismo."
+        )
+    elif routing_mode == "si_no_contestan":
+        routing_texto = (
+            "\n## Contexto de la llamada\n"
+            "Estás atendiendo porque la recepción no pudo coger la llamada. "
+            "El paciente ha esperado. Sé especialmente eficiente y resolutivo. "
+            "Ofrece solución directa sin hacer esperar más al paciente."
+        )
+
     prompt_personalizado = clinica.get("prompt_personalizado", "") or ""
     if prompt_personalizado:
         prompt_personalizado = "\n" + prompt_personalizado
@@ -124,4 +142,5 @@ def build_system_prompt(clinica: dict, servicios_tabla: list | None = None, cono
         info_clinica=info_clinica,
         conocimiento_texto=conocimiento_texto,
         prompt_personalizado=prompt_personalizado,
+        routing_texto=routing_texto,
     )
