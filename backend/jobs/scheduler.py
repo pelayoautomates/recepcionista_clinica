@@ -107,8 +107,6 @@ def _ejecutar_job(job: dict):
             _enviar_recordatorio_sms(job, "1h")
         elif tipo == "seguimiento_lead":
             _enviar_seguimiento_lead(job)
-        elif tipo == "resumen_diario":
-            _enviar_resumen_diario(job)
 
         db.table("jobs").update({"estado": "ejecutado"}).eq("id", job_id).eq("estado", "ejecutando").execute()
         logger.info("Job %s (%s) ejecutado OK", job_id, tipo)
@@ -181,51 +179,6 @@ def _enviar_seguimiento_lead(job: dict):
         nombre_clinica=nombre_clinica,
     )
 
-
-def _enviar_resumen_diario(job: dict):
-    from database.client import get_supabase
-    from openai import OpenAI
-    from config import settings
-
-    db = get_supabase()
-    clinic_id = job["clinic_id"]
-    hoy = datetime.now(_TZ).date().isoformat()
-
-    citas = db.table("citas").select("tipo_servicio, fecha_inicio, estado") \
-        .eq("clinic_id", clinic_id) \
-        .gte("fecha_inicio", f"{hoy}T00:00:00Z") \
-        .lte("fecha_inicio", f"{hoy}T23:59:59Z") \
-        .execute().data
-
-    leads_nuevos = db.table("pacientes").select("nombre, canal_origen, estado_lead") \
-        .eq("clinic_id", clinic_id) \
-        .gte("created_at", f"{hoy}T00:00:00Z") \
-        .execute().data
-
-    pendientes_humano = db.table("conversaciones").select("id") \
-        .eq("clinic_id", clinic_id) \
-        .eq("estado", "esperando_humano") \
-        .execute().data
-
-    resumen_datos = {
-        "citas_hoy": len(citas),
-        "leads_nuevos": len(leads_nuevos),
-        "conversaciones_pendientes": len(pendientes_humano),
-        "detalle_citas": citas[:10],
-    }
-
-    openai_client = OpenAI(api_key=settings.openai_api_key)
-    respuesta = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Eres un asistente que genera resúmenes diarios concisos para clínicas."},
-            {"role": "user", "content": f"Genera un resumen diario breve en español: {resumen_datos}"}
-        ]
-    )
-    resumen_texto = respuesta.choices[0].message.content
-
-    # TODO: Enviar por email o Telegram a la clínica
-    logger.info("Resumen diario clínica %s:\n%s", clinic_id, resumen_texto)
 
 
 def _programar_recordatorios_pendientes():
