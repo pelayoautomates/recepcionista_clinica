@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
+const ADMIN_KEY = process.env.ADMIN_SECRET || "";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -40,9 +41,12 @@ export async function GET(request: NextRequest) {
 
   // Comprobar si el usuario ya tiene clínica vinculada
   try {
+    const headers: HeadersInit = {};
+    if (ADMIN_KEY) headers["X-Admin-Key"] = ADMIN_KEY;
+
     const rolRes = await fetch(
       `${BACKEND}/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(5000), headers }
     );
     if (rolRes.ok) {
       const rolData = await rolRes.json();

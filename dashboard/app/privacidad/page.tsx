@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Política de Privacidad — Atiende360",
@@ -22,7 +23,7 @@ export default function PrivacidadPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
-          <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", marginBottom: 32 }}>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", marginBottom: 32 }}>
             <div style={{
               width: 32, height: 32,
               background: "linear-gradient(135deg, #2563eb, #4f46e5)",
@@ -32,7 +33,7 @@ export default function PrivacidadPage() {
               <span style={{ color: "white", fontWeight: 700, fontSize: 14 }}>A</span>
             </div>
             <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>Atiende360</span>
-          </a>
+          </Link>
           <h1 style={{ margin: "0 0 8px", fontSize: 32, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
             Política de Privacidad
           </h1>
@@ -162,7 +163,7 @@ export default function PrivacidadPage() {
             <ul>
               <li><strong>Acceso:</strong> conocer qué datos tratamos sobre usted</li>
               <li><strong>Rectificación:</strong> corregir datos inexactos o incompletos</li>
-              <li><strong>Supresión ("derecho al olvido"):</strong> solicitar la eliminación de sus datos cuando ya no sean necesarios</li>
+              <li><strong>Supresión (&quot;derecho al olvido&quot;):</strong> solicitar la eliminación de sus datos cuando ya no sean necesarios</li>
               <li><strong>Limitación del tratamiento:</strong> solicitar que suspendamos el tratamiento en determinadas circunstancias</li>
               <li><strong>Portabilidad:</strong> recibir sus datos en formato estructurado y legible por máquina</li>
               <li><strong>Oposición:</strong> oponerse al tratamiento basado en interés legítimo</li>
@@ -239,7 +240,7 @@ export default function PrivacidadPage() {
 
         <p style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#9ca3af" }}>
           © {new Date().getFullYear()} Atiende360. Todos los derechos reservados.{" "}
-          <a href="/terminos" style={{ color: "#6b7280" }}>Términos de servicio</a>
+          <Link href="/terminos" style={{ color: "#6b7280" }}>Términos de servicio</Link>
         </p>
       </div>
     </div>

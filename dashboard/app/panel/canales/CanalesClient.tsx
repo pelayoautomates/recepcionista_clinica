@@ -11,11 +11,11 @@ interface Props {
 }
 
 const PAISES = [
-  { code: "ES", label: "ES — España" },
-  { code: "PL", label: "PL — Polonia" },
-  { code: "DE", label: "DE — Alemania" },
-  { code: "FR", label: "FR — Francia" },
-  { code: "IT", label: "IT — Italia" },
+  { code: "ES", label: "ES - Espana" },
+  { code: "PL", label: "PL - Polonia" },
+  { code: "DE", label: "DE - Alemania" },
+  { code: "FR", label: "FR - Francia" },
+  { code: "IT", label: "IT - Italia" },
 ];
 
 const card: React.CSSProperties = {
@@ -72,22 +72,28 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
   const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [voiceSuccess, setVoiceSuccess] = useState(false);
+  const [voiceSuccess, setVoiceSuccess] = useState<string | null>(null);
 
-  // ── Voice handlers ──────────────────────────────────────────────────────────
+  //  Voice handlers 
 
   async function handleDesconectar() {
-    setVoiceLoading(true); setVoiceError(null);
+    setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null);
     try {
-      await fetch("/api/canales/voz", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clinic_id: clinicId }) });
-      setVoiceSuccess(true);
+      const res = await fetch("/api/canales/voz", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinic_id: clinicId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || "Error al desconectar");
+      setVoiceSuccess("Desconectado correctamente.");
       setTimeout(() => window.location.reload(), 800);
     } catch { setVoiceError("Error al desconectar"); } finally { setVoiceLoading(false); }
   }
 
   async function handleConectar() {
-    if (!existingNumber.trim()) { setVoiceError("Introduce un número"); return; }
-    setVoiceLoading(true); setVoiceError(null);
+    if (!existingNumber.trim()) { setVoiceError("Introduce un numero"); return; }
+    setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null);
     try {
       const res = await fetch("/api/canales/voz", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -95,33 +101,33 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error al conectar");
-      setVoiceSuccess(true);
+      setVoiceSuccess("Numero conectado correctamente.");
       setTimeout(() => window.location.reload(), 800);
     } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
   }
 
   async function handleBuscarNumeros() {
-    setVoiceLoading(true); setVoiceError(null); setNumeros([]); setSelectedNumber(null);
+    setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null); setNumeros([]); setSelectedNumber(null);
     try {
       const res = await fetch(`/api/canales/numeros?pais=${pais}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error buscando números");
+      if (!res.ok) throw new Error(data.detail || "Error buscando numeros");
       setNumeros(data.numeros || []);
-      if (!data.numeros?.length) setVoiceError("No se encontraron números para este país");
+      if (!data.numeros?.length) setVoiceError("No se encontraron numeros para este pais");
     } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
   }
 
   async function handleComprar() {
-    if (!selectedNumber) { setVoiceError("Selecciona un número"); return; }
-    setVoiceLoading(true); setVoiceError(null);
+    if (!selectedNumber) { setVoiceError("Selecciona un numero"); return; }
+    setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null);
     try {
       const res = await fetch("/api/canales/voz", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clinic_id: clinicId, telefono: selectedNumber, accion: "comprar" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error al comprar número");
-      setVoiceSuccess(true);
+      if (!res.ok) throw new Error(data.detail || "Error al comprar numero");
+      setVoiceSuccess("Numero comprado y conectado correctamente.");
       setTimeout(() => window.location.reload(), 800);
     } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
   }
@@ -131,13 +137,13 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
       {!compact && (
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>Canales</h1>
-          <p style={{ margin: 0, fontSize: 14, color: "#6b7280" }}>Configura los canales por los que los pacientes contactan con la clínica.</p>
+          <p style={{ margin: 0, fontSize: 14, color: "#6b7280" }}>Configura los canales por los que los pacientes contactan con la clinica.</p>
         </div>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 20 }}>
 
-        {/* ── Voz (Telnyx + Retell) ── */}
+        {/*  Voz (Telnyx + Retell)  */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ color: "#2563eb" }}>
@@ -150,22 +156,22 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
             <div>
               <span style={badgeGreen}><span style={dot("#16a34a")} />Conectado</span>
               <div style={numberDisplay}>{telefono}</div>
-              <p style={{ ...helpText, marginTop: 0 }}>Los pacientes llaman a este número y la IA responde automáticamente.</p>
+              <p style={{ ...helpText, marginTop: 0 }}>Los pacientes llaman a este numero y la IA responde automaticamente.</p>
               {voiceError && <p style={errorStyle}>{voiceError}</p>}
-              {voiceSuccess && <p style={successStyle}>Desconectado correctamente</p>}
+              {voiceSuccess && <p role="status" style={successStyle}>{voiceSuccess}</p>}
               <button style={{ ...btnDanger, opacity: voiceLoading ? 0.7 : 1 }} onClick={handleDesconectar} disabled={voiceLoading}>
-                {voiceLoading ? "Desconectando..." : "Desconectar número"}
+                {voiceLoading ? "Desconectando..." : "Desconectar numero"}
               </button>
             </div>
           ) : (
             <div>
               <span style={badgeGray}>Sin configurar</span>
-              <p style={{ ...helpText, marginTop: 12 }}>Conecta un número de teléfono para que los pacientes puedan llamar y la IA los atienda.</p>
+              <p style={{ ...helpText, marginTop: 12 }}>Conecta un numero de telefono para que los pacientes puedan llamar y la IA los atienda.</p>
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                 <button style={voiceMode === "connect-existing" ? { ...btnSecondary, borderColor: "#2563eb", color: "#2563eb" } : btnSecondary}
-                  onClick={() => setVoiceMode("connect-existing")}>Ya tengo número</button>
+                  onClick={() => setVoiceMode("connect-existing")}>Ya tengo numero</button>
                 <button style={voiceMode === "search-numbers" ? { ...btnSecondary, borderColor: "#2563eb", color: "#2563eb" } : btnSecondary}
-                  onClick={() => setVoiceMode("search-numbers")}>Buscar número</button>
+                  onClick={() => setVoiceMode("search-numbers")}>Buscar numero</button>
               </div>
 
               {voiceMode === "connect-existing" && (
@@ -209,12 +215,12 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
               )}
 
               {voiceError && <p style={errorStyle}>{voiceError}</p>}
-              {voiceSuccess && <p style={successStyle}>Número conectado correctamente</p>}
+              {voiceSuccess && <p role="status" style={successStyle}>{voiceSuccess}</p>}
             </div>
           )}
         </div>
 
-        {/* ── SMS (Telnyx) ── */}
+        {/*  SMS (Telnyx)  */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -228,29 +234,29 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
             <div>
               <span style={badgeGreen}><span style={dot("#16a34a")} />Activo</span>
               <p style={{ ...helpText, marginTop: 10 }}>
-                Los recordatorios de cita (24h y 1h antes) y el seguimiento de leads se envían
-                automáticamente por SMS vía Telnyx.
+                Los recordatorios de cita (24h y 1h antes) y el seguimiento de leads se envian
+                automaticamente por SMS via Telnyx.
               </p>
               <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#5b21b6" }}>
-                Canal compartido con voz — mismo número Telnyx, sin coste adicional de setup.
+                Canal compartido con voz - mismo numero Telnyx, sin coste adicional de setup.
               </div>
             </div>
           ) : (
             <div>
               <span style={badgeGray}>Pendiente configurar</span>
               <p style={{ ...helpText, marginTop: 10 }}>
-                SMS automáticos para recordatorios de cita y seguimiento de leads.
-                Requiere añadir <strong>TELNYX_SMS_NUMBER</strong> en Railway.
+                SMS automaticos para recordatorios de cita y seguimiento de leads.
+                Requiere anadir <strong>TELNYX_SMS_NUMBER</strong> en Railway.
               </p>
               <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#374151" }}>
-                Coste aprox: <strong>~$0.04–0.08 / SMS</strong> según país.
-                Sin setup adicional — usa tu cuenta Telnyx existente.
+                Coste aprox: <strong>~$0.04-0.08 / SMS</strong> segun pais.
+                Sin setup adicional - usa tu cuenta Telnyx existente.
               </div>
             </div>
           )}
         </div>
 
-        {/* ── WhatsApp (Twilio) ── */}
+        {/*  WhatsApp (Twilio)  */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -265,26 +271,26 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
               <span style={badgeGreen}><span style={dot("#16a34a")} />Activo</span>
               {twilioNumber && <div style={numberDisplay}>{twilioNumber}</div>}
               <p style={{ ...helpText, marginTop: 0 }}>
-                Los pacientes pueden escribir a este número de WhatsApp y la IA responde automáticamente.
+                Los pacientes pueden escribir a este numero de WhatsApp y la IA responde automaticamente.
               </p>
               <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#166534" }}>
-                Canal gestionado por el equipo de Atiende360. Para cambiar el número, contacta con soporte.
+                Canal gestionado por el equipo de Atiende360. Para cambiar el numero, contacta con soporte.
               </div>
             </div>
           ) : (
             <div>
               <span style={badgeGray}>Sin configurar</span>
               <p style={{ ...helpText, marginTop: 12 }}>
-                WhatsApp Business se gestiona a través de <strong>Twilio</strong>. Nuestro equipo
-                configura el número y el webhook — tú solo recibes los mensajes en el panel.
+                WhatsApp Business se gestiona a traves de <strong>Twilio</strong>. Nuestro equipo
+                configura el numero y el webhook - tu solo recibes los mensajes en el panel.
               </p>
 
               <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 14 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>¿Cómo activarlo?</p>
+                <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Como activarlo?</p>
                 <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#6b7280", lineHeight: 1.9 }}>
-                  <li>Escríbenos a <strong>hola@atiende360.com</strong></li>
-                  <li>Te asignamos un número de WhatsApp Business dedicado</li>
-                  <li>Listo — los mensajes llegan aquí automáticamente</li>
+                  <li>Escribenos a <strong>hola@atiende360.com</strong></li>
+                  <li>Te asignamos un numero de WhatsApp Business dedicado</li>
+                  <li>Listo - los mensajes llegan aqui automaticamente</li>
                 </ol>
               </div>
 
@@ -293,7 +299,7 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
               </div>
               <p style={{ ...helpText, marginBottom: 0 }}>
                 Mientras tanto, puedes probar enviando un mensaje al{" "}
-                <strong>+1 415 523 8886</strong> con el código que te indicamos al configurar.
+                <strong>+1 415 523 8886</strong> con el codigo que te indicamos al configurar.
               </p>
             </div>
           )}

@@ -91,8 +91,8 @@ export default async function PanelPage() {
   const [clinicaRes, metricasRes, convsRes, citasRes] = await Promise.all([
     adminFetch(`/admin/clinicas/${clinic_id}`, { noStore: true }),
     adminFetch(`/admin/clinicas/${clinic_id}/metricas`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${clinic_id}/conversaciones`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${clinic_id}/citas?fecha=${hoy}`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinic_id}/conversaciones?fecha=${hoy}&include_mensajes=true&limit=60`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinic_id}/citas?fecha=${hoy}&limit=120`, { noStore: true }),
   ]);
 
   const clinica = await clinicaRes.json();
@@ -100,9 +100,7 @@ export default async function PanelPage() {
   const todasConvs: any[] = convsRes.ok ? await convsRes.json() : [];
   const citasHoy: any[] = citasRes.ok ? await citasRes.json() : [];
 
-  const convsHoy = todasConvs
-    .filter(c => (c.updated_at || c.created_at || "").startsWith(hoy))
-    .slice(0, 6);
+  const convsHoy = todasConvs.slice(0, 6);
 
   const tieneCalendario = !!clinica.google_tokens_enc;
   const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${clinic_id}`;

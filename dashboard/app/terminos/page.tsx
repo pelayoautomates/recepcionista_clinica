@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Términos de Servicio — Atiende360",
@@ -20,7 +21,7 @@ export default function TerminosPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
-          <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", marginBottom: 32 }}>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", marginBottom: 32 }}>
             <div style={{
               width: 32, height: 32,
               background: "linear-gradient(135deg, #2563eb, #4f46e5)",
@@ -30,7 +31,7 @@ export default function TerminosPage() {
               <span style={{ color: "white", fontWeight: 700, fontSize: 14 }}>A</span>
             </div>
             <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>Atiende360</span>
-          </a>
+          </Link>
           <h1 style={{ margin: "0 0 8px", fontSize: 32, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
             Términos de Servicio
           </h1>
@@ -91,7 +92,7 @@ export default function TerminosPage() {
             <SubSection title="3.2 Planes de pago">
               <p>
                 Los planes de pago y sus precios están publicados en{" "}
-                <a href="/pricing" style={{ color: "#2563eb" }}>atiende360.com/pricing</a>. Los precios
+                <Link href="/pricing" style={{ color: "#2563eb" }}>atiende360.com/pricing</Link>. Los precios
                 se expresan en euros e incluyen el IVA aplicable cuando corresponda.
               </p>
               <ul>
@@ -144,7 +145,7 @@ export default function TerminosPage() {
               <li>Revisar y validar la información proporcionada por el agente IA antes de tomar decisiones clínicas.</li>
               <li>Configurar correctamente los horarios, servicios y restricciones del agente para evitar confirmaciones de citas incorrectas.</li>
               <li>Cumplir con la normativa sectorial sanitaria aplicable en su territorio (Ley 41/2002, regulación de historias clínicas, etc.).</li>
-              <li>Garantizar que el personal humano supervisa activamente las conversaciones marcadas como "pendiente de humano".</li>
+              <li>Garantizar que el personal humano supervisa activamente las conversaciones marcadas como &quot;pendiente de humano&quot;.</li>
             </ul>
           </Section>
 
@@ -174,7 +175,7 @@ export default function TerminosPage() {
               un mínimo de 24 horas de antelación salvo emergencias de seguridad.
             </p>
             <p>
-              El servicio se proporciona "tal cual" y "según disponibilidad". No garantizamos que el
+              El servicio se proporciona &quot;tal cual&quot; y &quot;según disponibilidad&quot;. No garantizamos que el
               servicio sea ininterrumpido, libre de errores o que los resultados del agente IA sean
               exactos o completos en todo momento.
             </p>
@@ -207,7 +208,7 @@ export default function TerminosPage() {
               respecto a los datos personales de los pacientes de la clínica. Al aceptar estos términos,
               el usuario (responsable del tratamiento) y Atiende360 (encargado) quedan vinculados por
               las condiciones de encargo del tratamiento descritas en nuestra{" "}
-              <a href="/privacidad" style={{ color: "#2563eb" }}>Política de Privacidad</a>, que forma
+              <Link href="/privacidad" style={{ color: "#2563eb" }}>Política de Privacidad</Link>, que forma
               parte integrante de estos Términos.
             </p>
             <p>
@@ -268,7 +269,7 @@ export default function TerminosPage() {
 
         <p style={{ textAlign: "center", marginTop: 24, fontSize: 12, color: "#9ca3af" }}>
           © {new Date().getFullYear()} Atiende360. Todos los derechos reservados.{" "}
-          <a href="/privacidad" style={{ color: "#6b7280" }}>Política de Privacidad</a>
+          <Link href="/privacidad" style={{ color: "#6b7280" }}>Política de Privacidad</Link>
         </p>
       </div>
     </div>

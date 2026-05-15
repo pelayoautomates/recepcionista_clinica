@@ -1,5 +1,7 @@
 import logging
+from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,6 +12,32 @@ from security import require_admin_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_admin_key)])
+_DEFAULT_LIST_LIMIT = 200
+_MAX_LIST_LIMIT = 500
+_APP_TZ = ZoneInfo("Europe/Madrid")
+
+
+def _paginate(query, limit: int | None, offset: int | None, default_limit: int = _DEFAULT_LIST_LIMIT):
+    lim = default_limit if limit is None else max(1, min(int(limit), _MAX_LIST_LIMIT))
+    off = 0 if offset is None else max(0, int(offset))
+    return query.range(off, off + lim - 1)
+
+
+def _utc_bounds_for_local_day(fecha_iso: str) -> tuple[str, str]:
+    """
+    Convierte una fecha local (YYYY-MM-DD, Europe/Madrid) a [inicio_utc, fin_utc_exclusivo).
+    Usar gte(inicio) + lt(fin) evita errores en cambios de hora y microsegundos.
+    """
+    try:
+        local_day = date.fromisoformat(fecha_iso)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usa YYYY-MM-DD.") from exc
+
+    local_start = datetime.combine(local_day, time.min, tzinfo=_APP_TZ)
+    local_end = local_start + timedelta(days=1)
+    start_utc = local_start.astimezone(timezone.utc).isoformat()
+    end_utc = local_end.astimezone(timezone.utc).isoformat()
+    return start_utc, end_utc
 
 
 # ─── Clínicas ───────────────────────────────────────────────────────────────
@@ -63,7 +91,13 @@ async def actualizar_clinica(clinic_id: UUID, data: ClinicaUpdate):
 # ─── Leads / Pacientes ───────────────────────────────────────────────────────
 
 @router.get("/clinicas/{clinic_id}/leads")
-async def listar_leads(clinic_id: UUID, estado: str | None = None, canal: str | None = None):
+async def listar_leads(
+    clinic_id: UUID,
+    estado: str | None = None,
+    canal: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+):
     from scoring import enriquecer_leads
     db = get_supabase()
     query = db.table("pacientes").select("*").eq("clinic_id", str(clinic_id))
@@ -71,21 +105,34 @@ async def listar_leads(clinic_id: UUID, estado: str | None = None, canal: str | 
         query = query.eq("estado_lead", estado)
     if canal:
         query = query.eq("canal_origen", canal)
-    result = query.order("created_at", desc=True).execute()
+    result = _paginate(query.order("created_at", desc=True), limit, offset).execute()
     return enriquecer_leads(result.data)
 
 
 # ─── Conversaciones ──────────────────────────────────────────────────────────
 
 @router.get("/clinicas/{clinic_id}/conversaciones")
-async def listar_conversaciones(clinic_id: UUID, estado: str | None = None):
+async def listar_conversaciones(
+    clinic_id: UUID,
+    estado: str | None = None,
+    fecha: str | None = None,
+    include_mensajes: bool = False,
+    limit: int | None = None,
+    offset: int | None = None,
+):
     db = get_supabase()
+    select_fields = "id, paciente_id, canal, estado, created_at, updated_at, pacientes(nombre)"
+    if include_mensajes:
+        select_fields = "id, paciente_id, canal, estado, mensajes, created_at, updated_at, pacientes(nombre)"
     query = db.table("conversaciones") \
-        .select("id, paciente_id, canal, estado, mensajes, created_at, updated_at, pacientes(nombre)") \
+        .select(select_fields) \
         .eq("clinic_id", str(clinic_id))
     if estado:
         query = query.eq("estado", estado)
-    result = query.order("updated_at", desc=True).execute()
+    if fecha:
+        start_utc, end_utc = _utc_bounds_for_local_day(fecha)
+        query = query.gte("updated_at", start_utc).lt("updated_at", end_utc)
+    result = _paginate(query.order("updated_at", desc=True), limit, offset).execute()
     return result.data
 
 
@@ -147,7 +194,7 @@ async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
     # Enviar mensaje por el canal correspondiente
     if canal == "whatsapp" and paciente_id and mensaje:
         try:
-            paciente = db.table("pacientes").select("telefono").eq("id", paciente_id).single().execute()
+            paciente = db.table("pacientes").select("telefono").eq("id", paciente_id).eq("clinic_id", str(clinic_id)).single().execute()
             telefono = (paciente.data or {}).get("telefono")
             if telefono:
                 import twilio_wa
@@ -174,6 +221,11 @@ _CITAS_CAMPOS = [
 
 _ORIGENES_VALIDOS = {"manual", "ia_llamada", "ia_whatsapp", "ia_chat", "google_calendar"}
 _ESTADOS_VALIDOS = {"pendiente", "confirmada", "reprogramada", "completada", "cancelada", "no_asistio"}
+
+
+def _exists_in_clinic(db, table: str, entity_id: str, clinic_id: str) -> bool:
+    result = db.table(table).select("id").eq("id", entity_id).eq("clinic_id", clinic_id).limit(1).execute()
+    return bool(result.data)
 
 
 def _check_conflicts(db, clinic_id: str, fecha_inicio: str, fecha_fin: str, profesional: str | None, exclude_id: str | None = None) -> bool:
@@ -204,6 +256,8 @@ async def listar_citas(
     estado: str | None = None,
     profesional: str | None = None,
     origen: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
 ):
     db = get_supabase()
     query = db.table("citas").select(
@@ -213,7 +267,8 @@ async def listar_citas(
         "pacientes(nombre, telefono)"
     ).eq("clinic_id", str(clinic_id))
     if fecha:
-        query = query.gte("fecha_inicio", f"{fecha}T00:00:00Z").lte("fecha_inicio", f"{fecha}T23:59:59Z")
+        start_utc, end_utc = _utc_bounds_for_local_day(fecha)
+        query = query.gte("fecha_inicio", start_utc).lt("fecha_inicio", end_utc)
     if fecha_inicio:
         query = query.gte("fecha_inicio", fecha_inicio)
     if fecha_fin:
@@ -224,7 +279,7 @@ async def listar_citas(
         query = query.eq("profesional", profesional)
     if origen:
         query = query.eq("origen", origen)
-    result = query.order("fecha_inicio").execute()
+    result = _paginate(query.order("fecha_inicio"), limit, offset).execute()
     return result.data
 
 
@@ -248,10 +303,18 @@ async def crear_cita(clinic_id: UUID, data: dict):
         fecha_fin_str = (fi + timedelta(minutes=int(data["duracion_min"]))).isoformat()
         data["fecha_fin"] = fecha_fin_str
 
-    if _check_conflicts(db, str(clinic_id), fecha_inicio_str, fecha_fin_str or "", profesional):
+    clinic_id_str = str(clinic_id)
+    if _check_conflicts(db, clinic_id_str, fecha_inicio_str, fecha_fin_str or "", profesional):
         raise HTTPException(status_code=409, detail=f"El profesional '{profesional}' ya tiene una cita en ese horario")
 
-    cita = {"clinic_id": str(clinic_id), "estado": data.get("estado", "confirmada")}
+    if data.get("paciente_id") and not _exists_in_clinic(db, "pacientes", str(data["paciente_id"]), clinic_id_str):
+        raise HTTPException(status_code=404, detail="Paciente no encontrado en la clínica")
+    if data.get("profesional_id") and not _exists_in_clinic(db, "profesionales", str(data["profesional_id"]), clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado en la clínica")
+    if data.get("sala_id") and not _exists_in_clinic(db, "salas", str(data["sala_id"]), clinic_id_str):
+        raise HTTPException(status_code=404, detail="Sala no encontrada en la clínica")
+
+    cita = {"clinic_id": clinic_id_str, "estado": data.get("estado", "confirmada")}
     for k in _CITAS_CAMPOS:
         if data.get(k) is not None:
             cita[k] = data[k]
@@ -288,23 +351,33 @@ async def actualizar_cita(clinic_id: UUID, cita_id: UUID, data: dict):
     from google_calendar import client as gcal
 
     db = get_supabase()
+    clinic_id_str = str(clinic_id)
     updates = {k: v for k, v in data.items() if k in _CITAS_CAMPOS and v is not None}
     if "notas_internas" in data:
         updates["notas_internas"] = data["notas_internas"]
     if not updates:
         raise HTTPException(status_code=400, detail="Sin datos para actualizar")
 
-    existing_res = db.table("citas").select("fecha_inicio, fecha_fin, profesional, google_event_id").eq("id", str(cita_id)).single().execute()
+    existing_res = db.table("citas").select("fecha_inicio, fecha_fin, profesional, google_event_id").eq("id", str(cita_id)).eq("clinic_id", clinic_id_str).single().execute()
     existing = existing_res.data or {}
+    if not existing:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+
+    if "paciente_id" in updates and updates["paciente_id"] and not _exists_in_clinic(db, "pacientes", str(updates["paciente_id"]), clinic_id_str):
+        raise HTTPException(status_code=404, detail="Paciente no encontrado en la clínica")
+    if "profesional_id" in updates and updates["profesional_id"] and not _exists_in_clinic(db, "profesionales", str(updates["profesional_id"]), clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado en la clínica")
+    if "sala_id" in updates and updates["sala_id"] and not _exists_in_clinic(db, "salas", str(updates["sala_id"]), clinic_id_str):
+        raise HTTPException(status_code=404, detail="Sala no encontrada en la clínica")
 
     if "fecha_inicio" in updates or "profesional" in updates:
         fi = updates.get("fecha_inicio", existing.get("fecha_inicio", ""))
         ff = updates.get("fecha_fin", existing.get("fecha_fin", ""))
         prof = updates.get("profesional", existing.get("profesional"))
-        if _check_conflicts(db, str(clinic_id), fi, ff or "", prof, exclude_id=str(cita_id)):
+        if _check_conflicts(db, clinic_id_str, fi, ff or "", prof, exclude_id=str(cita_id)):
             raise HTTPException(status_code=409, detail=f"El profesional '{prof}' ya tiene una cita en ese horario")
 
-    result = db.table("citas").update(updates).eq("id", str(cita_id)).eq("clinic_id", str(clinic_id)).execute()
+    result = db.table("citas").update(updates).eq("id", str(cita_id)).eq("clinic_id", clinic_id_str).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
 
@@ -342,9 +415,8 @@ async def eliminar_cita(clinic_id: UUID, cita_id: UUID):
     return {"ok": True}
 
 
-@router.post("/clinicas/{clinic_id}/citas/sync-gcal")
-async def sync_desde_gcal(clinic_id: UUID):
-    """Importa eventos de Google Calendar como citas en Atiende360 (últimos 7 días + próximos 60)."""
+def _do_sync_gcal(clinic_id_str: str) -> dict:
+    """Importa eventos GCal→DB. Reutilizable por el endpoint HTTP y el scheduler."""
     from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     from google_calendar import client as gcal
@@ -352,18 +424,11 @@ async def sync_desde_gcal(clinic_id: UUID):
     TZ = ZoneInfo("Europe/Madrid")
     db = get_supabase()
 
-    clinica = db.table("clinicas").select("google_tokens_enc").eq("id", str(clinic_id)).single().execute()
-    if not (clinica.data and clinica.data.get("google_tokens_enc")):
-        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
-
     ahora = datetime.now(TZ)
     fecha_inicio = ahora - timedelta(days=7)
     fecha_fin = ahora + timedelta(days=60)
 
-    try:
-        eventos = gcal.listar_eventos_rango(clinic_id, fecha_inicio, fecha_fin)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Error leyendo Google Calendar: {exc}")
+    eventos = gcal.listar_eventos_rango(UUID(clinic_id_str), fecha_inicio, fecha_fin)
 
     importados = 0
     actualizados = 0
@@ -372,12 +437,9 @@ async def sync_desde_gcal(clinic_id: UUID):
         event_id = ev.get("id")
         if not event_id:
             continue
-
-        # Ignorar eventos de día completo
         start = ev.get("start", {})
         if "date" in start and "dateTime" not in start:
             continue
-
         fi_str = start.get("dateTime", "")
         ff_str = ev.get("end", {}).get("dateTime", "")
         if not fi_str:
@@ -385,14 +447,10 @@ async def sync_desde_gcal(clinic_id: UUID):
 
         fi = datetime.fromisoformat(fi_str.replace("Z", "+00:00"))
         ff = datetime.fromisoformat(ff_str.replace("Z", "+00:00")) if ff_str else fi + timedelta(hours=1)
-
         titulo = ev.get("summary", "Evento de Google Calendar")
 
-        # ¿Ya existe en DB por google_event_id?
-        existente = db.table("citas").select("id, fecha_inicio").eq("clinic_id", str(clinic_id)).eq("google_event_id", event_id).execute()
-
+        existente = db.table("citas").select("id, fecha_inicio").eq("clinic_id", clinic_id_str).eq("google_event_id", event_id).execute()
         if existente.data:
-            # Actualizar si cambió la fecha
             if existente.data[0]["fecha_inicio"] != fi.isoformat():
                 db.table("citas").update({
                     "fecha_inicio": fi.isoformat(),
@@ -401,9 +459,8 @@ async def sync_desde_gcal(clinic_id: UUID):
                 }).eq("id", existente.data[0]["id"]).execute()
                 actualizados += 1
         else:
-            # Crear nueva cita importada
             db.table("citas").insert({
-                "clinic_id": str(clinic_id),
+                "clinic_id": clinic_id_str,
                 "tipo_servicio": titulo,
                 "fecha_inicio": fi.isoformat(),
                 "fecha_fin": ff.isoformat(),
@@ -414,7 +471,23 @@ async def sync_desde_gcal(clinic_id: UUID):
             }).execute()
             importados += 1
 
-    return {"ok": True, "importados": importados, "actualizados": actualizados, "total_eventos": len(eventos)}
+    return {"importados": importados, "actualizados": actualizados, "total_eventos": len(eventos)}
+
+
+@router.post("/clinicas/{clinic_id}/citas/sync-gcal")
+async def sync_desde_gcal(clinic_id: UUID):
+    """Importa eventos de Google Calendar como citas en Atiende360 (últimos 7 días + próximos 60)."""
+    db = get_supabase()
+    clinica = db.table("clinicas").select("google_tokens_enc").eq("id", str(clinic_id)).single().execute()
+    if not (clinica.data and clinica.data.get("google_tokens_enc")):
+        raise HTTPException(status_code=400, detail="Google Calendar no conectado")
+
+    try:
+        result = _do_sync_gcal(str(clinic_id))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error leyendo Google Calendar: {exc}")
+
+    return {"ok": True, **result}
 
 
 # ─── Profesionales ───────────────────────────────────────────────────────────
@@ -485,18 +558,28 @@ async def crear_bloque(clinic_id: UUID, data: dict):
     db = get_supabase()
     if not data.get("titulo") or not data.get("fecha_inicio") or not data.get("fecha_fin"):
         raise HTTPException(status_code=400, detail="titulo, fecha_inicio y fecha_fin son obligatorios")
+    clinic_id_str = str(clinic_id)
+
+    prof_id = str(data["profesional_id"]) if data.get("profesional_id") else None
+    if prof_id and not _exists_in_clinic(db, "profesionales", prof_id, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado en la clínica")
+
+    sala_id = str(data["sala_id"]) if data.get("sala_id") else None
+    if sala_id and not _exists_in_clinic(db, "salas", sala_id, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Sala no encontrada en la clínica")
+
     bloque = {
-        "clinic_id": str(clinic_id),
+        "clinic_id": clinic_id_str,
         "titulo": data["titulo"],
         "fecha_inicio": data["fecha_inicio"],
         "fecha_fin": data["fecha_fin"],
         "tipo": data.get("tipo", "bloqueo"),
         "notas": data.get("notas"),
     }
-    if data.get("profesional_id"):
-        bloque["profesional_id"] = str(data["profesional_id"])
-    if data.get("sala_id"):
-        bloque["sala_id"] = str(data["sala_id"])
+    if prof_id:
+        bloque["profesional_id"] = prof_id
+    if sala_id:
+        bloque["sala_id"] = sala_id
     # Compat: campo texto profesional (legacy)
     if data.get("profesional") and not data.get("profesional_id"):
         bloque["profesional"] = data["profesional"]
@@ -551,14 +634,20 @@ async def crear_servicio(clinic_id: UUID, data: dict):
 @router.patch("/clinicas/{clinic_id}/servicios/{servicio_id}")
 async def actualizar_servicio(clinic_id: UUID, servicio_id: UUID, data: dict):
     db = get_supabase()
+    clinic_id_str = str(clinic_id)
     updates = {k: v for k, v in data.items() if k in _SERVICIOS_CAMPOS}
     # Permitir null explícito en campos opcionales
     for campo_nullable in ["sala_id", "descripcion", "categoria", "color", "precio"]:
         if campo_nullable in data:
             updates[campo_nullable] = data[campo_nullable]
+    if "sala_id" in updates and updates["sala_id"]:
+        sala_id = str(updates["sala_id"])
+        if not _exists_in_clinic(db, "salas", sala_id, clinic_id_str):
+            raise HTTPException(status_code=404, detail="Sala no encontrada en la clínica")
+        updates["sala_id"] = sala_id
     if not updates:
         raise HTTPException(status_code=400, detail="Sin datos para actualizar")
-    result = db.table("servicios").update(updates).eq("id", str(servicio_id)).eq("clinic_id", str(clinic_id)).execute()
+    result = db.table("servicios").update(updates).eq("id", str(servicio_id)).eq("clinic_id", clinic_id_str).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Servicio no encontrado")
     return result.data[0]
@@ -576,22 +665,40 @@ async def eliminar_servicio(clinic_id: UUID, servicio_id: UUID):
 @router.get("/clinicas/{clinic_id}/servicios/{servicio_id}/profesionales")
 async def listar_profesionales_servicio(clinic_id: UUID, servicio_id: UUID):
     db = get_supabase()
-    result = db.table("servicio_profesional").select(
-        "profesional_id, profesionales(id, nombre, color, especialidad)"
-    ).eq("servicio_id", str(servicio_id)).execute()
-    return [r["profesionales"] for r in (result.data or []) if r.get("profesionales")]
+    clinic_id_str = str(clinic_id)
+    servicio_id_str = str(servicio_id)
+    if not _exists_in_clinic(db, "servicios", servicio_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+    links = db.table("servicio_profesional").select("profesional_id").eq("servicio_id", servicio_id_str).execute()
+    prof_ids = [r.get("profesional_id") for r in (links.data or []) if r.get("profesional_id")]
+    if not prof_ids:
+        return []
+
+    profs = db.table("profesionales").select("id, nombre, color, especialidad").in_("id", prof_ids).eq("clinic_id", clinic_id_str).execute()
+    by_id = {p["id"]: p for p in (profs.data or [])}
+    return [by_id[pid] for pid in prof_ids if pid in by_id]
 
 
 @router.post("/clinicas/{clinic_id}/servicios/{servicio_id}/profesionales")
 async def asignar_profesional_servicio(clinic_id: UUID, servicio_id: UUID, data: dict):
     db = get_supabase()
+    clinic_id_str = str(clinic_id)
+    servicio_id_str = str(servicio_id)
     prof_id = data.get("profesional_id")
     if not prof_id:
         raise HTTPException(status_code=400, detail="profesional_id requerido")
+    prof_id_str = str(prof_id)
+
+    if not _exists_in_clinic(db, "servicios", servicio_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if not _exists_in_clinic(db, "profesionales", prof_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado")
+
     try:
         result = db.table("servicio_profesional").insert({
-            "servicio_id": str(servicio_id),
-            "profesional_id": str(prof_id),
+            "servicio_id": servicio_id_str,
+            "profesional_id": prof_id_str,
         }).execute()
         return result.data[0]
     except Exception:
@@ -601,7 +708,16 @@ async def asignar_profesional_servicio(clinic_id: UUID, servicio_id: UUID, data:
 @router.delete("/clinicas/{clinic_id}/servicios/{servicio_id}/profesionales/{prof_id}")
 async def desasignar_profesional_servicio(clinic_id: UUID, servicio_id: UUID, prof_id: UUID):
     db = get_supabase()
-    db.table("servicio_profesional").delete().eq("servicio_id", str(servicio_id)).eq("profesional_id", str(prof_id)).execute()
+    clinic_id_str = str(clinic_id)
+    servicio_id_str = str(servicio_id)
+    prof_id_str = str(prof_id)
+
+    if not _exists_in_clinic(db, "servicios", servicio_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+    if not _exists_in_clinic(db, "profesionales", prof_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado")
+
+    db.table("servicio_profesional").delete().eq("servicio_id", servicio_id_str).eq("profesional_id", prof_id_str).execute()
     return {"ok": True}
 
 
@@ -698,7 +814,11 @@ async def actualizar_reglas(clinic_id: UUID, data: dict):
 @router.get("/clinicas/{clinic_id}/profesionales/{prof_id}/disponibilidad")
 async def obtener_disponibilidad(clinic_id: UUID, prof_id: UUID):
     db = get_supabase()
-    result = db.table("disponibilidad_profesional").select("*").eq("profesional_id", str(prof_id)).eq("clinic_id", str(clinic_id)).order("dia_semana").execute()
+    clinic_id_str = str(clinic_id)
+    prof_id_str = str(prof_id)
+    if not _exists_in_clinic(db, "profesionales", prof_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado")
+    result = db.table("disponibilidad_profesional").select("*").eq("profesional_id", prof_id_str).eq("clinic_id", clinic_id_str).order("dia_semana").execute()
     return result.data
 
 
@@ -706,9 +826,13 @@ async def obtener_disponibilidad(clinic_id: UUID, prof_id: UUID):
 async def guardar_disponibilidad(clinic_id: UUID, prof_id: UUID, data: dict):
     """Reemplaza toda la disponibilidad de un profesional. data.horarios = [{dia_semana, hora_inicio, hora_fin, activo}]"""
     db = get_supabase()
+    clinic_id_str = str(clinic_id)
+    prof_id_str = str(prof_id)
+    if not _exists_in_clinic(db, "profesionales", prof_id_str, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado")
     horarios = data.get("horarios", [])
     # Borrar existentes
-    db.table("disponibilidad_profesional").delete().eq("profesional_id", str(prof_id)).eq("clinic_id", str(clinic_id)).execute()
+    db.table("disponibilidad_profesional").delete().eq("profesional_id", prof_id_str).eq("clinic_id", clinic_id_str).execute()
     if not horarios:
         return []
     filas = []
@@ -716,8 +840,8 @@ async def guardar_disponibilidad(clinic_id: UUID, prof_id: UUID, data: dict):
         if h.get("dia_semana") is None or not h.get("hora_inicio") or not h.get("hora_fin"):
             continue
         filas.append({
-            "clinic_id": str(clinic_id),
-            "profesional_id": str(prof_id),
+            "clinic_id": clinic_id_str,
+            "profesional_id": prof_id_str,
             "dia_semana": int(h["dia_semana"]),
             "hora_inicio": h["hora_inicio"],
             "hora_fin": h["hora_fin"],
@@ -755,22 +879,21 @@ async def listar_jobs(clinic_id: UUID, estado: str | None = None):
 @router.get("/clinicas/{clinic_id}/metricas")
 async def metricas_clinica(clinic_id: UUID):
     db = get_supabase()
-    from datetime import date, timedelta
-    hoy = date.today()
+    hoy = datetime.now(_APP_TZ).date()
     ayer = hoy - timedelta(days=1)
-    hoy_str = hoy.isoformat()
-    ayer_str = ayer.isoformat()
+    hoy_start_utc, hoy_end_utc = _utc_bounds_for_local_day(hoy.isoformat())
+    ayer_start_utc, ayer_end_utc = _utc_bounds_for_local_day(ayer.isoformat())
 
     def count_hoy(tabla: str, campo_fecha: str, filtros: dict | None = None):
         q = db.table(tabla).select("id", count="exact").eq("clinic_id", str(clinic_id)) \
-            .gte(campo_fecha, f"{hoy_str}T00:00:00Z").lte(campo_fecha, f"{hoy_str}T23:59:59Z")
+            .gte(campo_fecha, hoy_start_utc).lt(campo_fecha, hoy_end_utc)
         for k, v in (filtros or {}).items():
             q = q.eq(k, v)
         return q.execute().count or 0
 
     def count_ayer(tabla: str, campo_fecha: str, filtros: dict | None = None):
         q = db.table(tabla).select("id", count="exact").eq("clinic_id", str(clinic_id)) \
-            .gte(campo_fecha, f"{ayer_str}T00:00:00Z").lte(campo_fecha, f"{ayer_str}T23:59:59Z")
+            .gte(campo_fecha, ayer_start_utc).lt(campo_fecha, ayer_end_utc)
         for k, v in (filtros or {}).items():
             q = q.eq(k, v)
         return q.execute().count or 0
@@ -858,25 +981,37 @@ async def eliminar_conocimiento(clinic_id: UUID, entrada_id: UUID):
 # ─── Lista de espera ──────────────────────────────────────────────────────────
 
 @router.get("/clinicas/{clinic_id}/lista-espera")
-async def listar_espera(clinic_id: UUID, estado: str | None = None):
+async def listar_espera(
+    clinic_id: UUID,
+    estado: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+):
     db = get_supabase()
     q = db.table("lista_espera").select(
         "*, pacientes(nombre, telefono, email, canal_origen)"
     ).eq("clinic_id", str(clinic_id))
     if estado:
         q = q.eq("estado", estado)
-    result = q.order("created_at").execute()
+    result = _paginate(q.order("created_at"), limit, offset).execute()
     return result.data
 
 
 @router.post("/clinicas/{clinic_id}/lista-espera")
 async def crear_entrada_espera(clinic_id: UUID, data: dict):
     db = get_supabase()
+    clinic_id_str = str(clinic_id)
+    paciente_id = str(data["paciente_id"]) if data.get("paciente_id") else None
+    profesional_id = str(data["profesional_id"]) if data.get("profesional_id") else None
+    if paciente_id and not _exists_in_clinic(db, "pacientes", paciente_id, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Paciente no encontrado en la clínica")
+    if profesional_id and not _exists_in_clinic(db, "profesionales", profesional_id, clinic_id_str):
+        raise HTTPException(status_code=404, detail="Profesional no encontrado en la clínica")
     row = {
-        "clinic_id": str(clinic_id),
-        "paciente_id": data.get("paciente_id"),
+        "clinic_id": clinic_id_str,
+        "paciente_id": paciente_id,
         "servicio_nombre": data.get("servicio_nombre", "").strip(),
-        "profesional_id": data.get("profesional_id"),
+        "profesional_id": profesional_id,
         "notas": data.get("notas", "").strip() or None,
         "estado": "esperando",
     }
@@ -909,13 +1044,13 @@ async def eliminar_entrada_espera(clinic_id: UUID, entrada_id: UUID):
 # ─── Recuperación de leads ────────────────────────────────────────────────────
 
 @router.get("/clinicas/{clinic_id}/recuperacion")
-async def leads_recuperacion(clinic_id: UUID):
-    """Leads fríos: perdidos o sin cita y sin actividad reciente (>3 días)."""
-    from datetime import date, timedelta
+async def leads_recuperacion(clinic_id: UUID, limit: int | None = None):
+    """Leads fr�os: perdidos o sin cita y sin actividad reciente (>3 d�as)."""
     from scoring import enriquecer_leads
 
     db = get_supabase()
-    hace_3_dias = (date.today() - timedelta(days=3)).isoformat()
+    hace_3_dias = (datetime.now(_APP_TZ).date() - timedelta(days=3)).isoformat()
+    _, cutoff_end_utc = _utc_bounds_for_local_day(hace_3_dias)
 
     # Leads perdidos
     perdidos = db.table("pacientes").select("*") \
@@ -923,12 +1058,12 @@ async def leads_recuperacion(clinic_id: UUID):
         .eq("estado_lead", "perdido") \
         .execute().data
 
-    # Leads sin cita (nuevo/interesado/contactado) sin actividad >3 días y con teléfono
+    # Leads sin cita (nuevo/interesado/contactado) sin actividad >3 d�as y con tel�fono
     sin_cita = db.table("pacientes").select("*") \
         .eq("clinic_id", str(clinic_id)) \
         .in_("estado_lead", ["nuevo", "interesado", "contactado"]) \
         .neq("telefono", None) \
-        .lte("created_at", f"{hace_3_dias}T23:59:59Z") \
+        .lt("created_at", cutoff_end_utc) \
         .execute().data
 
     todos = {p["id"]: p for p in perdidos}
@@ -937,7 +1072,8 @@ async def leads_recuperacion(clinic_id: UUID):
 
     result = list(todos.values())
     result.sort(key=lambda p: p.get("created_at", ""), reverse=True)
-    return enriquecer_leads(result)
+    lim = _DEFAULT_LIST_LIMIT if limit is None else max(1, min(int(limit), _MAX_LIST_LIMIT))
+    return enriquecer_leads(result[:lim])
 
 
 @router.post("/clinicas/{clinic_id}/leads/{lead_id}/seguimiento")
@@ -1037,5 +1173,8 @@ async def test_chat(clinic_id: UUID, body: TestChatBody):
         user_message=body.mensaje,
         canal="test",
         paciente_id=None,
+        skip_billing=True,
     )
     return {"respuesta": respuesta, "conversacion_id": conversacion_id}
+
+

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # Retell AI (voz)
     retell_api_key: str = ""   # API key de Retell — también usada para validar firmas
     retell_agent_id: str = ""  # ID del agente en Retell (para crear llamadas salientes)
+    retell_ws_secret: str = ""  # Secreto para proteger /retell/llm-websocket (query ?token=...)
 
     # Telnyx (números de teléfono + SMS)
     telnyx_api_key: str = ""

@@ -15,9 +15,9 @@ export default async function PanelLeadsPage() {
   const clinicId: string = rol.clinic_id;
 
   const [leadsRes, listaRes, recRes] = await Promise.all([
-    adminFetch(`/admin/clinicas/${clinicId}/leads`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${clinicId}/lista-espera`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${clinicId}/recuperacion`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinicId}/leads?limit=300`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinicId}/lista-espera?limit=300`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${clinicId}/recuperacion?limit=300`, { noStore: true }),
   ]);
 
   const leads = leadsRes.ok ? await leadsRes.json() : [];

@@ -7,12 +7,13 @@ Endpoints de billing con Stripe.
 import logging
 
 import stripe
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from billing import MINUTOS_POR_PLAN
 from config import settings
 from database.client import get_supabase
+from security import require_admin_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -44,7 +45,7 @@ class PortalRequest(BaseModel):
 
 
 @router.post("/checkout")
-async def create_checkout(body: CheckoutRequest):
+async def create_checkout(body: CheckoutRequest, _: None = Depends(require_admin_key)):
     """Crea una Stripe Checkout Session y devuelve la URL de pago."""
     s = _stripe()
     price_fn = PLAN_PRICE_MAP.get(body.plan)
@@ -87,7 +88,7 @@ async def create_checkout(body: CheckoutRequest):
 
 
 @router.post("/portal")
-async def create_portal(body: PortalRequest):
+async def create_portal(body: PortalRequest, _: None = Depends(require_admin_key)):
     """Crea una Stripe Customer Portal session para gestionar suscripción."""
     s = _stripe()
     db = get_supabase()

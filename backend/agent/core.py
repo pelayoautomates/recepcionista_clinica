@@ -73,12 +73,58 @@ async def run_agent(
     user_message: str,
     canal: str = "chat_web",
     paciente_id: str | None = None,
+    skip_billing: bool = False,
 ) -> tuple[str, str]:
     """
     Ejecuta el agente para un mensaje entrante.
     Devuelve (respuesta_texto, conversacion_id).
     """
     db = get_supabase()
+
+    # Billing unificado para todos los canales (chat, WhatsApp, voz).
+    if not skip_billing:
+        from billing import check_plan_active
+        check_plan_active(clinic_id)
+
+    # Cargar o crear conversación
+    if conversacion_id:
+        conv_res = (
+            db.table("conversaciones")
+            .select("*")
+            .eq("id", conversacion_id)
+            .eq("clinic_id", clinic_id)
+            .single()
+            .execute()
+        )
+        conversacion = conv_res.data or {}
+        if not conversacion:
+            conversacion_id = None
+    else:
+        conversacion = {}
+
+    if not conversacion_id:
+        conv_data = {
+            "clinic_id": clinic_id,
+            "paciente_id": paciente_id,
+            "canal": canal,
+            "mensajes": [],
+            "estado": "activa",
+        }
+        conv_res = db.table("conversaciones").insert(conv_data).execute()
+        conversacion = conv_res.data[0]
+        conversacion_id = conversacion["id"]
+
+    historial = conversacion.get("mensajes") or []
+
+    # Resolver paciente: request > conversación existente > lead anónimo nuevo
+    paciente_id_resuelto = paciente_id or conversacion.get("paciente_id")
+    if not paciente_id_resuelto:
+        from tools.pacientes import crear_lead
+        anon = await crear_lead(clinic_id, canal=canal)
+        paciente_id_resuelto = anon["id"]
+        db.table("conversaciones").update({"paciente_id": paciente_id_resuelto}).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
+    elif paciente_id_resuelto != conversacion.get("paciente_id"):
+        db.table("conversaciones").update({"paciente_id": paciente_id_resuelto}).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
 
     # Cargar configuración de la clínica, servicios activos y base de conocimiento
     clinica_res = db.table("clinicas").select("*").eq("id", clinic_id).single().execute()
@@ -91,35 +137,6 @@ async def run_agent(
     conocimiento_res = db.table("conocimientos").select("titulo, contenido, tipo") \
         .eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
     conocimiento = conocimiento_res.data or []
-
-    # Si no hay paciente_id (webchat sin teléfono), crear lead anónimo para tener ID
-    if not paciente_id:
-        from tools.pacientes import crear_lead
-        anon = await crear_lead(clinic_id, canal=canal)
-        paciente_id = anon["id"]
-
-    # Cargar o crear conversación
-    if conversacion_id:
-        conv_res = db.table("conversaciones").select("*").eq("id", conversacion_id).single().execute()
-        conversacion = conv_res.data
-        if not conversacion:
-            conversacion_id = None
-            conversacion = {}
-            historial = []
-        else:
-            historial = conversacion.get("mensajes") or []
-    else:
-        conv_data = {
-            "clinic_id": clinic_id,
-            "paciente_id": paciente_id,
-            "canal": canal,
-            "mensajes": [],
-            "estado": "activa",
-        }
-        conv_res = db.table("conversaciones").insert(conv_data).execute()
-        conversacion = conv_res.data[0]
-        conversacion_id = conversacion["id"]
-        historial = conversacion.get("mensajes") or []
 
     # Si la conversación está en mano humana, no responder
     if conversacion.get("estado") == "esperando_humano":
@@ -196,7 +213,11 @@ async def run_agent(
 
     db.table("conversaciones").update({
         "mensajes": nuevo_historial_guardado,
-        "paciente_id": paciente_id,
-    }).eq("id", conversacion_id).execute()
+        "paciente_id": paciente_id_resuelto,
+    }).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
+
+    if not skip_billing:
+        from billing import incrementar_minutos
+        await incrementar_minutos(clinic_id, 1)
 
     return respuesta, conversacion_id

@@ -117,7 +117,7 @@ export default function AgentDemoSandbox() {
   }, []);
 
   // ── STT ─────────────────────────────────────────────────────────────────
-  const startListening = useCallback(() => {
+  const startListening = () => {
     if (!callActiveRef.current || ttsPlaying) return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
@@ -157,7 +157,7 @@ export default function AgentDemoSandbox() {
     setIsListening(true);
     setCallStatus("Escuchándote...");
     try { recognition.start(); } catch { setIsListening(false); }
-  }, [ttsPlaying]);
+  };
 
   // ── Chat API ─────────────────────────────────────────────────────────────
   const sendChatMessage = async (text: string) => {
@@ -232,7 +232,7 @@ export default function AgentDemoSandbox() {
     setLoading(false);
   }, []);
 
-  const beginConnected = useCallback(() => {
+  const beginConnected = () => {
     callActiveRef.current = true;
     setCallState("connected");
     setCallSeconds(0);
@@ -250,7 +250,7 @@ export default function AgentDemoSandbox() {
     const greeting: Message = { role: "assistant", text: VALERIA_CALL_GREETING, time: getNow() };
     setMessages([greeting]);
     speakTTS(VALERIA_CALL_GREETING, () => { if (callActiveRef.current) startListening(); });
-  }, [speakTTS, startListening, hangUp]);
+  };
 
   const initiateCall = () => {
     if (callState === "ringing" || callState === "connected") return;

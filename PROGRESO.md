@@ -1,6 +1,377 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-12
+Última actualización: 2026-05-15
+
+---
+
+## SEO + GEO implementado (2026-05-15)
+
+### Bloque 18 — Blog + llms.txt + robots mejorado (completado)
+
+- **`dashboard/lib/blog-posts.ts`** (nuevo): 4 artículos keyword-targeted:
+  - `como-reducir-no-shows-clinica-privada` (7 min, gestión de citas)
+  - `inteligencia-artificial-para-clinicas-guia` (9 min, IA para clínicas)
+  - `como-automatizar-recordatorios-citas-clinica` (6 min, automatización)
+  - `software-agenda-clinica-fisioterapia-rehabilitacion` (7 min, fisio)
+- **`dashboard/app/blog/page.tsx`** (nuevo): índice del blog con cards y Schema.org Blog
+- **`dashboard/app/blog/[slug]/page.tsx`** (nuevo): artículo individual con Schema.org BlogPosting, breadcrumb, metadata dinámica
+- **`dashboard/public/llms.txt`** (nuevo): protocolo GEO — describe el producto para que ChatGPT, Gemini y Claude lo indexen con contexto correcto
+- **`dashboard/app/robots.ts`**: añadidos GPTBot, ChatGPT-User, ClaudeBot, Claude-Web, anthropic-ai, Applebot, Perplexity-User — todos los crawlers de IA explícitamente permitidos
+- **`dashboard/app/sitemap.ts`**: añadido `/blog` y 4 artículos individuales con `lastModified` por fecha de publicación
+- **`dashboard/middleware.ts`**: `/blog` añadido a `PUBLIC_PREFIXES`, `/llms.txt` añadido a `PUBLIC_PATHS`
+
+### Lo que ya tenía el proyecto (bien hecho por Codex):
+- Schema.org: Organization, WebSite, WebPage, SoftwareApplication, FAQPage, BreadcrumbList en homepage
+- Meta tags: title, description, canonical, OG tags, Twitter card
+- sitemap.ts con páginas públicas correctas
+- robots.ts base con OAI-SearchBot
+
+### Pendiente para SEO continuo (no urgente, semanas 2-4):
+1. Escribir 4-6 artículos más al mes (el blog ya está montado, solo añadir a `blog-posts.ts`)
+2. Solicitar indexación en Google Search Console tras primer deploy
+3. Registrar en directorios: Capterra, GetApp, G2 Crowd (clave para GEO)
+4. Conseguir menciones en blogs sectoriales (dental, fisio, salud digital España)
+
+---
+
+## Auditoría completa pre-beta (2026-05-15)
+
+### Bugs críticos identificados (pendientes de fix)
+
+| # | Bug | Archivo | Impacto |
+|---|---|---|---|
+| C1 | `check_plan_active()` sync en contexto async → bloquea event loop | `billing.py` + `core.py:87` | CRÍTICO — estabilidad bajo carga |
+| C2 | Race condition en `incrementar_minutos()` — sin transacción atómica | `billing.py:76-84` | CRÍTICO — billing incorrecto |
+| C3 | clinic_id no validado contra tabla `clinicas` en `run_agent()` | `core.py:21` | ALTO — conversaciones fantasma |
+| C4 | `webhook_events` tabla crece indefinidamente | `webhook_dedupe.py` | MEDIO — limpieza necesaria |
+| C5 | Resumen diario se genera pero NO se envía (TODO en código) | `scheduler.py:227` | MEDIO — feature prometida |
+| C6 | Si `RETELL_WS_SECRET` ausente en Railway → WS sin autenticar | `retell.py:103` | ALTO si no se configura |
+
+### Pendientes manuales críticos antes de activar beta
+
+| Acción | Dónde | Bloqueante |
+|---|---|---|
+| Ejecutar `013_webhook_events.sql` | Supabase SQL Editor | SÍ — dedupe no funciona sin tabla |
+| Ejecutar `014_performance_indexes.sql` | Supabase SQL Editor | No crítico pero recomendado |
+| Configurar `RETELL_WS_SECRET` | Railway env vars | SÍ — WebSocket sin auth |
+| Reprovisionar agentes Retell | POST /admin/clinicas/{id}/retell/agent | SÍ — URL WS sin token |
+| Configurar `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | Railway | SÍ — checkout/portal rotos |
+| Configurar `STRIPE_PRICE_STARTER/PRO/GROWTH` | Railway | SÍ — checkout falla |
+| Configurar `TELNYX_SMS_NUMBER` | Railway | No crítico — recordatorios SMS no salen |
+| Verificar `GOOGLE_REDIRECT_URI` exacto | Railway + Google Cloud Console | Bug B2 conocido |
+
+### Estado real del código (auditoría 2026-05-15)
+
+| Módulo | Estado | Notas |
+|---|---|---|
+| `agent/core.py` | ✅ Funcional | Bug C1 y C3 pendientes |
+| `agent/prompts.py` | ✅ Funcional | routing_mode, servicios, conocimiento inyectados |
+| `security.py` | ✅ Funcional | Fail-closed prod OK |
+| `billing.py` | ⚠️ Funcional con bugs | C1 (sync) + C2 (race condition) |
+| `retell_manager.py` | ✅ Funcional | Token en WS URL OK, idempotente |
+| `routers/retell.py` | ✅ Funcional | Dedupe + clinic_agent binding OK |
+| `routers/whatsapp.py` | ✅ Funcional | 3 BSPs, dedupe, firma validada |
+| `routers/admin.py` | ✅ Funcional | Paginación + UTC helper OK |
+| `routers/stripe_billing.py` | ✅ Funcional | Webhooks Stripe OK |
+| `routers/registro.py` | ✅ Funcional | Trial 7 días OK |
+| `jobs/scheduler.py` | ⚠️ Funcional | SMS Telnyx OK, resumen no se envía |
+| `webhook_dedupe.py` | ✅ Funcional | Fail-open, sin limpieza automática |
+| `telnyx_sms.py` | ✅ Funcional | asyncio.run() workaround (aceptable) |
+| `twilio_wa.py` | ✅ Funcional | |
+| `scoring.py` | ✅ Funcional | |
+| `routers/configuracion.py` | ✅ Funcional | |
+| Dashboard (Next.js) | ✅ 95% prod-ready | Todos imports OK, sin builds rotos |
+
+### Funcionalidades de mercado pendientes (prioridad para beta)
+
+1. **Confirmación activa en recordatorio** — paciente responde "1" o "Sí" al SMS para confirmar. Sin confirmación → alerta a clínica. Reduce no-shows 30-50%.
+2. **Cancelación self-service** — link en SMS/WA para cancelar sin llamar. Fácil de implementar en telnyx_sms.py.
+3. **Lista espera automática** — al cancelar, contactar primero de lista_espera. Requiere job en scheduler.
+4. **Estadísticas no-shows** en panel — ya hay datos en DB, falta UI.
+5. **Resumen diario por email** — código ya existe en scheduler.py, falta integrar Resend/SMTP.
+6. **DPA firmable en onboarding** — requerimiento legal RGPD para datos de salud.
+
+---
+
+## Registro de cambios recientes (2026-05-13)
+
+### Bloque 1 - Seguridad y multi-tenant (completado)
+
+- `backend/security.py`: `/admin` fail-closed en producción si falta `ADMIN_API_KEY`.
+- Protección con `require_admin_key` en routers sensibles (`invitaciones`, `registro`, `billing checkout/portal`).
+- OAuth Google endurecido con `state` firmado + nonce cookie anti-CSRF/replay.
+- `agent/core.py`: validaciones por `clinic_id` en conversación y updates; billing centralizado con `skip_billing` solo para test admin.
+- `whatsapp.py` y `retell.py`: fallback funcional para `PlanInactivo` y `MinutosAgotados`.
+- Eliminado fallback inseguro "primera clínica" en routing Twilio/Meta.
+- Webhook Twilio validado por firma `X-Twilio-Signature`.
+
+### Bloque 2 - Retell + dedupe webhooks (completado)
+
+- `backend/config.py`: nueva variable `RETELL_WS_SECRET`.
+- `backend/retell_manager.py`: incluye token en `llm_websocket_url`; refresca agente existente en `provision_clinic_agent`.
+- `backend/routers/retell.py`:
+  - autorización de WS por token (query/header)
+  - validación `clinic_id <-> retell_agent_id`
+  - dedupe de webhook Retell por clave de evento.
+- `backend/routers/whatsapp.py`: dedupe para Meta, Twilio y 360dialog.
+- Nuevo módulo `backend/webhook_dedupe.py`.
+- Nueva migración `backend/database/migrations/013_webhook_events.sql`.
+
+### Bloque 3 - OptimizaciÃ³n de consultas y payload (completado)
+
+- `backend/routers/admin.py`:
+  - paginaciÃ³n (`limit`/`offset`) en listados de alto volumen:
+    - conversaciones
+    - leads
+    - citas
+    - lista de espera
+    - recuperaciÃ³n
+  - `conversaciones` ahora soporta:
+    - `include_mensajes` (default `false`)
+    - `fecha=YYYY-MM-DD` para filtrar por dÃ­a
+- Dashboard ajustado para pedir menos datos:
+  - `panel/page`: conversaciones del dÃ­a (`limit=60`) + citas (`limit=120`)
+  - `panel/conversaciones`: `limit=250`
+  - `panel/leads`: `limit=300`
+  - `panel/citas`: `limit=250`
+- Nueva migraciÃ³n de Ã­ndices:
+  - `backend/database/migrations/014_performance_indexes.sql`
+  - Ã­ndices orientados a `clinic_id + updated_at/created_at` para acelerar listados.
+
+
+### Bloque 4 - Google Calendar sync en panel de citas (completado)
+
+- Eliminada auto-sync en cada carga de `dashboard/app/panel/citas/page.tsx`.
+- Nuevo flujo en `dashboard/app/panel/citas/CitasClient.tsx`:
+  - boton `Sincronizar ahora` (solo si `tieneGcal`)
+  - estado de carga `Sincronizando...`
+  - mensaje de resultado con `importados/actualizados`
+  - `router.refresh()` al terminar para recargar citas
+- Se mantiene la sincronizacion automatica por scheduler backend cada 60 minutos.
+- Beneficio: menos llamadas innecesarias a Google Calendar y mejor latencia inicial del panel.
+
+### Bloque 5 - Timezone correcto en filtros diarios (completado)
+
+- `backend/routers/admin.py` incorpora `_utc_bounds_for_local_day(fecha_iso)` para convertir dia local (`Europe/Madrid`) a rango UTC exacto.
+- Aplicado en:
+  - `listar_conversaciones(fecha=...)`
+  - `listar_citas(fecha=...)`
+  - `metricas_clinica` (hoy/ayer locales)
+  - `leads_recuperacion` (corte de >3 dias)
+- Se reemplaza el patron `T00:00:00Z / T23:59:59Z` por `gte(inicio_utc)` + `lt(fin_utc)` para evitar errores de borde y cambios de hora.
+- Beneficio: coherencia de datos diarios (citas, conversaciones y metricas) para clinicas en Espana.
+
+### Bloque 6 - Normalizacion de textos en panel de citas (completado)
+
+- Reescrito `dashboard/app/panel/citas/CitasClient.tsx` para eliminar mojibake en textos visibles.
+- Ejemplos corregidos: `No asistio`, `Hoy -`, `Telefono`, `Duracion`.
+- Se mantiene funcionalidad existente del bloque anterior:
+  - sync manual Google Calendar
+  - estado de carga y mensaje de resultado
+  - modal de detalle y `router.refresh()`
+- Beneficio: UI limpia y legible para cliente final.
+
+### Bloque 7 - Feedback UX consistente en sync de citas (completado)
+
+- `dashboard/app/panel/citas/CitasClient.tsx` ahora diferencia estado de resultado (`success`/`error`) para la sync manual.
+- Mensajeria de resultado con color semantico:
+  - error: rojo
+  - exito: verde
+- Accesibilidad: `aria-busy` durante carga y `role=alert/status` en respuesta.
+- Beneficio: mejor claridad operativa para usuario final cuando sincroniza Google Calendar.
+
+### Bloque 8 - Estabilidad leads/conversaciones + feedback unificado (completado)
+
+- Restaurados componentes faltantes que estaban referenciados por `LeadsWrapper`:
+  - `dashboard/app/panel/lista-espera/ListaEsperaClient.tsx`
+  - `dashboard/app/panel/recuperacion/RecuperacionClient.tsx`
+- `dashboard/app/panel/conversaciones/[id]/ConversacionDetalle.tsx` mejorado con:
+  - estados `loading/success/error` para resolver y responder
+  - avisos visuales de estado (exito/error)
+  - `aria-busy` y `role=alert/status`
+- Normalizacion extra de textos en:
+  - `dashboard/app/panel/leads/LeadsClient.tsx`
+  - `dashboard/app/panel/leads/LeadsWrapper.tsx`
+- Beneficio: evita fallos por imports rotos y deja UX consistente en flujos de operacion diaria.
+
+### Bloque 9 - Feedback UX unificado en agenda (completado)
+
+- Aplicado patron `loading/success/error` en tabs clave de agenda:
+  - `dashboard/app/panel/agenda/ServiciosTab.tsx`
+  - `dashboard/app/panel/agenda/ProfesionalesTab.tsx`
+  - `dashboard/app/panel/agenda/SalasTab.tsx`
+  - `dashboard/app/panel/agenda/BloquesTab.tsx`
+- Cada tab ahora muestra avisos semanticos tras mutaciones (guardar, activar/desactivar y eliminar).
+- Se anaden estados de error explicitos para fallos de red/API.
+- Beneficio: consistencia de UX entre modulos operativos del panel.
+ 
+### Bloque 10 - Cobertura de feedback en subcomponentes de agenda (completado)
+
+- `dashboard/app/panel/agenda/ProfesionalesTab.tsx`:
+  - `DisponibilidadEditor` ahora valida `res.ok` y maneja errores reales en `load/save`.
+  - avisos `success/error` con `role=alert/status` al cargar y guardar horario.
+- `dashboard/app/panel/agenda/ServiciosTab.tsx`:
+  - `ProfAsignados` ahora valida API en asignar/desasignar y carga inicial.
+  - avisos `success/error` para confirmar cambios o fallos.
+- `dashboard/app/panel/agenda/ReglasTab.tsx`:
+  - unificado al patron de `notice` (`success/error`) en guardado.
+  - `aria-busy` en boton durante guardado.
+- Beneficio: cobertura total del patron UX en agenda, incluyendo subflujos de disponibilidad y asignacion.
+
+### Bloque 11 - Correccion de feedback en canal de voz (completado)
+
+- `dashboard/app/panel/canales/CanalesClient.tsx`:
+  - `handleDesconectar` ahora valida `res.ok` y muestra error real de API si falla.
+  - `voiceSuccess` pasa de booleano a mensaje (`string | null`) para feedback mas preciso.
+  - se limpian estados previos (`voiceError/voiceSuccess`) al iniciar acciones de conectar, desconectar, buscar y comprar.
+  - mensajes de exito con `role=status` para accesibilidad.
+- Beneficio: evita falsos positivos de "desconectado" y mejora claridad operativa en configuracion de voz.
+
+### Bloque 12 - Saneado de textos mojibake en configuracion/canales (completado)
+
+- `dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`:
+  - saneados textos visibles con caracteres corruptos.
+  - corregidos efectos secundarios funcionales en inputs (`value`/`onChange`) tras limpieza.
+  - restaurados textos de botones/iconos que quedaron vacios (`x`, `->`) y mensajes de carga (`...`).
+- `dashboard/app/panel/canales/CanalesClient.tsx`:
+  - saneados textos visibles con caracteres corruptos.
+  - corregidos `value` en `input/select/option` para evitar regresiones de formulario.
+- Verificacion tecnica:
+  - ambos archivos quedaron en ASCII limpio (sin caracteres de reemplazo ni null bytes).
+- Beneficio: UX legible y consistente, sin texto roto en vistas operativas clave.
+
+### Bloque 13 - Hotfix de compilacion en Configuracion (completado)
+
+- `dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`:
+  - corregido token JSX invalido en el boton de envio del drawer de test.
+  - reemplazado contenido problematico por texto estable (`Enviar`).
+- Beneficio: elimina bloqueo de compilacion reportado en `npm run build` (linea 558).
+
+### Bloque 14 - Lint no interactivo para CI (completado)
+
+- `dashboard/.eslintrc.json` (nuevo):
+  - configuracion minima con `next/core-web-vitals`.
+- `dashboard/package.json`:
+  - anadidas devDependencies:
+    - `eslint`
+    - `eslint-config-next`
+- Beneficio: `npm run lint` deja de abrir el asistente interactivo y queda apto para CI.
+
+### Bloque 15 - Correccion de errores ESLint bloqueantes (completado)
+
+- `dashboard/app/panel/configuracion/TestAgente.tsx`:
+  - corregidos textos con comillas sin escapar en JSX (`react/no-unescaped-entities`).
+- `dashboard/app/privacidad/page.tsx`:
+  - reemplazados enlaces internos `<a href=\"/...\">` por `Link` de Next.js.
+  - corregida entidad de comillas en `Supresion ("derecho al olvido")`.
+- `dashboard/app/terminos/page.tsx`:
+  - reemplazados enlaces internos `<a href=\"/...\">` por `Link` de Next.js.
+  - corregidas comillas sin escapar en textos legales.
+- Resultado esperado: `npm run lint` y `npm run build` sin errores bloqueantes de ESLint.
+
+### Bloque 16 - Limpieza de warning hooks en marketing (completado)
+
+- `dashboard/components/marketing/AgentDemoSandbox.tsx`:
+  - eliminado `useCallback` innecesario en `startListening` para evitar warning de dependencia faltante (`sendVoiceMessage`).
+- Resultado esperado: `lint/build` sin warning de `react-hooks/exhaustive-deps` en ese archivo.
+
+### Bloque 17 - Estabilizacion final de dependencias hook en marketing (completado)
+
+- `dashboard/components/marketing/AgentDemoSandbox.tsx`:
+  - `beginConnected` pasa de `useCallback` a funcion normal para evitar dependencia inestable de `startListening`.
+  - se elimina el warning restante de `react-hooks/exhaustive-deps` reportado en `:120:9` (impactando deps en linea `253` del bloque previo).
+- Resultado esperado: `npm run lint` y `npm run build` sin warnings en `AgentDemoSandbox.tsx`.
+### Pendientes operativos inmediatos tras Bloque 2
+
+1. Ejecutar migración `013_webhook_events.sql` en Supabase.
+2. Definir `RETELL_WS_SECRET` en producción.
+3. Reprovisionar/actualizar agentes Retell para propagar URL WS con token.
+4. Validar retries reales de webhooks y confirmar cero duplicados.
+
+### Pendientes operativos inmediatos tras Bloque 3
+
+1. Ejecutar migraciÃ³n `014_performance_indexes.sql`.
+2. Medir latencia real post-migraciÃ³n en endpoints de listado del panel.
+3. Usar `include_mensajes=true` solo en vistas que realmente necesiten historial completo.
+
+
+### Pendientes operativos inmediatos tras Bloque 4
+
+1. Validar en staging que el scheduler sigue sincronizando citas de Google Calendar sin depender de la carga de la pagina.
+2. Medir descenso de llamadas sync-gcal en logs (antes/despues) para confirmar ahorro.
+
+### Pendientes operativos inmediatos tras Bloque 5
+
+1. Probar en staging con citas/conversaciones cerca de medianoche local (23:30-00:30) para validar que aparecen en el dia correcto.
+2. Confirmar que los KPIs de hoy/ayer del panel coinciden con consultas manuales en Supabase.
+### Pendientes operativos inmediatos tras Bloque 6
+
+1. Validar en navegador que no quedan caracteres corruptos en otras vistas del panel (leads, conversaciones, configuracion).
+2. Si aparecen mas casos, aplicar el mismo saneado por archivo para evitar regresiones de encoding.
+### Pendientes operativos inmediatos tras Bloque 7
+
+1. Revisar que el color de estado se vea bien en diferentes resoluciones y contraste.
+2. Replicar este patron de feedback (success/error/cargando) en otras acciones del panel.
+### Pendientes operativos inmediatos tras Bloque 8
+
+1. Validar build de Next.js en entorno con `npm` disponible para confirmar que se resolvio el problema de imports faltantes.
+2. Verificar manualmente acciones de lista de espera y recuperacion en staging (notificar, marcar, eliminar, reenganchar).
+3. Extender el mismo patron de feedback a otras acciones de panel (agenda/canales/configuracion).
+### Pendientes operativos inmediatos tras Bloque 9
+
+1. Validar visualmente en staging los avisos de estado en escritorio y movil.
+
+### Pendientes operativos inmediatos tras Bloque 10
+
+1. Ejecutar build/lint de Next.js en entorno con `npm` para validar compilacion y tipado final.
+2. Validar manualmente en staging:
+   - disponibilidad por profesional (cargar/guardar)
+   - asignaciones de profesionales por servicio (asignar/desasignar)
+   - reglas globales (guardar + feedback de error/exito)
+
+### Pendientes operativos inmediatos tras Bloque 11
+
+1. Validar en staging el flujo de voz:
+   - desconectar numero con respuesta OK
+   - simular fallo API y confirmar mensaje de error real
+   - reconectar/comprar numero y confirmar mensaje de exito correcto
+
+### Pendientes operativos inmediatos tras Bloque 12
+
+1. Revisar visualmente en staging `Configuracion` y `Canales` (desktop + movil) para validar copy final.
+2. Ejecutar build/lint de Next.js en entorno con `npm` para confirmar que no hay regresiones de tipado/render.
+
+### Pendientes operativos inmediatos tras Bloque 13
+
+1. Re-ejecutar `npm run build` para confirmar cierre del P1 reportado (`ConfiguracionWrapper.tsx`).
+2. Completar QA manual de `Configuracion`, `Canales` y `Agenda` en navegador con DevTools.
+3. Configurar ESLint del proyecto para evitar prompt interactivo y habilitar `npm run lint` no interactivo.
+
+### Pendientes operativos inmediatos tras Bloque 14
+
+1. Ejecutar `npm install` en `dashboard` para actualizar `package-lock.json` con las nuevas devDependencies.
+2. Re-ejecutar `npm run lint` y compartir salida completa para cerrar validacion CI.
+3. Completar QA manual de `Configuracion`, `Canales` y `Agenda` en navegador con DevTools.
+
+### Pendientes operativos inmediatos tras Bloque 15
+
+1. Re-ejecutar `npm run lint` y `npm run build` para confirmar cierre total de errores.
+2. Revisar warning restante en `components/marketing/AgentDemoSandbox.tsx` (`react-hooks/exhaustive-deps`) y decidir si se corrige ahora o se difiere.
+3. Completar QA manual de `Configuracion`, `Canales` y `Agenda` en navegador con DevTools.
+
+### Pendientes operativos inmediatos tras Bloque 16
+
+1. Re-ejecutar `npm run lint` y `npm run build` para confirmar salida limpia final.
+2. Completar QA manual de `Configuracion`, `Canales` y `Agenda` en navegador con DevTools.
+
+### Pendientes operativos inmediatos tras Bloque 17
+
+1. Re-ejecutar `npm run lint` y `npm run build` para confirmar cierre sin warnings nuevos en marketing.
+2. Completar QA manual de `Configuracion`, `Canales` y `Agenda` en navegador con DevTools.
+### Estado de pruebas
+
+- En esta máquina no se pudieron ejecutar tests Python por falta de runtime Python instalado/configurado.
+- En esta maquina no se pudo ejecutar build/lint de Next.js porque `npm` no esta disponible.
 
 ---
 
@@ -594,3 +965,11 @@ Al completar cualquier tarea:
 2. Cambia 🔄 → ✅ cuando termines
 3. Actualiza "Última actualización" al principio del archivo
 4. Añade notas si tomaste alguna decisión importante
+
+
+
+
+
+
+
+

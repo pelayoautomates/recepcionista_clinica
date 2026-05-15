@@ -12,6 +12,7 @@ export default async function AgendaPage() {
     `/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
     { noStore: true }
   );
+  if (!rolRes.ok) redirect("/login");
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
@@ -24,12 +25,10 @@ export default async function AgendaPage() {
     adminFetch(`/admin/clinicas/${clinicId}/reglas`, { noStore: true }),
   ]);
 
-  const [servicios, profesionales, salas, reglas] = await Promise.all([
-    serviciosRes.json(),
-    profesionalesRes.json(),
-    salasRes.json(),
-    reglasRes.json(),
-  ]);
+  const servicios     = serviciosRes.ok     ? await serviciosRes.json()     : [];
+  const profesionales = profesionalesRes.ok ? await profesionalesRes.json() : [];
+  const salas         = salasRes.ok         ? await salasRes.json()         : [];
+  const reglas        = reglasRes.ok        ? await reglasRes.json()        : {};
 
   return (
     <AgendaConfig

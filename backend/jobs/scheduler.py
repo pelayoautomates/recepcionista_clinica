@@ -1,32 +1,55 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 
-_scheduler = BackgroundScheduler(timezone="UTC")
+_TZ = ZoneInfo("Europe/Madrid")
+_scheduler = BackgroundScheduler(timezone="Europe/Madrid")
 
 
 def start_scheduler():
+    if _scheduler.running:
+        logger.info("Scheduler ya estaba iniciado")
+        return
+
     _scheduler.add_job(
         _procesar_jobs_pendientes,
         trigger=IntervalTrigger(minutes=1),
         id="procesar_jobs",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=30,
     )
     _scheduler.add_job(
         _programar_recordatorios_pendientes,
         trigger=IntervalTrigger(hours=1),
         id="programar_recordatorios",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,
+    )
+    _scheduler.add_job(
+        _sync_all_gcal,
+        trigger=IntervalTrigger(minutes=60),
+        id="sync_gcal",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,
     )
     _scheduler.start()
-    logger.info("Scheduler iniciado: procesar_jobs (1min), programar_recordatorios (1h)")
+    logger.info("Scheduler iniciado: procesar_jobs (1min), programar_recordatorios (1h), sync_gcal (60min)")
 
 
 def stop_scheduler():
+    if not _scheduler.running:
+        return
     _scheduler.shutdown(wait=False)
     logger.info("Scheduler detenido")
 
@@ -55,6 +78,8 @@ def _procesar_jobs_pendientes():
         .select("*") \
         .eq("estado", "pendiente") \
         .lte("fecha_programada", ahora.isoformat()) \
+        .order("fecha_programada") \
+        .limit(200) \
         .execute()
 
     for job in result.data:
@@ -66,7 +91,13 @@ def _ejecutar_job(job: dict):
     db = get_supabase()
     job_id = job["id"]
 
-    db.table("jobs").update({"estado": "ejecutando"}).eq("id", job_id).execute()
+    # Claim atomico: evita doble ejecucion cuando hay mas de una instancia del scheduler.
+    claim = db.table("jobs").update({"estado": "ejecutando"}) \
+        .eq("id", job_id) \
+        .eq("estado", "pendiente") \
+        .execute()
+    if not claim.data:
+        return
 
     try:
         tipo = job["tipo"]
@@ -79,7 +110,7 @@ def _ejecutar_job(job: dict):
         elif tipo == "resumen_diario":
             _enviar_resumen_diario(job)
 
-        db.table("jobs").update({"estado": "ejecutado"}).eq("id", job_id).execute()
+        db.table("jobs").update({"estado": "ejecutado"}).eq("id", job_id).eq("estado", "ejecutando").execute()
         logger.info("Job %s (%s) ejecutado OK", job_id, tipo)
 
     except Exception as e:
@@ -92,7 +123,7 @@ def _ejecutar_job(job: dict):
             "intentos": intentos,
             "error": str(e),
             "fecha_programada": nueva_fecha.isoformat() if nuevo_estado == "pendiente" else job["fecha_programada"],
-        }).eq("id", job_id).execute()
+        }).eq("id", job_id).eq("estado", "ejecutando").execute()
 
         logger.error("Job %s (%s) falló (intento %d): %s", job_id, job["tipo"], intentos, e)
 
@@ -158,7 +189,7 @@ def _enviar_resumen_diario(job: dict):
 
     db = get_supabase()
     clinic_id = job["clinic_id"]
-    hoy = datetime.now(timezone.utc).date().isoformat()
+    hoy = datetime.now(_TZ).date().isoformat()
 
     citas = db.table("citas").select("tipo_servicio, fecha_inicio, estado") \
         .eq("clinic_id", clinic_id) \
@@ -243,3 +274,20 @@ def _programar_recordatorios_pendientes():
                     "idempotency_key": idem_key,
                     "payload": payload,
                 }, on_conflict="idempotency_key").execute()
+
+
+def _sync_all_gcal():
+    """Importa eventos de GCal para todas las clínicas con GCal conectado. Corre cada 60 min."""
+    from database.client import get_supabase
+    from routers.admin import _do_sync_gcal
+
+    db = get_supabase()
+    clinicas = db.table("clinicas").select("id").not_.is_("google_tokens_enc", "null").execute()
+
+    for c in clinicas.data:
+        clinic_id = c["id"]
+        try:
+            result = _do_sync_gcal(clinic_id)
+            logger.info("GCal sync clínica %s: %s importadas, %s actualizadas", clinic_id, result["importados"], result["actualizados"])
+        except Exception as e:
+            logger.warning("GCal sync falló clínica %s: %s", clinic_id, e)

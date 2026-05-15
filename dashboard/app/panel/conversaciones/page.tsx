@@ -13,7 +13,7 @@ export default async function PanelConversacionesPage() {
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
   const [convRes, canalesRes] = await Promise.all([
-    adminFetch(`/admin/clinicas/${rol.clinic_id}/conversaciones`, { noStore: true }),
+    adminFetch(`/admin/clinicas/${rol.clinic_id}/conversaciones?limit=250`, { noStore: true }),
     adminFetch(`/admin/clinicas/${rol.clinic_id}/canales`, { noStore: true }),
   ]);
 

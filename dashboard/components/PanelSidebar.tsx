@@ -54,6 +54,27 @@ const NAV_AJUSTES = [
     ),
   },
   {
+    href: "/panel/agenda", label: "Servicios", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path d="M3 5H14M3 9H10M3 13H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="13.5" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+        <path d="M12.5 12H13.5V13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/panel/canales", label: "Canales", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <circle cx="3.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
+        <circle cx="13.5" cy="4.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
+        <circle cx="13.5" cy="12.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
+        <path d="M5 8.5L12 5M5 8.5L12 12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/facturacion", label: "Facturación", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">

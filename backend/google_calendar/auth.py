@@ -43,15 +43,20 @@ def get_oauth_flow(state: str | None = None) -> Flow:
     return flow
 
 
-def get_authorization_url(clinic_id: UUID) -> str:
+def get_authorization_url_with_state(state: str) -> str:
     flow = get_oauth_flow()
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
-        state=str(clinic_id),
+        state=state,
         prompt="consent",
     )
     return auth_url
+
+
+def get_authorization_url(clinic_id: UUID) -> str:
+    # Legacy helper: keeps backward compatibility with plain clinic UUID state.
+    return get_authorization_url_with_state(str(clinic_id))
 
 
 def save_tokens(clinic_id: UUID, code: str, state: str) -> None:

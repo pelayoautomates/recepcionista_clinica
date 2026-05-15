@@ -11,6 +11,7 @@ import hmac
 import json
 import logging
 import tempfile
+import base64
 from typing import Any
 
 import httpx
@@ -19,6 +20,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from agent.core import run_agent
 from config import settings
 from tools.pacientes import buscar_paciente
+from webhook_dedupe import mark_webhook_event_once
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -44,17 +46,25 @@ async def _process_wa_message(
     text: str,
     send_fn,  # async (to: str, reply: str) -> None
 ) -> None:
+    from billing import MinutosAgotados, PlanInactivo
+
     paciente = await buscar_paciente(clinic_id, from_number)
     paciente_id = paciente["id"] if paciente else None
     conversacion_id = await _get_active_conv(clinic_id, paciente_id)
 
-    respuesta, _ = await run_agent(
-        clinic_id=clinic_id,
-        conversacion_id=conversacion_id,
-        user_message=text,
-        canal="whatsapp",
-        paciente_id=paciente_id,
-    )
+    try:
+        respuesta, _ = await run_agent(
+            clinic_id=clinic_id,
+            conversacion_id=conversacion_id,
+            user_message=text,
+            canal="whatsapp",
+            paciente_id=paciente_id,
+        )
+    except PlanInactivo:
+        respuesta = "En este momento no puedo atender por este canal. Por favor, contacta directamente con la clínica."
+    except MinutosAgotados:
+        respuesta = "En este momento la atención automática está temporalmente pausada. Por favor, contacta directamente con la clínica."
+
     await send_fn(from_number, respuesta)
 
 
@@ -92,8 +102,12 @@ async def receive_message_meta(request: Request):
             return {"status": "ok"}
 
         message = messages[0]
+        message_id = message.get("id") or ""
         from_number = message.get("from")
         phone_number_id = value.get("metadata", {}).get("phone_number_id")
+        msg_key = f"{phone_number_id}:{message_id}" if message_id else f"{phone_number_id}:{from_number}:{message.get('timestamp', '')}:{message.get('type', '')}"
+        if not mark_webhook_event_once("meta_whatsapp", msg_key, raw_body.decode("utf-8", errors="ignore")):
+            return {"status": "ok"}
 
         clinic_id = await _get_meta_clinic(phone_number_id)
         if not clinic_id:
@@ -121,9 +135,7 @@ async def _get_meta_clinic(phone_number_id: str | None) -> str | None:
     res = db.table("clinicas").select("id").eq("whatsapp_number", phone_number_id).limit(1).execute()
     if res.data:
         return res.data[0]["id"]
-    # Fallback: single clinic in dev
-    all_c = db.table("clinicas").select("id").limit(1).execute()
-    return all_c.data[0]["id"] if all_c.data else None
+    return None
 
 
 async def _extract_text_meta(message: dict) -> str:
@@ -173,14 +185,51 @@ async def _send_meta(to: str, text: str) -> None:
 
 # ── Twilio WhatsApp ───────────────────────────────────────────────────────────
 
+def _verify_twilio_signature(request: Request, form: Any) -> bool:
+    """Verifica X-Twilio-Signature para webhooks de Twilio."""
+    if not settings.twilio_auth_token:
+        return True
+
+    signature = request.headers.get("X-Twilio-Signature", "")
+    if not signature:
+        return False
+
+    proto = request.headers.get("x-forwarded-proto")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if proto and host:
+        url = f"{proto}://{host}{request.url.path}"
+    else:
+        url = str(request.url).split("?", 1)[0]
+
+    payload = url
+    for key in sorted(form.keys()):
+        values = form.getlist(key) if hasattr(form, "getlist") else [form.get(key)]
+        for value in values:
+            payload += f"{key}{value}"
+
+    expected_raw = hmac.new(
+        settings.twilio_auth_token.encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha1,
+    ).digest()
+    expected_sig = base64.b64encode(expected_raw).decode("utf-8")
+    return hmac.compare_digest(signature, expected_sig)
+
+
 @router.post("/twilio")
 async def receive_message_twilio(request: Request):
     """Receive WhatsApp messages from Twilio sandbox or production."""
     form = await request.form()
+    if not _verify_twilio_signature(request, form):
+        raise HTTPException(status_code=403, detail="Invalid Twilio signature")
 
     from_number = str(form.get("From", "")).replace("whatsapp:", "")
     to_number = str(form.get("To", ""))
     body = str(form.get("Body", "")).strip()
+    message_sid = str(form.get("MessageSid", "")).strip()
+    twilio_key = message_sid or f"{to_number}:{from_number}:{hashlib.sha256(body.encode('utf-8')).hexdigest()[:24]}"
+    if not mark_webhook_event_once("twilio_whatsapp", twilio_key):
+        return {"status": "ok"}
 
     if not from_number or not body:
         return {"status": "ok"}
@@ -234,8 +283,12 @@ async def receive_message_360(request: Request):
             return {"status": "ok"}
 
         message = messages[0]
+        message_id = message.get("id") or ""
         from_number = message.get("from")
         phone_number_id = value.get("metadata", {}).get("phone_number_id")
+        msg_key = f"{phone_number_id}:{message_id}" if message_id else f"{phone_number_id}:{from_number}:{message.get('timestamp', '')}:{message.get('type', '')}"
+        if not mark_webhook_event_once("dialog360_whatsapp", msg_key, raw_body.decode("utf-8", errors="ignore")):
+            return {"status": "ok"}
 
         # Look up clinic by 360dialog phone_id
         from dialog360 import get_clinic_by_phone_id

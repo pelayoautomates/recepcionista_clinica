@@ -2,13 +2,14 @@ import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from database.client import get_supabase
+from security import require_admin_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_key)])
 
 TRIAL_DAYS = 7
 
@@ -26,7 +27,7 @@ class RegistroClinicaRequest(BaseModel):
 async def registrar_clinica(data: RegistroClinicaRequest):
     """
     Crea una clínica nueva y vincula al usuario.
-    Llamado desde el onboarding self-service — no requiere admin key.
+    Llamado desde el onboarding self-service vía proxy autenticado.
     El dashboard valida la sesión antes de llamar aquí.
     """
     db = get_supabase()

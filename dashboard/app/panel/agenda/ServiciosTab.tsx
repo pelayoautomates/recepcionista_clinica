@@ -35,10 +35,11 @@ export default function ServiciosTab({
   const [showProfs, setShowProfs] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function save() {
     if (!editing?.nombre) { setError("El nombre es obligatorio"); return; }
-    setSaving(true); setError("");
+    setSaving(true); setError(""); setNotice(null);
     try {
       const isNew = !(editing as Servicio).id;
       const url = isNew
@@ -55,12 +56,15 @@ export default function ServiciosTab({
         isNew ? [...prev, saved] : prev.map(s => s.id === saved.id ? saved : s)
       );
       setEditing(null);
+      setNotice({ type: "success", text: "Servicio guardado correctamente." });
     } catch (e: any) {
       setError(e.message);
+      setNotice({ type: "error", text: "No se pudo guardar el servicio." });
     } finally { setSaving(false); }
   }
 
   async function toggleActivo(s: Servicio) {
+    setNotice(null);
     const res = await fetch(`/api/clinicas/${clinicId}/servicios/${s.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +73,10 @@ export default function ServiciosTab({
     if (res.ok) {
       const updated = await res.json();
       setServicios(prev => prev.map(x => x.id === updated.id ? updated : x));
+      setNotice({ type: "success", text: `Servicio ${updated.activo ? "activado" : "desactivado"}.` });
+      return;
     }
+    setNotice({ type: "error", text: "No se pudo actualizar el estado del servicio." });
   }
 
   return (
@@ -82,6 +89,23 @@ export default function ServiciosTab({
           + Nuevo servicio
         </button>
       </div>
+      {notice && (
+        <div
+          role={notice.type === "error" ? "alert" : "status"}
+          style={{
+            marginBottom: 12,
+            fontSize: 12.5,
+            padding: "8px 10px",
+            borderRadius: 8,
+            color: notice.type === "error" ? "#b91c1c" : "#166534",
+            background: notice.type === "error" ? "#fee2e2" : "#dcfce7",
+            border: `1px solid ${notice.type === "error" ? "#fecaca" : "#bbf7d0"}`,
+            fontWeight: 500,
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {servicios.map(s => (
@@ -218,31 +242,48 @@ function ProfAsignados({
   const [assigned, setAssigned] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function load() {
     setLoading(true);
-    const res = await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales`);
-    const data = await res.json();
-    setAssigned((Array.isArray(data) ? data : []).map((r: any) => r.profesional_id ?? r.id));
-    setLoading(false);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setAssigned((Array.isArray(data) ? data : []).map((r: any) => r.profesional_id ?? r.id));
+    } catch {
+      setNotice({ type: "error", text: "No se pudo cargar la asignacion de profesionales." });
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function toggle(profId: string) {
     if (!assigned) return;
     setToggling(profId);
+    setNotice(null);
     const isAssigned = assigned.includes(profId);
-    if (isAssigned) {
-      await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales/${profId}`, { method: "DELETE" });
-      setAssigned(prev => (prev ?? []).filter(id => id !== profId));
-    } else {
-      await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profesional_id: profId }),
-      });
-      setAssigned(prev => [...(prev ?? []), profId]);
+    try {
+      if (isAssigned) {
+        const res = await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales/${profId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(await res.text());
+        setAssigned(prev => (prev ?? []).filter(id => id !== profId));
+      } else {
+        const res = await fetch(`/api/clinicas/${clinicId}/servicios/${servicioId}/profesionales`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profesional_id: profId }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        setAssigned(prev => [...(prev ?? []), profId]);
+      }
+      setNotice({ type: "success", text: "Asignacion actualizada." });
+    } catch {
+      setNotice({ type: "error", text: "No se pudo actualizar la asignacion." });
+    } finally {
+      setToggling(null);
     }
-    setToggling(null);
   }
 
   if (assigned === null) {
@@ -257,6 +298,23 @@ function ProfAsignados({
 
   return (
     <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #f3f4f6" }}>
+      {notice && (
+        <div
+          role={notice.type === "error" ? "alert" : "status"}
+          style={{
+            marginBottom: 10,
+            fontSize: 12,
+            padding: "7px 9px",
+            borderRadius: 8,
+            color: notice.type === "error" ? "#b91c1c" : "#166534",
+            background: notice.type === "error" ? "#fee2e2" : "#dcfce7",
+            border: `1px solid ${notice.type === "error" ? "#fecaca" : "#bbf7d0"}`,
+            fontWeight: 500,
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
       <p style={{ margin: "0 0 10px", fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
         Profesionales que ofrecen este servicio
       </p>

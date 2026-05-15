@@ -91,7 +91,7 @@ export default function TestAgente({ clinicId, agenteName }: Props) {
       }}>
         <span>🧪</span>
         <span>
-          <strong>Modo test.</strong> La conversación aparece en /conversaciones con canal "test".
+          <strong>Modo test.</strong> La conversación aparece en /conversaciones con canal &quot;test&quot;.
           Las citas que el agente intente crear son reales — cancélalas si no las necesitas.
         </span>
       </div>
@@ -115,7 +115,7 @@ export default function TestAgente({ clinicId, agenteName }: Props) {
                   Escribe tu primer mensaje
                 </p>
                 <p style={{ margin: 0 }}>
-                  Prueba: "Hola, quiero pedir cita" o "¿Qué servicios tenéis?"
+                  Prueba: &quot;Hola, quiero pedir cita&quot; o &quot;¿Qué servicios tenéis?&quot;
                 </p>
               </div>
             </div>

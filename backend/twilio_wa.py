@@ -52,6 +52,4 @@ async def get_clinic_by_twilio_number(to_number: str):
     )
     if res.data:
         return res.data[0]
-    # Dev fallback: return first clinic
-    fallback = db.table("clinicas").select("id, nombre").limit(1).execute()
-    return fallback.data[0] if fallback.data else None
+    return None

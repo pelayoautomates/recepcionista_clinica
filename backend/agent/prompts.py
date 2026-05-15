@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+_TZ = ZoneInfo("Europe/Madrid")
 
 BASE_SYSTEM_PROMPT = """Eres la recepcionista virtual de {nombre_clinica}. Tu nombre es {nombre_agente}.
 
@@ -137,7 +140,7 @@ def build_system_prompt(clinica: dict, servicios_tabla: list | None = None, cono
     return BASE_SYSTEM_PROMPT.format(
         nombre_clinica=clinica.get("nombre", "la clínica"),
         nombre_agente=clinica.get("agente_nombre") or "Valeria",
-        fecha_hora_actual=datetime.now(timezone.utc).strftime("%A %d de %B de %Y, %H:%M UTC"),
+        fecha_hora_actual=datetime.now(_TZ).strftime("%A %d de %B de %Y, %H:%M"),
         tono="cercano pero profesional",
         info_clinica=info_clinica,
         conocimiento_texto=conocimiento_texto,

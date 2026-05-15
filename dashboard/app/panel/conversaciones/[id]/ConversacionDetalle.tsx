@@ -49,6 +49,8 @@ type MensajeVisible = {
   from_human?: boolean;
 };
 
+type Notice = { type: "success" | "error"; text: string };
+
 export default function ConversacionDetalle({
   conv: initialConv,
   paciente,
@@ -64,8 +66,10 @@ export default function ConversacionDetalle({
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [resumen, setResumen] = useState<string | null>(null);
   const [cargandoResumen, setCargandoResumen] = useState(false);
+  const [resolviendo, setResolviendo] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const mensajesVisibles = normalizarMensajes(conv.mensajes);
@@ -82,6 +86,7 @@ export default function ConversacionDetalle({
     setTexto("");
     setEnviando(true);
     setError("");
+    setNotice(null);
     try {
       const res = await fetch(`/api/clinicas/${clinic_id}/conversaciones/${conv.id}/responder`, {
         method: "POST",
@@ -91,8 +96,10 @@ export default function ConversacionDetalle({
       if (!res.ok) throw new Error("Error al enviar");
       const updated = await res.json();
       setConv((prev) => ({ ...prev, mensajes: updated.mensajes, estado: updated.estado }));
+      setNotice({ type: "success", text: "Respuesta enviada correctamente." });
     } catch {
       setError("No se pudo enviar el mensaje.");
+      setNotice({ type: "error", text: "No se pudo enviar la respuesta." });
       setTexto(msg);
     } finally {
       setEnviando(false);
@@ -120,14 +127,22 @@ export default function ConversacionDetalle({
 
   const resolverConversacion = async () => {
     setError("");
-    const res = await fetch(`/api/clinicas/${clinic_id}/conversaciones/${conv.id}/resolver`, {
-      method: "PATCH",
-    });
-    if (res.ok) {
-      setConv((prev) => ({ ...prev, estado: "resuelta" }));
-      return;
+    setNotice(null);
+    setResolviendo(true);
+    try {
+      const res = await fetch(`/api/clinicas/${clinic_id}/conversaciones/${conv.id}/resolver`, {
+        method: "PATCH",
+      });
+      if (res.ok) {
+        setConv((prev) => ({ ...prev, estado: "resuelta" }));
+        setNotice({ type: "success", text: "Conversacion marcada como resuelta." });
+        return;
+      }
+      setError("No se pudo marcar la conversacion como resuelta.");
+      setNotice({ type: "error", text: "No se pudo marcar como resuelta." });
+    } finally {
+      setResolviendo(false);
     }
-    setError("No se pudo marcar la conversacion como resuelta.");
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -139,14 +154,7 @@ export default function ConversacionDetalle({
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0, 1fr)", gap: 18, minHeight: "calc(100vh - 130px)" }}>
-      <aside style={{
-        background: "#ffffff",
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        overflow: "auto",
-        display: "flex",
-        flexDirection: "column",
-      }}>
+      <aside style={{ background: "#ffffff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 16px 14px", borderBottom: "1px solid #f3f4f6" }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Paciente</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>{paciente?.nombre || "Desconocido"}</div>
@@ -171,43 +179,45 @@ export default function ConversacionDetalle({
 
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f3f4f6" }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Estado conversacion</div>
-          <span style={{
-            display: "inline-block",
-            fontSize: 11,
-            background: estado.bg,
-            color: estado.color,
-            borderRadius: 10,
-            padding: "3px 10px",
-            fontWeight: 600,
-          }}>{estado.label}</span>
+          <span style={{ display: "inline-block", fontSize: 11, background: estado.bg, color: estado.color, borderRadius: 10, padding: "3px 10px", fontWeight: 600 }}>{estado.label}</span>
           {conv.estado !== "resuelta" && (
-            <button onClick={resolverConversacion} style={{
-              display: "block",
-              marginTop: 10,
-              width: "100%",
-              fontSize: 12,
-              padding: "8px 12px",
-              borderRadius: 7,
-              cursor: "pointer",
-              border: "1px solid #d1d5db",
-              background: "#ffffff",
-              color: "#374151",
-            }}>
-              Marcar como resuelta
+            <button
+              onClick={resolverConversacion}
+              disabled={resolviendo}
+              aria-busy={resolviendo}
+              style={{
+                display: "block",
+                marginTop: 10,
+                width: "100%",
+                fontSize: 12,
+                padding: "8px 12px",
+                borderRadius: 7,
+                cursor: resolviendo ? "default" : "pointer",
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
+                color: "#374151",
+                opacity: resolviendo ? 0.6 : 1,
+              }}
+            >
+              {resolviendo ? "Marcando..." : "Marcar como resuelta"}
             </button>
           )}
         </div>
 
-        {/* Resumen con IA */}
         <div style={{ padding: "14px 16px" }}>
           <button
             onClick={generarResumen}
             disabled={cargandoResumen || mensajesVisibles.length === 0}
             style={{
               width: "100%",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              fontSize: 12.5, fontWeight: 600,
-              padding: "9px 12px", borderRadius: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              fontSize: 12.5,
+              fontWeight: 600,
+              padding: "9px 12px",
+              borderRadius: 8,
               cursor: cargandoResumen || mensajesVisibles.length === 0 ? "not-allowed" : "pointer",
               opacity: mensajesVisibles.length === 0 ? 0.5 : 1,
               border: "1px solid #e0e7ff",
@@ -217,22 +227,13 @@ export default function ConversacionDetalle({
             }}
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-              <path d="M6.5 1.5L7.8 4.5H10.5L8.3 6.3L9.1 9.5L6.5 7.8L3.9 9.5L4.7 6.3L2.5 4.5H5.2L6.5 1.5Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+              <path d="M6.5 1.5L7.8 4.5H10.5L8.3 6.3L9.1 9.5L6.5 7.8L3.9 9.5L4.7 6.3L2.5 4.5H5.2L6.5 1.5Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
             </svg>
-            {cargandoResumen ? "Generando…" : "Resumen con IA"}
+            {cargandoResumen ? "Generando..." : "Resumen con IA"}
           </button>
 
           {resumen && (
-            <div style={{
-              marginTop: 10,
-              padding: "10px 12px",
-              background: "#faf5ff",
-              border: "1px solid #e9d5ff",
-              borderRadius: 8,
-              fontSize: 12,
-              color: "#374151",
-              lineHeight: 1.65,
-            }}>
+            <div style={{ marginTop: 10, padding: "10px 12px", background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 8, fontSize: 12, color: "#374151", lineHeight: 1.65 }}>
               {resumen}
             </div>
           )}
@@ -240,76 +241,29 @@ export default function ConversacionDetalle({
       </aside>
 
       <div style={{ display: "flex", flexDirection: "column", background: "#ffffff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-        <div style={{
-          padding: "14px 18px",
-          borderBottom: "1px solid #f3f4f6",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <a href={backHref} style={{ fontSize: 12, color: "#6b7280", textDecoration: "none", marginRight: 12 }}>Volver</a>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
-              Conversacion - {CANAL_LABEL[conv.canal || ""] || conv.canal || "-"}
-            </span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Conversacion - {CANAL_LABEL[conv.canal || ""] || conv.canal || "-"}</span>
           </div>
           {conv.estado === "esperando_humano" && (
-            <span style={{
-              fontSize: 12,
-              background: "#fef9c3",
-              color: "#854d0e",
-              borderRadius: 10,
-              padding: "3px 10px",
-              fontWeight: 600,
-            }}>
+            <span style={{ fontSize: 12, background: "#fef9c3", color: "#854d0e", borderRadius: 10, padding: "3px 10px", fontWeight: 600 }}>
               Esperando respuesta humana
             </span>
           )}
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {mensajesVisibles.length === 0 && (
-            <div style={{ textAlign: "center", color: "#9ca3af", marginTop: 60, fontSize: 13 }}>
-              Sin mensajes legibles en esta conversacion
-            </div>
-          )}
+          {mensajesVisibles.length === 0 && <div style={{ textAlign: "center", color: "#9ca3af", marginTop: 60, fontSize: 13 }}>Sin mensajes legibles en esta conversacion</div>}
           {mensajesVisibles.map((m, i) => (
             <div key={`${i}-${m.timestamp || ""}`} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
               {m.role === "assistant" && (
-                <div style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  alignSelf: "flex-end",
-                  background: m.from_human ? "#14532d" : "#111827",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  color: "#ffffff",
-                  fontWeight: 700,
-                }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, alignSelf: "flex-end", background: m.from_human ? "#14532d" : "#111827", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#ffffff", fontWeight: 700 }}>
                   {m.from_human ? "H" : "IA"}
                 </div>
               )}
-              <div style={{
-                maxWidth: "74%",
-                background: m.role === "user" ? "#111827" : (m.from_human ? "#f0fdf4" : "#f3f4f6"),
-                color: m.role === "user" ? "#ffffff" : "#111827",
-                borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                padding: "10px 13px",
-                fontSize: 14,
-                lineHeight: 1.55,
-                whiteSpace: "pre-wrap",
-                border: m.from_human ? "1px solid #86efac" : "none",
-                boxSizing: "border-box",
-              }}>
-                {m.from_human && (
-                  <div style={{ fontSize: 10, color: "#166534", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Humano
-                  </div>
-                )}
+              <div style={{ maxWidth: "74%", background: m.role === "user" ? "#111827" : m.from_human ? "#f0fdf4" : "#f3f4f6", color: m.role === "user" ? "#ffffff" : "#111827", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 13px", fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap", border: m.from_human ? "1px solid #86efac" : "none", boxSizing: "border-box" }}>
+                {m.from_human && <div style={{ fontSize: 10, color: "#166534", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Humano</div>}
                 {m.content}
                 {m.timestamp && (
                   <div style={{ fontSize: 10, color: m.role === "user" ? "rgba(255,255,255,0.56)" : "#9ca3af", marginTop: 4, textAlign: "right" }}>
@@ -325,6 +279,23 @@ export default function ConversacionDetalle({
         {conv.estado !== "resuelta" && (
           <div style={{ borderTop: "1px solid #f3f4f6", padding: "13px 18px" }}>
             {error && <div style={{ fontSize: 12, color: "#dc2626", marginBottom: 8 }}>{error}</div>}
+            {notice && (
+              <div
+                role={notice.type === "error" ? "alert" : "status"}
+                style={{
+                  fontSize: 12,
+                  marginBottom: 8,
+                  color: notice.type === "error" ? "#b91c1c" : "#166534",
+                  background: notice.type === "error" ? "#fee2e2" : "#dcfce7",
+                  border: `1px solid ${notice.type === "error" ? "#fecaca" : "#bbf7d0"}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontWeight: 500,
+                }}
+              >
+                {notice.text}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, fontWeight: 500 }}>Responder como humano</div>
@@ -335,17 +306,7 @@ export default function ConversacionDetalle({
                   disabled={enviando}
                   placeholder="Escribe una respuesta manual... (Enter para enviar, Shift+Enter nueva linea)"
                   rows={2}
-                  style={{
-                    width: "100%",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 8,
-                    padding: "9px 11px",
-                    fontSize: 14,
-                    resize: "none",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    boxSizing: "border-box",
-                  }}
+                  style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "9px 11px", fontSize: 14, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                   onInput={(e) => {
                     const t = e.target as HTMLTextAreaElement;
                     t.style.height = "auto";
@@ -356,6 +317,7 @@ export default function ConversacionDetalle({
               <button
                 onClick={enviarRespuesta}
                 disabled={!texto.trim() || enviando}
+                aria-busy={enviando}
                 style={{
                   background: "#111827",
                   color: "#ffffff",
@@ -363,8 +325,8 @@ export default function ConversacionDetalle({
                   borderRadius: 8,
                   padding: "10px 18px",
                   fontSize: 14,
-                  cursor: (!texto.trim() || enviando) ? "not-allowed" : "pointer",
-                  opacity: (!texto.trim() || enviando) ? 0.5 : 1,
+                  cursor: !texto.trim() || enviando ? "not-allowed" : "pointer",
+                  opacity: !texto.trim() || enviando ? 0.5 : 1,
                   flexShrink: 0,
                   marginBottom: 2,
                 }}

@@ -30,11 +30,11 @@ export default function ReglasTab({
 }: { clinicId: string; initialReglas: Record<string, any> }) {
   const [reglas, setReglas] = useState<Reglas>({ ...DEFAULTS, ...initialReglas });
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function save() {
-    setSaving(true); setError(""); setSaved(false);
+    setSaving(true);
+    setNotice(null);
     try {
       const res = await fetch(`/api/clinicas/${clinicId}/reglas`, {
         method: "PATCH",
@@ -42,10 +42,9 @@ export default function ReglasTab({
         body: JSON.stringify(reglas),
       });
       if (!res.ok) throw new Error(await res.text());
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setError(e.message);
+      setNotice({ type: "success", text: "Reglas guardadas correctamente." });
+    } catch {
+      setNotice({ type: "error", text: "No se pudieron guardar las reglas." });
     } finally { setSaving(false); }
   }
 
@@ -123,10 +122,21 @@ export default function ReglasTab({
         </div>
       </Section>
 
-      {error && <p style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{error}</p>}
-      {saved && <p style={{ color: "#059669", fontSize: 13, marginTop: 8 }}>Guardado correctamente.</p>}
+      {notice && (
+        <p
+          role={notice.type === "error" ? "alert" : "status"}
+          style={{
+            marginTop: 8,
+            fontSize: 13,
+            color: notice.type === "error" ? "#b91c1c" : "#166534",
+            fontWeight: 500,
+          }}
+        >
+          {notice.text}
+        </p>
+      )}
 
-      <button onClick={save} disabled={saving} style={{ ...btnPrimaryStyle, marginTop: 8 }}>
+      <button onClick={save} disabled={saving} aria-busy={saving} style={{ ...btnPrimaryStyle, marginTop: 8 }}>
         {saving ? "Guardando..." : "Guardar reglas"}
       </button>
     </div>

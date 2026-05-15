@@ -66,3 +66,16 @@ def test_signature_invalid_format():
 def test_signature_missing():
     from routers.retell import _verify_retell_signature
     assert _verify_retell_signature("body", "", "key") is False
+
+
+def test_retell_event_key_stable_for_same_input():
+    from routers.retell import _retell_event_key
+    call = {"call_id": "c1", "call_status": "ended", "end_timestamp": 123}
+    assert _retell_event_key("call_ended", call) == _retell_event_key("call_ended", call)
+
+
+def test_retell_event_key_transcript_changes_when_transcript_changes():
+    from routers.retell import _retell_event_key
+    call_a = {"call_id": "c1", "transcript": "hola"}
+    call_b = {"call_id": "c1", "transcript": "hola mundo"}
+    assert _retell_event_key("transcript_updated", call_a) != _retell_event_key("transcript_updated", call_b)

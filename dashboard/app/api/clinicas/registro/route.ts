@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
+import { adminFetch } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -13,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  const res = await fetch(`${BACKEND}/saas/clinicas/registro`, {
+  const res = await adminFetch(`/saas/clinicas/registro`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -24,6 +23,7 @@ export async function POST(request: NextRequest) {
       url_web: body.url_web ?? null,
       telefono: body.telefono ?? null,
     }),
+    noStore: true,
   });
 
   const data = await res.json();

@@ -13,16 +13,16 @@ export default async function PanelCitasPage() {
   if (!user) redirect("/login");
 
   const rolRes = await adminFetch(`/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`);
+  if (!rolRes.ok) redirect("/login");
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
   const hoy = getLocalDateISO();
-  const [citasRes, canalesRes] = await Promise.all([
-    adminFetch(`/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${rol.clinic_id}/canales`, { noStore: true }),
-  ]);
-  const citas = citasRes.ok ? await citasRes.json() : [];
+  const canalesRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}/canales`, { noStore: true });
   const canales = canalesRes.ok ? await canalesRes.json() : {};
+
+  const citasRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}/citas?fecha=${hoy}&limit=250`, { noStore: true });
+  const citas = citasRes.ok ? await citasRes.json() : [];
 
   const fechaLabel = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" });
 

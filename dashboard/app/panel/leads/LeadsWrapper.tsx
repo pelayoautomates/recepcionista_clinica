@@ -19,7 +19,7 @@ export default function LeadsWrapper({ leads, listaEspera, recuperacion, clinicI
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "leads", label: "Leads", count: leads.length },
     { key: "lista-espera", label: "Lista de espera", count: listaEspera.filter((e: any) => e.estado === "esperando").length },
-    { key: "recuperacion", label: "Recuperación", count: recuperacion.length },
+    { key: "recuperacion", label: "Recuperacion", count: recuperacion.length },
   ];
 
   return (
@@ -64,3 +64,4 @@ export default function LeadsWrapper({ leads, listaEspera, recuperacion, clinicI
     </div>
   );
 }
+

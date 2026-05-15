@@ -3,16 +3,17 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from postgrest.exceptions import APIError
 
 from database.client import get_supabase
+from security import require_admin_key
 
 INVITE_TTL_HOURS = 72
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin_key)])
 
 
 def _is_missing_expires_at_error(exc: Exception) -> bool:

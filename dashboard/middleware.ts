@@ -16,9 +16,10 @@ const PUBLIC_PATHS = [
   "/terminos",
   "/robots.txt",
   "/sitemap.xml",
+  "/llms.txt",
   "/opengraph-image",
 ];
-const PUBLIC_PREFIXES = ["/auth", "/api", "/widget"];
+const PUBLIC_PREFIXES = ["/auth", "/api", "/widget", "/blog"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

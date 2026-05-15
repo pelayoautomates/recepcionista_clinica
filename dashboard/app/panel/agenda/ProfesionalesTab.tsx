@@ -16,7 +16,6 @@ type Prof = {
 type Servicio = { id: string; nombre: string };
 
 const DIAS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
-const DIAS_API = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
 const COLORES = ["#2563eb", "#7c3aed", "#059669", "#dc2626", "#d97706", "#0891b2", "#9333ea", "#65a30d"];
 
 const EMPTY: Partial<Prof> = {
@@ -32,10 +31,11 @@ export default function ProfesionalesTab({
   const [showDisp, setShowDisp] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function save() {
     if (!editing?.nombre) { setError("El nombre es obligatorio"); return; }
-    setSaving(true); setError("");
+    setSaving(true); setError(""); setNotice(null);
     try {
       const isNew = !(editing as Prof).id;
       const url = isNew
@@ -52,12 +52,15 @@ export default function ProfesionalesTab({
         isNew ? [...prev, saved] : prev.map(p => p.id === saved.id ? saved : p)
       );
       setEditing(null);
+      setNotice({ type: "success", text: "Profesional guardado correctamente." });
     } catch (e: any) {
       setError(e.message);
+      setNotice({ type: "error", text: "No se pudo guardar el profesional." });
     } finally { setSaving(false); }
   }
 
   async function toggleActivo(p: Prof) {
+    setNotice(null);
     const res = await fetch(`/api/clinicas/${clinicId}/profesionales/${p.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -66,7 +69,10 @@ export default function ProfesionalesTab({
     if (res.ok) {
       const updated = await res.json();
       setProfesionales(prev => prev.map(x => x.id === updated.id ? updated : x));
+      setNotice({ type: "success", text: `Profesional ${updated.activo ? "activado" : "desactivado"}.` });
+      return;
     }
+    setNotice({ type: "error", text: "No se pudo actualizar el estado del profesional." });
   }
 
   return (
@@ -79,6 +85,23 @@ export default function ProfesionalesTab({
           + Nuevo profesional
         </button>
       </div>
+      {notice && (
+        <div
+          role={notice.type === "error" ? "alert" : "status"}
+          style={{
+            marginBottom: 12,
+            fontSize: 12.5,
+            padding: "8px 10px",
+            borderRadius: 8,
+            color: notice.type === "error" ? "#b91c1c" : "#166534",
+            background: notice.type === "error" ? "#fee2e2" : "#dcfce7",
+            border: `1px solid ${notice.type === "error" ? "#fecaca" : "#bbf7d0"}`,
+            fontWeight: 500,
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {profesionales.map(p => (
@@ -183,30 +206,47 @@ function DisponibilidadEditor({ clinicId, profesionalId }: { clinicId: string; p
   const [rows, setRows] = useState<DispRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   async function load() {
     setLoading(true);
-    const res = await fetch(`/api/clinicas/${clinicId}/profesionales/${profesionalId}/disponibilidad`);
-    const data = await res.json();
-    const loaded: DispRow[] = Array.from({ length: 7 }, (_, i) => {
-      const found = (data || []).find((d: any) => d.dia_semana === i);
-      return found
-        ? { dia_semana: i, activo: found.activo ?? true, hora_inicio: found.hora_inicio || "09:00", hora_fin: found.hora_fin || "18:00" }
-        : { dia_semana: i, activo: false, hora_inicio: "09:00", hora_fin: "18:00" };
-    });
-    setRows(loaded);
-    setLoading(false);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/profesionales/${profesionalId}/disponibilidad`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const source = Array.isArray(data) ? data : [];
+      const loaded: DispRow[] = Array.from({ length: 7 }, (_, i) => {
+        const found = source.find((d: any) => d.dia_semana === i);
+        return found
+          ? { dia_semana: i, activo: found.activo ?? true, hora_inicio: found.hora_inicio || "09:00", hora_fin: found.hora_fin || "18:00" }
+          : { dia_semana: i, activo: false, hora_inicio: "09:00", hora_fin: "18:00" };
+      });
+      setRows(loaded);
+    } catch {
+      setNotice({ type: "error", text: "No se pudo cargar la disponibilidad." });
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function saveDays() {
     if (!rows) return;
     setSaving(true);
-    await fetch(`/api/clinicas/${clinicId}/profesionales/${profesionalId}/disponibilidad`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ horarios: rows }),
-    });
-    setSaving(false);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/profesionales/${profesionalId}/disponibilidad`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ horarios: rows }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setNotice({ type: "success", text: "Horario guardado correctamente." });
+    } catch {
+      setNotice({ type: "error", text: "No se pudo guardar el horario." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (rows === null) {
@@ -221,6 +261,23 @@ function DisponibilidadEditor({ clinicId, profesionalId }: { clinicId: string; p
 
   return (
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" }}>
+      {notice && (
+        <div
+          role={notice.type === "error" ? "alert" : "status"}
+          style={{
+            marginBottom: 10,
+            fontSize: 12,
+            padding: "7px 9px",
+            borderRadius: 8,
+            color: notice.type === "error" ? "#b91c1c" : "#166534",
+            background: notice.type === "error" ? "#fee2e2" : "#dcfce7",
+            border: `1px solid ${notice.type === "error" ? "#fecaca" : "#bbf7d0"}`,
+            fontWeight: 500,
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.map((row, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>

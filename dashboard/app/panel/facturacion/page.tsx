@@ -12,11 +12,12 @@ export default async function FacturacionPage() {
     `/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
     { noStore: true }
   );
+  if (!rolRes.ok) redirect("/login");
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login");
 
   const clinicRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`, { noStore: true });
-  const clinica = await clinicRes.json();
+  const clinica = clinicRes.ok ? await clinicRes.json() : {};
 
   return (
     <FacturacionClient

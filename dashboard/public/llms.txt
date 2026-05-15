@@ -1,0 +1,74 @@
+# Atiende360
+
+> Atiende360 es un SaaS de recepcionista IA para clínicas privadas. Atiende llamadas, WhatsApp y webchat, gestiona citas, registra leads y escala a humano cuando hace falta.
+
+## Descripción del producto
+
+Atiende360 es un software SaaS orientado a clínicas privadas en España: clínicas dentales, estéticas, fisioterapia, rehabilitación, psicología y otros centros sanitarios privados.
+
+El agente de IA (llamado Valeria) opera 24/7 en tres canales simultáneos:
+- **Voz**: atiende llamadas entrantes, responde preguntas sobre servicios y disponibilidad, propone citas libres y las registra en Google Calendar o en el calendario interno.
+- **WhatsApp**: recibe mensajes de texto y audio, responde dudas, gestiona citas y hace seguimiento de leads.
+- **Webchat**: widget embebible en la web de la clínica para conversación en tiempo real.
+
+El agente nunca diagnostica ni sustituye criterio clínico. Cuando detecta consultas sensibles, urgencias o peticiones fuera de sus reglas, deriva la conversación a un humano del equipo de la clínica.
+
+## Casos de uso principales
+
+- Atender llamadas y mensajes fuera del horario de recepción.
+- Reducir no-shows mediante recordatorios automáticos (SMS 24h y 2h antes) con confirmación activa.
+- Capturar y clasificar leads de primera consulta con seguimiento automático.
+- Gestionar cambios y cancelaciones de cita sin carga para recepción.
+- Activar lista de espera automáticamente cuando hay cancelaciones.
+
+## Para quién es
+
+- Clínicas dentales con alto volumen de primeras consultas.
+- Clínicas estéticas que necesitan responder rápido antes de que el lead compare alternativas.
+- Clínicas de fisioterapia y rehabilitación con recepción saturada por cambios frecuentes de cita.
+- Centros sanitarios privados de 1 a 10 profesionales que quieren atender más sin ampliar plantilla.
+
+## Precios
+
+- **Starter**: 99 EUR/mes (300 minutos de IA, 1 sede, 1 usuario)
+- **Pro**: 179 EUR/mes (750 minutos, 1 sede, 3 usuarios)
+- **Growth**: 299 EUR/mes (1.800 minutos, 2 sedes, 5 usuarios)
+- Todos los planes incluyen prueba gratuita de 7 días sin tarjeta.
+
+## Tecnología y seguridad
+
+- Datos alojados en servidores dentro de la Unión Europea (Supabase + Railway EU).
+- Diseñado para cumplimiento RGPD con consentimiento explícito para datos de salud (Art. 9).
+- Acuerdo de Encargado de Tratamiento (DPA) disponible para cada clínica.
+- Escalado humano configurable para conversaciones sensibles.
+
+## Integraciones
+
+- Google Calendar (sincronización bidireccional de citas).
+- Calendario interno propio (sin necesidad de herramientas externas).
+- SMS via Telnyx para recordatorios automáticos.
+- WhatsApp Business (Twilio).
+
+## Información de contacto
+
+- Web: https://atiende360.com
+- Email: hola@atiende360.com
+- País de operación: España
+
+## Páginas clave
+
+- Inicio y producto: https://atiende360.com/
+- Precios: https://atiende360.com/pricing
+- Demo: https://atiende360.com/demo
+- Seguridad y privacidad: https://atiende360.com/seguridad
+- Integraciones: https://atiende360.com/integraciones
+- Blog: https://atiende360.com/blog
+- Privacidad: https://atiende360.com/privacidad
+- Términos: https://atiende360.com/terminos
+
+## Artículos de referencia
+
+- https://atiende360.com/blog/como-reducir-no-shows-clinica-privada
+- https://atiende360.com/blog/inteligencia-artificial-para-clinicas-guia
+- https://atiende360.com/blog/como-automatizar-recordatorios-citas-clinica
+- https://atiende360.com/blog/software-agenda-clinica-fisioterapia-rehabilitacion

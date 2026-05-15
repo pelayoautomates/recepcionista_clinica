@@ -24,18 +24,17 @@ export default function robots(): MetadataRoute.Robots {
 
   return {
     rules: [
-      {
-        userAgent: "Googlebot",
-        ...rule,
-      },
-      {
-        userAgent: "OAI-SearchBot",
-        ...rule,
-      },
-      {
-        userAgent: "*",
-        ...rule,
-      },
+      { userAgent: "Googlebot", ...rule },
+      { userAgent: "Bingbot", ...rule },
+      { userAgent: "OAI-SearchBot", ...rule },
+      { userAgent: "GPTBot", ...rule },
+      { userAgent: "ChatGPT-User", ...rule },
+      { userAgent: "Claude-Web", ...rule },
+      { userAgent: "ClaudeBot", ...rule },
+      { userAgent: "anthropic-ai", ...rule },
+      { userAgent: "Applebot", ...rule },
+      { userAgent: "Perplexity-User", ...rule },
+      { userAgent: "*", ...rule },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,
     host: siteUrl,

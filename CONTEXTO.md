@@ -2,6 +2,8 @@
 
 > Lee este archivo antes de tocar cualquier código. Tiene todo lo que necesitas para entender el proyecto.
 
+> Regla operativa del proyecto: al cerrar cada bloque de cambios, actualizar siempre `CONTEXTO.md` y `PROGRESO.md` (estado, decisiones, pendientes y checklist de despliegue).
+
 ---
 
 ## Qué es este producto
@@ -64,6 +66,221 @@ Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo paci
 - Fix de acceso CEO/agencia: middleware usa `AGENCY_EMAIL` (server) o `NEXT_PUBLIC_AGENCY_EMAIL` con fallback y soporte para varios emails separados por coma.
 - Nueva landing comercial pública en `/landing` para captar clientes (sin tocar backend ni auth flow interno).
 - La landing se rediseno con enfoque de conversion (claridad de propuesta, reduccion de friccion de decision, riesgo bajo y estructura de pricing orientada a accion).
+
+---
+
+## Actualizaciones recientes (2026-05-13) - Seguridad y robustez operativa
+
+### Bloque 1 (completado)
+- Seguridad admin fail-closed en produccion para `ADMIN_API_KEY` (sin clave, `/admin` responde error en prod).
+- Endpoints sensibles protegidos con `require_admin_key`:
+  - invitaciones backend
+  - registro SaaS backend
+  - checkout/portal de Stripe (webhook sigue validado por firma Stripe, sin admin key)
+- OAuth Google endurecido con `state` firmado + nonce en cookie para mitigar CSRF/replay.
+- Multi-tenant reforzado en `run_agent` y flujos de conversacion:
+  - lookup de conversacion por `id + clinic_id`
+  - updates de conversacion siempre filtrados por `clinic_id`
+  - resolucion de paciente coherente (no crear lead anonimo prematuramente)
+- Billing centralizado en `run_agent` (con `skip_billing=True` solo para test-chat admin).
+- WhatsApp/voz ahora manejan `PlanInactivo` y `MinutosAgotados` con fallback controlado.
+- Se elimino fallback inseguro de enrutado por "primera clinica" en Twilio/Meta.
+- Webhook Twilio con verificacion de firma `X-Twilio-Signature`.
+
+### Bloque 2 (completado)
+- Retell WebSocket endurecido:
+  - soporte de secreto dedicado `RETELL_WS_SECRET` (token por query/header)
+  - validacion de coherencia `clinic_id <-> retell_agent_id` durante la llamada
+- `retell_manager` propaga automaticamente token WS en `llm_websocket_url` al crear/actualizar agente.
+- Dedupe persistente para webhooks (evita reprocesar retries/replays):
+  - Retell
+  - Meta WhatsApp
+  - Twilio WhatsApp
+  - 360dialog
+- Nueva utilidad backend: `backend/webhook_dedupe.py`
+- Nueva migracion SQL: `backend/database/migrations/013_webhook_events.sql`
+
+### Bloque 3 (completado) - Optimizacion de listados y payload
+- `backend/routers/admin.py`:
+  - paginacion estandar (`limit`, `offset`) en listados de alto volumen:
+    - `/leads`
+    - `/conversaciones`
+    - `/citas`
+    - `/lista-espera`
+    - `/recuperacion` (limit aplicado antes de scoring final)
+  - `/conversaciones` ahora soporta:
+    - `include_mensajes` (por defecto `false`) para evitar enviar historiales completos cuando no hacen falta
+    - filtro `fecha=YYYY-MM-DD` sobre `updated_at` para vistas del dia
+- Dashboard ajustado para pedir solo los datos necesarios:
+  - `panel/page.tsx`: conversaciones del dia con `limit=60` y citas del dia con `limit=120`
+  - `panel/conversaciones/page.tsx`: `limit=250`
+  - `panel/leads/page.tsx`: `limit=300` en leads/lista-espera/recuperacion
+  - `panel/citas/page.tsx`: `limit=250`
+- Nueva migracion de indices de rendimiento:
+  - `backend/database/migrations/014_performance_indexes.sql`
+  - indices para consultas por `clinic_id + updated_at/created_at` en conversaciones, pacientes y lista de espera
+
+### Bloque 4 (completado) - Sync Google Calendar bajo demanda en panel de citas
+- Problema detectado: `dashboard/app/panel/citas/page.tsx` hacia `POST /admin/clinicas/{id}/citas/sync-gcal` en cada carga de pagina.
+- Impacto: consumo innecesario de API de Google Calendar y mayor latencia de render inicial.
+- Cambio aplicado:
+  - se elimina la auto-sync por carga en `dashboard/app/panel/citas/page.tsx`
+  - se mantiene la sync automatica por scheduler backend (cada 60 min)
+  - se anade accion manual "Sincronizar ahora" en `dashboard/app/panel/citas/CitasClient.tsx`
+  - el boton muestra estado (`Sincronizando...`) y resultado (`importadas/actualizadas`) y refresca la vista al terminar
+- Resultado esperado: menor coste operativo y mejor tiempo de carga del panel de citas sin perder capacidad de sync inmediata cuando el usuario lo necesita.
+
+### Bloque 5 (completado) - Correccion de rangos de fecha por zona horaria
+- Problema detectado: varios endpoints filtraban "hoy" con `T00:00:00Z` / `T23:59:59Z`, lo que desplaza resultados para usuarios en `Europe/Madrid`.
+- Riesgo: citas y conversaciones cercanas a medianoche podian aparecer en el dia equivocado; metricas diarias con conteos inconsistentes.
+- Cambio aplicado en `backend/routers/admin.py`:
+  - helper central `_utc_bounds_for_local_day(fecha_iso)` que convierte `YYYY-MM-DD` local (Madrid) a rango UTC `[inicio, fin_exclusivo)`
+  - `listar_conversaciones(fecha=...)` ahora usa `gte(updated_at, inicio)` + `lt(updated_at, fin)`
+  - `listar_citas(fecha=...)` ahora usa `gte(fecha_inicio, inicio)` + `lt(fecha_inicio, fin)`
+  - `metricas_clinica` ahora calcula hoy/ayer en timezone Madrid y usa esos limites UTC coherentes
+  - `leads_recuperacion` actualiza corte de ">3 dias" con el mismo criterio de dia local
+- Resultado esperado: consistencia de datos diarios entre UI, metricas y operativa real de clinicas en Espana.
+
+### Bloque 6 (completado) - Normalizacion de textos UI en panel de citas
+- Problema detectado: `dashboard/app/panel/citas/CitasClient.tsx` tenia mojibake visual (`No asistiÃ³`, `Hoy â€”`, `TelÃ©fono`, etc.).
+- Impacto: experiencia poco profesional en panel y mayor riesgo de errores de lectura por usuario final.
+- Cambio aplicado:
+  - se reescribe `CitasClient.tsx` en UTF-8 limpio
+  - textos visibles normalizados a ASCII estable (`No asistio`, `Telefono`, `Duracion`, `Hoy - ...`)
+  - se mantiene toda la funcionalidad ya implementada (sync manual GCal, cards, modal, refresco de datos)
+- Resultado esperado: interfaz legible y consistente, sin caracteres corruptos en la vista de citas.
+
+### Bloque 7 (completado) - Estados UX consistentes en accion de sync (citas)
+- Mejora aplicada en `dashboard/app/panel/citas/CitasClient.tsx`:
+  - estado explicito de resultado (`success` / `error`) para la sync manual de Google Calendar
+  - feedback visual consistente:
+    - error en rojo
+    - exito en verde
+  - accesibilidad: `aria-busy` en boton durante carga y `role=alert/status` en mensaje de resultado
+- Resultado esperado: operativa mas clara para recepcion y menos ambiguedad cuando una sync falla o se completa.
+
+### Bloque 8 (completado) - Estabilidad de panel leads/conversaciones + feedback unificado
+- Problema detectado:
+  - `LeadsWrapper` importaba componentes eliminados (`lista-espera` y `recuperacion`), dejando riesgo real de build roto.
+  - feedback inconsistente en acciones clave de conversacion (resolver/responder).
+- Cambios aplicados:
+  - restaurados componentes:
+    - `dashboard/app/panel/lista-espera/ListaEsperaClient.tsx`
+    - `dashboard/app/panel/recuperacion/RecuperacionClient.tsx`
+  - `dashboard/app/panel/conversaciones/[id]/ConversacionDetalle.tsx` refactorizado con:
+    - estados `loading/success/error` para resolver y responder
+    - avisos visuales semanticos
+    - accesibilidad (`aria-busy`, `role=alert/status`)
+  - normalizacion adicional de textos en:
+    - `dashboard/app/panel/leads/LeadsClient.tsx`
+    - `dashboard/app/panel/leads/LeadsWrapper.tsx`
+- Resultado esperado: panel estable (sin imports rotos) y UX consistente en acciones operativas de recepcion.
+
+### Bloque 9 (completado) - Feedback UX unificado en agenda (servicios/profesionales/salas/bloqueos)
+- Mejoras aplicadas:
+  - `dashboard/app/panel/agenda/ServiciosTab.tsx`
+  - `dashboard/app/panel/agenda/ProfesionalesTab.tsx`
+  - `dashboard/app/panel/agenda/SalasTab.tsx`
+  - `dashboard/app/panel/agenda/BloquesTab.tsx`
+- Cambios funcionales:
+  - mensajes de estado consistentes (`success` / `error`) tras acciones mutables (guardar, activar/desactivar, eliminar)
+  - avisos semanticos con `role=alert/status`
+  - manejo de error explicito cuando una mutacion falla
+- Resultado esperado: UX operativa consistente en configuracion de agenda y menos incertidumbre para el usuario al ejecutar cambios.
+
+### Bloque 10 (completado) - Cobertura en subflujos de agenda (disponibilidad/asignacion/reglas)
+- Mejoras aplicadas:
+  - `dashboard/app/panel/agenda/ProfesionalesTab.tsx` (`DisponibilidadEditor`)
+  - `dashboard/app/panel/agenda/ServiciosTab.tsx` (`ProfAsignados`)
+  - `dashboard/app/panel/agenda/ReglasTab.tsx`
+- Cambios funcionales:
+  - validacion robusta de respuestas API (`res.ok`) en carga/guardado de disponibilidad y asignaciones.
+  - manejo de errores explicito con `try/catch` en subflujos que antes podian fallar en silencio.
+  - avisos semanticos `success/error` con `role=alert/status` en disponibilidad, asignacion y reglas.
+  - `aria-busy` durante guardado en reglas para feedback de carga accesible.
+- Resultado esperado: cobertura completa del patron UX de feedback en toda agenda, incluyendo subcomponentes internos.
+
+### Bloque 11 (completado) - Correccion de feedback en canal de voz
+- Mejora aplicada:
+  - `dashboard/app/panel/canales/CanalesClient.tsx`
+- Cambios funcionales:
+  - `handleDesconectar` ahora valida `res.ok` antes de confirmar exito.
+  - `voiceSuccess` pasa de booleano a mensaje para feedback mas preciso por accion.
+  - limpieza de estados de feedback al iniciar nuevas acciones (conectar, desconectar, buscar, comprar).
+  - mensajes de exito con `role=status` para accesibilidad.
+- Resultado esperado: sin falsos positivos de desconexion y mejor trazabilidad de resultado en configuracion de voz.
+
+### Bloque 12 (completado) - Saneado de textos mojibake en Configuracion y Canales
+- Mejoras aplicadas:
+  - `dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`
+  - `dashboard/app/panel/canales/CanalesClient.tsx`
+- Cambios funcionales:
+  - limpieza de textos visibles con caracteres corruptos (mojibake).
+  - restauracion de elementos UI que quedaron degradados en el saneado (labels/botones/simbolos de accion).
+  - correccion de `value`/`onChange` en controles de formulario para evitar rotura funcional.
+  - ambos archivos quedaron en ASCII limpio (sin null bytes ni caracteres de reemplazo).
+- Resultado esperado: experiencia de usuario legible y estable en dos vistas operativas criticas del panel.
+
+### Bloque 13 (completado) - Hotfix de compilacion en Configuracion
+- Mejora aplicada:
+  - `dashboard/app/panel/configuracion/ConfiguracionWrapper.tsx`
+- Cambios funcionales:
+  - correccion de token JSX invalido en el boton de envio del drawer de test.
+  - sustitucion por texto estable (`Enviar`) para evitar error de parseo en build.
+- Resultado esperado: compilacion de Next.js sin bloqueo en la linea reportada (`ConfiguracionWrapper.tsx:558`).
+
+### Bloque 14 (completado) - Lint no interactivo para CI
+- Mejoras aplicadas:
+  - `dashboard/.eslintrc.json` (nuevo)
+  - `dashboard/package.json`
+- Cambios funcionales:
+  - configuracion ESLint minima con `next/core-web-vitals`.
+  - incorporadas dependencias `eslint` y `eslint-config-next` en `devDependencies`.
+- Resultado esperado: `npm run lint` sin prompt interactivo y apto para ejecucion en CI.
+
+### Bloque 15 (completado) - Correccion de errores ESLint bloqueantes
+- Mejoras aplicadas:
+  - `dashboard/app/panel/configuracion/TestAgente.tsx`
+  - `dashboard/app/privacidad/page.tsx`
+  - `dashboard/app/terminos/page.tsx`
+- Cambios funcionales:
+  - comillas escapadas en JSX para cumplir `react/no-unescaped-entities`.
+  - enlaces internos migrados de `<a href=\"/...\">` a `Link` de Next.js para cumplir `@next/next/no-html-link-for-pages`.
+- Resultado esperado: cierre de errores ESLint que estaban bloqueando tanto `lint` como `build`.
+
+### Bloque 16 (completado) - Limpieza de warning hook en marketing
+- Mejora aplicada:
+  - `dashboard/components/marketing/AgentDemoSandbox.tsx`
+- Cambios funcionales:
+  - eliminado `useCallback` innecesario en `startListening` para evitar warning de dependencia faltante.
+- Resultado esperado: reducir ruido en `lint/build` y dejar salida mas limpia para CI.
+
+### Bloque 17 (completado) - Cierre de warning residual en hooks de marketing
+- Mejora aplicada:
+  - `dashboard/components/marketing/AgentDemoSandbox.tsx`
+- Cambios funcionales:
+  - `beginConnected` deja de usar `useCallback` y pasa a funcion normal.
+  - con ello se elimina la dependencia inestable de `startListening` que seguia disparando `react-hooks/exhaustive-deps`.
+- Resultado esperado: `lint/build` sin warnings de hooks en `AgentDemoSandbox.tsx`.
+
+### Checklist obligatorio de despliegue (si no se hace, el bloque 2 queda incompleto)
+1. Ejecutar migracion `013_webhook_events.sql`.
+2. Configurar `RETELL_WS_SECRET` en entorno de produccion (backend).
+3. Reprovisionar o actualizar agentes Retell para refrescar `llm_websocket_url` con token.
+4. Verificar webhooks con retries reales (Twilio/Meta/Retell) y confirmar que no se duplica procesamiento.
+
+### Checklist adicional de despliegue (bloque 3)
+1. Ejecutar migracion `014_performance_indexes.sql`.
+2. Verificar tiempos de respuesta de:
+  - `/admin/clinicas/{id}/conversaciones`
+  - `/admin/clinicas/{id}/leads`
+  - `/admin/clinicas/{id}/citas`
+3. Si se necesita historico completo en UI concreta, usar `include_mensajes=true` solo en esa vista puntual.
+
+### Estado de validacion
+- En este entorno local no se pudieron ejecutar tests de Python porque no hay runtime Python instalado/configurado.
+- En este entorno local no se pudo ejecutar build/lint de Next.js porque `npm` no esta disponible.
+- Los cambios quedaron aplicados en codigo y listos para validacion en CI/entorno con Python.
 
 ---
 

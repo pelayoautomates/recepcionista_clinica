@@ -11,9 +11,11 @@ from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisco
 
 from agent.core import run_agent
 from config import settings
+from webhook_dedupe import mark_webhook_event_once
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+_warned_unprotected_ws = False
 
 
 def _extract_clinic_id(call: dict, message: dict | None = None) -> str | None:
@@ -93,6 +95,49 @@ def _verify_retell_signature(raw_body: str, signature: str, api_key: str) -> boo
     return hmac.compare_digest(expected, digest)
 
 
+def _is_retell_ws_authorized(websocket: WebSocket) -> bool:
+    global _warned_unprotected_ws
+    secret = (settings.retell_ws_secret or "").strip()
+    if not secret:
+        if settings.is_production and not _warned_unprotected_ws:
+            logger.warning("RETELL_WS_SECRET no configurado en producción: websocket Retell sin token dedicado")
+            _warned_unprotected_ws = True
+        return True
+
+    query_token = (websocket.query_params.get("token") or "").strip()
+    header_token = (websocket.headers.get("x-retell-ws-secret") or "").strip()
+    provided = query_token or header_token
+    return bool(provided) and hmac.compare_digest(provided, secret)
+
+
+def _validate_clinic_agent_binding(clinic_id: str, agent_id: str | None) -> bool:
+    if not clinic_id or not agent_id:
+        return True
+
+    from database.client import get_supabase
+    db = get_supabase()
+    row = db.table("clinicas").select("retell_agent_id").eq("id", clinic_id).limit(1).execute()
+    expected_agent = (row.data[0].get("retell_agent_id") if row.data else None) or settings.retell_agent_id or None
+    if not expected_agent:
+        return True
+    return expected_agent == agent_id
+
+
+def _retell_event_key(event: str, call: dict) -> str:
+    call_id = call.get("call_id") or "no_call_id"
+    if event == "transcript_updated":
+        transcript = call.get("transcript") or ""
+        transcript_hash = hashlib.sha256(transcript.encode("utf-8")).hexdigest()[:24] if transcript else "no_transcript"
+        end_ts = call.get("end_timestamp") or ""
+        return f"{event}:{call_id}:{end_ts}:{transcript_hash}"
+
+    call_status = call.get("call_status") or ""
+    end_ts = call.get("end_timestamp") or ""
+    summary = ((call.get("call_analysis") or {}).get("call_summary") or "").strip()
+    summary_hash = hashlib.sha256(summary.encode("utf-8")).hexdigest()[:24] if summary else "no_summary"
+    return f"{event}:{call_id}:{call_status}:{end_ts}:{summary_hash}"
+
+
 def _ensure_conversation_exists(clinic_id: str, conversacion_id: str) -> None:
     from database.client import get_supabase
 
@@ -134,11 +179,16 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
     Custom LLM endpoint for Retell over WebSocket.
     Docs: https://docs.retellai.com/api-references/llm-websocket
     """
+    if not _is_retell_ws_authorized(websocket):
+        await websocket.close(code=1008)
+        return
+
     await websocket.accept()
 
     call_id = path_call_id
     clinic_id = None
     conversacion_id = _conversation_id_from_call_id(call_id) if call_id else None
+    last_validated_pair: tuple[str, str] | None = None
 
     await websocket.send_text(
         json.dumps(
@@ -174,6 +224,15 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                 call = message.get("call", {})
                 call_id = call.get("call_id") or call_id
                 clinic_id = _extract_clinic_id(call, message) or clinic_id
+                agent_id = call.get("agent_id")
+                if clinic_id and agent_id:
+                    pair = (clinic_id, agent_id)
+                    if pair != last_validated_pair:
+                        if not _validate_clinic_agent_binding(clinic_id, agent_id):
+                            logger.warning("Retell WS agent/clinic mismatch - call_id=%s clinic_id=%s agent_id=%s", call_id, clinic_id, agent_id)
+                            await websocket.close(code=1008)
+                            return
+                        last_validated_pair = pair
                 if call_id and not conversacion_id:
                     conversacion_id = _conversation_id_from_call_id(call_id)
 
@@ -199,6 +258,15 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                 call_id = call.get("call_id")
             if call_id and not conversacion_id:
                 conversacion_id = _conversation_id_from_call_id(call_id)
+            agent_id = call.get("agent_id")
+            if clinic_id and agent_id:
+                pair = (clinic_id, agent_id)
+                if pair != last_validated_pair:
+                    if not _validate_clinic_agent_binding(clinic_id, agent_id):
+                        logger.warning("Retell WS agent/clinic mismatch - call_id=%s clinic_id=%s agent_id=%s", call_id, clinic_id, agent_id)
+                        await websocket.close(code=1008)
+                        return
+                    last_validated_pair = pair
 
             user_message = ""
             for turn in reversed(transcript):
@@ -254,8 +322,12 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                     canal="voz",
                 )
             except Exception as e:
-                logger.error("Error in agent - call=%s: %s", call_id, e, exc_info=True)
-                respuesta = "Disculpa, ha ocurrido un problema. Puedes repetir lo que necesitas?"
+                from billing import MinutosAgotados, PlanInactivo
+                if isinstance(e, (PlanInactivo, MinutosAgotados)):
+                    respuesta = "Ahora mismo no puedo atender automáticamente. Te paso con el equipo de la clínica."
+                else:
+                    logger.error("Error in agent - call=%s: %s", call_id, e, exc_info=True)
+                    respuesta = "Disculpa, ha ocurrido un problema. Puedes repetir lo que necesitas?"
 
             await websocket.send_text(
                 json.dumps(
@@ -291,6 +363,9 @@ async def retell_webhook(request: Request):
     body = json.loads(raw_text)
     event = body.get("event")
     call = body.get("call", {})
+    event_key = _retell_event_key(event or "unknown", call or {})
+    if not mark_webhook_event_once("retell", event_key, raw_text):
+        return {"ok": True}
 
     if event in ("call_ended", "call_analyzed", "transcript_updated"):
         await _save_call_summary(call)

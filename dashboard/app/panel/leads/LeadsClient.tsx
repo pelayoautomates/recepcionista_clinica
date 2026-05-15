@@ -86,7 +86,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
               background: sortBy === k ? "#eff6ff" : "white",
               color: sortBy === k ? "#2563eb" : "#6b7280",
             }}>
-              {k === "fecha" ? "Más reciente" : "Mayor score"}
+              {k === "fecha" ? "Mas reciente" : "Mayor score"}
             </button>
           ))}
         </div>
@@ -112,7 +112,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-              {["Paciente", "Score", "Teléfono", "Canal", "Estado", "Fecha", ""].map(h => (
+              {["Paciente", "Score", "Telefono", "Canal", "Estado", "Fecha", ""].map(h => (
                 <th key={h} style={{
                   textAlign: "left", padding: "10px 16px",
                   fontSize: 11, fontWeight: 600, color: "#9ca3af",
@@ -125,7 +125,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
             {leads.length === 0 && (
               <tr>
                 <td colSpan={7} style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 13.5 }}>
-                  Sin leads todavía
+                  Sin leads todavia
                 </td>
               </tr>
             )}
@@ -156,7 +156,7 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
                         </div>
                         <div>
                           <div style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
-                            {lead.nombre || <span style={{ color: "#9ca3af" }}>Anónimo</span>}
+                            {lead.nombre || <span style={{ color: "#9ca3af" }}>Anonimo</span>}
                           </div>
                           {lead.email && <div style={{ fontSize: 11.5, color: "#9ca3af" }}>{lead.email}</div>}
                         </div>
@@ -166,10 +166,10 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
                       <ScoreBadge scoring={lead.scoring} />
                     </td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "#374151" }}>
-                      {lead.telefono || "—"}
+                      {lead.telefono || "-"}
                     </td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "#6b7280" }}>
-                      {CANAL_LABEL[lead.canal_origen] || lead.canal_origen || "—"}
+                      {CANAL_LABEL[lead.canal_origen] || lead.canal_origen || "-"}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       <span style={{
@@ -209,12 +209,12 @@ export default function LeadsClient({ leads }: { leads: any[] }) {
                           {/* Info */}
                           <div>
                             <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-                              Información
+                              Informacion
                             </div>
-                            <DetailRow label="Nombre" value={lead.nombre || "—"} />
-                            <DetailRow label="Teléfono" value={lead.telefono || "—"} />
-                            <DetailRow label="Email" value={lead.email || "—"} />
-                            <DetailRow label="Canal" value={CANAL_LABEL[lead.canal_origen] || lead.canal_origen || "—"} />
+                            <DetailRow label="Nombre" value={lead.nombre || "-"} />
+                            <DetailRow label="Telefono" value={lead.telefono || "-"} />
+                            <DetailRow label="Email" value={lead.email || "-"} />
+                            <DetailRow label="Canal" value={CANAL_LABEL[lead.canal_origen] || lead.canal_origen || "-"} />
                           </div>
 
                           {/* Estado y fechas */}
@@ -279,3 +279,4 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

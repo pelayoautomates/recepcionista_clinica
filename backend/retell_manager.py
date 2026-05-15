@@ -3,6 +3,7 @@ Retell AI agent management — creates and updates per-clinic agents.
 The clinic user never interacts with Retell directly; we manage it internally.
 """
 import logging
+from urllib.parse import quote_plus
 
 import httpx
 
@@ -24,7 +25,10 @@ def _headers() -> dict:
 def _websocket_url() -> str:
     """LLM WebSocket URL that Retell will call for this agent."""
     base = settings.base_url.replace("https://", "wss://").replace("http://", "ws://")
-    return f"{base}/retell/llm-websocket"
+    url = f"{base}/retell/llm-websocket"
+    if settings.retell_ws_secret:
+        return f"{url}?token={quote_plus(settings.retell_ws_secret)}"
+    return url
 
 
 async def create_agent_for_clinic(clinic_id: str, clinic_name: str) -> str:
@@ -111,6 +115,11 @@ async def provision_clinic_agent(clinic_id: str, clinic_name: str) -> str:
     existing_agent_id = (row.data or {}).get("retell_agent_id")
 
     if existing_agent_id:
+        # Keep websocket URL/metadata synced (e.g. when enabling RETELL_WS_SECRET)
+        try:
+            await update_agent_for_clinic(existing_agent_id, clinic_id, clinic_name)
+        except Exception as e:
+            logger.warning("Could not refresh Retell agent %s for clinic %s: %s", existing_agent_id, clinic_id, e)
         logger.info("Clinic %s already has Retell agent %s", clinic_id, existing_agent_id)
         return existing_agent_id
 

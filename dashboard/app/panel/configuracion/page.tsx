@@ -12,6 +12,7 @@ export default async function ConfiguracionPage() {
     `/admin/me/rol?user_id=${user.id}&email=${encodeURIComponent(user.email ?? "")}`,
     { noStore: true }
   );
+  if (!rolRes.ok) redirect("/login");
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
@@ -22,7 +23,7 @@ export default async function ConfiguracionPage() {
     adminFetch(`/admin/clinicas/${clinicId}/conocimiento`, { noStore: true }),
   ]);
 
-  const clinica = await clinicaRes.json();
+  const clinica = clinicaRes.ok ? await clinicaRes.json() : {};
   const conocimiento = conocimientoRes.ok ? await conocimientoRes.json() : [];
 
   return (

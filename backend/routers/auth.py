@@ -1,14 +1,22 @@
 import logging
+import base64
+import hashlib
+import hmac
+import json
+import secrets
+import time
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from config import settings
-from google_calendar.auth import get_authorization_url, save_tokens
+from google_calendar.auth import get_authorization_url_with_state, save_tokens
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+_OAUTH_NONCE_COOKIE = "gcal_oauth_nonce"
+_STATE_TTL_SECONDS = 10 * 60
 
 _SUCCESS_HTML = """
 <html>
@@ -43,6 +51,63 @@ def _error_html(title: str, detail: str, redirect_uri: str = "") -> str:
 """
 
 
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(data: str) -> bytes:
+    padding = "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(data + padding)
+
+
+def _sign_state(payload_bytes: bytes) -> str:
+    secret = settings.fernet_key.encode("utf-8")
+    return hmac.new(secret, payload_bytes, hashlib.sha256).hexdigest()
+
+
+def _build_oauth_state(clinic_id: str, nonce: str) -> str:
+    payload = {
+        "clinic_id": clinic_id,
+        "nonce": nonce,
+        "ts": int(time.time()),
+    }
+    payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    signature = _sign_state(payload_bytes).encode("utf-8")
+    return f"{_b64url_encode(payload_bytes)}.{_b64url_encode(signature)}"
+
+
+def _parse_oauth_state(state_token: str, expected_nonce: str | None) -> dict:
+    try:
+        encoded_payload, encoded_sig = state_token.split(".", 1)
+        payload_bytes = _b64url_decode(encoded_payload)
+        sig = _b64url_decode(encoded_sig).decode("utf-8")
+    except Exception as exc:
+        raise ValueError("state_malformed") from exc
+
+    expected_sig = _sign_state(payload_bytes)
+    if not hmac.compare_digest(sig, expected_sig):
+        raise ValueError("state_signature_invalid")
+
+    try:
+        payload = json.loads(payload_bytes.decode("utf-8"))
+    except Exception as exc:
+        raise ValueError("state_payload_invalid") from exc
+
+    ts = int(payload.get("ts", 0))
+    if ts <= 0 or (int(time.time()) - ts) > _STATE_TTL_SECONDS:
+        raise ValueError("state_expired")
+
+    nonce = str(payload.get("nonce") or "")
+    if not nonce or not expected_nonce or nonce != expected_nonce:
+        raise ValueError("state_nonce_invalid")
+
+    clinic_id = str(payload.get("clinic_id") or "")
+    if not clinic_id:
+        raise ValueError("state_clinic_missing")
+
+    return payload
+
+
 @router.get("/google/callback")
 async def google_auth_callback(request: Request):
     """Callback OAuth2 de Google. Acepta tanto code+state como error."""
@@ -66,17 +131,21 @@ async def google_auth_callback(request: Request):
             settings.google_redirect_uri,
         ))
 
+    state_nonce_cookie = request.cookies.get(_OAUTH_NONCE_COOKIE)
     try:
-        clinic_id = UUID(state)
+        state_payload = _parse_oauth_state(state, state_nonce_cookie)
+        clinic_id = UUID(state_payload["clinic_id"])
     except ValueError:
         return HTMLResponse(status_code=400, content=_error_html(
             "State inválido",
-            f"El parámetro state no es un UUID válido: {state[:80]}",
+            "El estado OAuth no es válido o ha expirado. Inicia de nuevo la conexión desde el panel.",
         ))
 
     try:
         save_tokens(clinic_id, code, state)
-        return HTMLResponse(content=_SUCCESS_HTML)
+        response = HTMLResponse(content=_SUCCESS_HTML)
+        response.delete_cookie(_OAUTH_NONCE_COOKIE)
+        return response
     except Exception as e:
         logger.error("Error guardando tokens OAuth Google clinic=%s: %s", clinic_id, e, exc_info=True)
         return HTMLResponse(status_code=500, content=_error_html(
@@ -90,8 +159,19 @@ async def google_auth_callback(request: Request):
 async def google_auth_start(clinic_id: UUID):
     """Inicia el flujo OAuth2 con Google Calendar para una clínica."""
     try:
-        auth_url = get_authorization_url(clinic_id)
-        return RedirectResponse(url=auth_url)
+        nonce = secrets.token_urlsafe(24)
+        state_token = _build_oauth_state(str(clinic_id), nonce)
+        auth_url = get_authorization_url_with_state(state_token)
+        response = RedirectResponse(url=auth_url)
+        response.set_cookie(
+            key=_OAUTH_NONCE_COOKIE,
+            value=nonce,
+            max_age=_STATE_TTL_SECONDS,
+            httponly=True,
+            secure=settings.is_production,
+            samesite="lax",
+        )
+        return response
     except Exception as e:
         logger.error("Error iniciando OAuth Google: %s", e)
         raise HTTPException(status_code=500, detail=f"Error iniciando autenticación con Google: {e}")
