@@ -84,7 +84,7 @@ async def run_agent(
     # Billing unificado para todos los canales (chat, WhatsApp, voz).
     if not skip_billing:
         from billing import check_plan_active
-        check_plan_active(clinic_id)
+        await check_plan_active(clinic_id)
 
     # Cargar o crear conversación
     if conversacion_id:
@@ -129,6 +129,8 @@ async def run_agent(
     # Cargar configuración de la clínica, servicios activos y base de conocimiento
     clinica_res = db.table("clinicas").select("*").eq("id", clinic_id).single().execute()
     clinica = clinica_res.data
+    if not clinica:
+        raise ValueError(f"Clinica {clinic_id} no encontrada")
     servicios_res = db.table("servicios").select(
         "nombre, duracion_min, precio, categoria, reservable_ia, activo"
     ).eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
