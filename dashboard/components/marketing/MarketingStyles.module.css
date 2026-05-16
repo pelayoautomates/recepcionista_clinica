@@ -3469,5 +3469,382 @@
   .sectionDark {
     padding: 44px 0;
   }
+}
 
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE-FIRST ADAPTATIONS — diseño diferente al desktop
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Visibility helpers ─── */
+.mobileOnly { display: none; }
+@media (max-width: 900px) { .mobileOnly { display: block; } }
+
+/* ─── Process steps: clases CSS (en vez de inline styles) ─── */
+
+.processStepsWrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.processStep {
+  display: flex;
+  align-items: flex-start;
+  flex: 1 1 220px;
+  max-width: 340px;
+  min-width: 200px;
+}
+
+.processStepCard {
+  background: white;
+  border: 1px solid #d6e0f4;
+  border-radius: 20px;
+  padding: 28px 24px;
+  box-shadow: 0 4px 20px rgba(15,75,217,0.06);
+  flex: 1;
+  position: relative;
+}
+
+.processStepNum {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 900;
+  color: white;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+.processStepArrow {
+  display: flex;
+  align-items: center;
+  padding-top: 52px;
+  color: #93c5fd;
+  flex-shrink: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.processStepDown {
+  display: none;
+}
+
+/* ─── Feature grid: 2 cols en tablet, 1 col en móvil ─── */
+
+@media (max-width: 900px) {
+  .featureGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .featureGrid {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+  .featureCard {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .featureCard h3 {
+    font-size: 16px !important;
+    margin-bottom: 4px;
+  }
+  .featureCard p {
+    font-size: 14px !important;
+    margin: 0 !important;
+  }
+}
+
+/* ─── Process steps: vertical en móvil ─── */
+
+@media (max-width: 700px) {
+  .processStepsWrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .processStep {
+    flex: none;
+    max-width: none;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+  }
+  .processStepCard {
+    width: 100%;
+    padding: 20px 18px;
+  }
+  .processStepArrow {
+    display: none;
+  }
+  .processStepDown {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+    color: #93c5fd;
+  }
+}
+
+/* ─── Hero: centrado en móvil ─── */
+
+@media (max-width: 900px) {
+  .heroConversionCopy {
+    text-align: center;
+  }
+  .heroKicker {
+    margin: 0 auto;
+    display: inline-block;
+  }
+  .heroBadgeRow {
+    justify-content: center;
+  }
+  .heroConversionCta {
+    justify-content: center;
+  }
+}
+
+/* ─── Hero trust strip (solo móvil, debajo de los botones) ─── */
+
+.heroMobileTrust {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .heroMobileTrust {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .heroMobileTrust span {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #2d5299;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+/* ─── Proof grid: más impacto visual en móvil ─── */
+
+@media (max-width: 520px) {
+  .proofGrid article {
+    padding: 16px 14px;
+    border-radius: 16px;
+    text-align: center;
+    background: linear-gradient(135deg, #f0f6ff 0%, #fff 100%);
+  }
+  .proofGrid strong {
+    font-size: 30px !important;
+    display: block;
+    color: #0f4bd9;
+  }
+  .proofGrid p {
+    font-size: 13px;
+    margin-top: 4px;
+    color: #4b5e8a;
+  }
+  .proofSection {
+    padding-top: 20px !important;
+    padding-bottom: 36px !important;
+  }
+}
+
+/* ─── FAQ: mejor tap target en móvil ─── */
+
+@media (max-width: 700px) {
+  .faqGrid details {
+    padding: 14px 16px;
+  }
+  .faqGrid summary {
+    font-size: 16px;
+    line-height: 1.3;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 28px;
+    position: relative;
+  }
+  .faqGrid summary::after {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .faqGrid details[open] summary::after {
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .faqGrid p {
+    font-size: 15px;
+    padding-top: 8px;
+  }
+  .faqGrid {
+    gap: 6px;
+  }
+}
+
+/* ─── Section headers: más compactos en móvil ─── */
+
+@media (max-width: 480px) {
+  .section, .sectionSoft {
+    padding: 38px 0 !important;
+  }
+  .sectionDark {
+    padding: 40px 0 !important;
+  }
+  .sectionHeader {
+    margin-bottom: 20px !important;
+  }
+  .sectionTitle {
+    font-size: clamp(24px, 8vw, 34px) !important;
+    line-height: 1.05 !important;
+    margin-bottom: 8px !important;
+  }
+  .sectionSubtitle {
+    font-size: 14.5px !important;
+    line-height: 1.45 !important;
+  }
+  .sectionKicker {
+    font-size: 10px !important;
+  }
+}
+
+/* ─── Sticky CTA bar: más grande y con safe-area en móvil ─── */
+
+@media (max-width: 480px) {
+  .stickyMobileCta {
+    padding: 10px 14px max(14px, env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .stickyMobileCtaBtn,
+  .stickyMobileCtaBtnSecondary {
+    min-height: 52px;
+    font-size: 15px;
+    border-radius: 14px;
+    letter-spacing: -0.01em;
+  }
+  .stickyMobileCtaBtn {
+    flex: 2;
+  }
+  .stickyMobileCtaBtnSecondary {
+    flex: 1;
+  }
+}
+
+/* ─── Final CTA: botones apilados en móvil ─── */
+
+@media (max-width: 520px) {
+  .finalCtaCard {
+    padding: 28px 20px !important;
+    text-align: center;
+  }
+  .finalCtaCard h2 {
+    font-size: clamp(22px, 7vw, 30px) !important;
+  }
+  .finalCtaCard p {
+    font-size: 14.5px !important;
+  }
+  .finalActionRow {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .finalActionRow .btnPrimary,
+  .finalActionRow .btnGhostLight {
+    width: 100% !important;
+    min-height: 52px !important;
+  }
+}
+
+/* ─── Padding body extra inferior (evita que sticky CTA tape contenido) ─── */
+
+@media (max-width: 900px) {
+  main {
+    padding-bottom: 80px;
+  }
+}
+
+/* ─── Mobile chat preview ─── */
+
+.mobileChatPreview {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobileChatBubbleBot,
+.mobileChatBubbleUser {
+  border-radius: 18px;
+  padding: 12px 16px;
+  max-width: 85%;
+}
+
+.mobileChatBubbleBot {
+  background: #ffffff;
+  border: 1px solid #d6e0f4;
+  align-self: flex-start;
+  border-bottom-left-radius: 6px;
+  box-shadow: 0 2px 8px rgba(15,75,217,0.07);
+}
+
+.mobileChatBubbleBot small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #0f4bd9;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.mobileChatBubbleBot p {
+  margin: 0;
+  font-size: 14.5px;
+  color: #1a2e58;
+  line-height: 1.45;
+}
+
+.mobileChatBubbleUser {
+  background: linear-gradient(135deg, #0f4bd9 0%, #1a8fd1 100%);
+  align-self: flex-end;
+  border-bottom-right-radius: 6px;
+}
+
+.mobileChatBubbleUser p {
+  margin: 0;
+  font-size: 14.5px;
+  color: #ffffff;
+  line-height: 1.45;
+}
+
+.mobileChatStats {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mobileChatStats span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1c57bf;
+  background: #e8f0ff;
+  border: 1px solid #c4d8ff;
+  border-radius: 999px;
+  padding: 4px 12px;
 }

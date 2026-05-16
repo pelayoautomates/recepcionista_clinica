@@ -46,6 +46,12 @@ export default function MarketingLanding() {
                   </a>
                 </div>
 
+                <div className={styles.heroMobileTrust}>
+                  <span>✓ Sin tarjeta</span>
+                  <span>✓ Cancela cuando quieras</span>
+                  <span>✓ Activo en 24h</span>
+                </div>
+
                 <div className={`${styles.heroBadgeRow} ${styles.animFadeUp}`} style={{ animationDelay: "320ms" }}>
                   <span className={styles.heroBadge}>
                     <PhoneIcon /> Voz 24/7
@@ -133,25 +139,12 @@ export default function MarketingLanding() {
               <h2 className={styles.sectionTitle}>Activo en 3 pasos, sin programar nada</h2>
             </div>
 
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 0, flexWrap: "wrap", justifyContent: "center" }}>
+            <div className={styles.processStepsWrap}>
               {PROCESS_STEPS.map((step, i) => (
-                <div key={step.title} style={{ display: "flex", alignItems: "flex-start", flex: "1 1 220px", maxWidth: 340, minWidth: 200 }}>
-                  <div style={{
-                    background: "white",
-                    border: "1px solid #d6e0f4",
-                    borderRadius: 20,
-                    padding: "28px 24px",
-                    boxShadow: "0 4px 20px rgba(15,75,217,0.06)",
-                    flex: 1,
-                    position: "relative",
-                  }}>
-                    <div style={{
-                      width: 52, height: 52,
-                      borderRadius: "50%",
+                <div key={step.title} className={styles.processStep}>
+                  <div className={styles.processStepCard}>
+                    <div className={styles.processStepNum} style={{
                       background: i === 0 ? "linear-gradient(135deg,#0f4bd9,#17a0d6)" : i === 1 ? "linear-gradient(135deg,#7c3aed,#a78bfa)" : "linear-gradient(135deg,#059669,#34d399)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 22, fontWeight: 900, color: "white",
-                      marginBottom: 16, boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
                     }}>
                       {i + 1}
                     </div>
@@ -159,11 +152,18 @@ export default function MarketingLanding() {
                     <p style={{ margin: 0, fontSize: 14.5, color: "#4b5563", lineHeight: 1.55 }}>{step.text}</p>
                   </div>
                   {i < PROCESS_STEPS.length - 1 && (
-                    <div style={{ display: "flex", alignItems: "center", paddingTop: 52, color: "#93c5fd", flexShrink: 0, paddingLeft: 8, paddingRight: 8 }}>
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                        <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
+                    <>
+                      <div className={styles.processStepArrow}>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className={styles.processStepDown}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    </>
                   )}
                 </div>
               ))}
@@ -263,6 +263,44 @@ export default function MarketingLanding() {
                     <p>2 casos para llamada humana</p>
                   </article>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── MOBILE-ONLY: chat preview (alternativa al panel preview desktop) ─── */}
+        <section className={`${styles.section} ${styles.sectionSoft} ${styles.mobileOnly}`}>
+          <div className={styles.container}>
+            <div className={styles.sectionHeader}>
+              <p className={styles.sectionKicker}>En acción</p>
+              <h2 className={styles.sectionTitle}>Así habla con tus pacientes</h2>
+              <p className={styles.sectionSubtitle}>
+                Natural, rápido y siempre disponible. Agenda citas sin que intervengas.
+              </p>
+            </div>
+            <div className={styles.mobileChatPreview}>
+              <div className={styles.mobileChatBubbleBot}>
+                <small>Atiende360</small>
+                <p>Hola, soy el asistente de Clínica Ejemplo. ¿En qué puedo ayudarte?</p>
+              </div>
+              <div className={styles.mobileChatBubbleUser}>
+                <p>Quiero pedir cita para una limpieza dental</p>
+              </div>
+              <div className={styles.mobileChatBubbleBot}>
+                <small>Atiende360</small>
+                <p>Perfecto. Tengo disponible el jueves 22 a las 10:30 o el viernes 23 a las 17:00. ¿Cuál te va mejor?</p>
+              </div>
+              <div className={styles.mobileChatBubbleUser}>
+                <p>El jueves a las 10:30</p>
+              </div>
+              <div className={styles.mobileChatBubbleBot}>
+                <small>Atiende360</small>
+                <p>¡Listo! Cita confirmada. Te mando confirmación por WhatsApp ahora mismo.</p>
+              </div>
+              <div className={styles.mobileChatStats}>
+                <span>90 segundos</span>
+                <span>Cita agendada</span>
+                <span>Sin intervención humana</span>
               </div>
             </div>
           </div>
