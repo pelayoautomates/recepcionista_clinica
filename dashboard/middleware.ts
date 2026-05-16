@@ -73,6 +73,15 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // /agencia → solo superadmin
+  if (path.startsWith("/agencia")) {
+    const superadminEmail = process.env.SUPERADMIN_EMAIL;
+    if (!superadminEmail || user.email !== superadminEmail) {
+      return NextResponse.redirect(new URL("/panel", request.url));
+    }
+    return response;
+  }
+
   return response;
 }
 
