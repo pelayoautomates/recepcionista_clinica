@@ -3771,7 +3771,7 @@
 /* ─── Padding body extra inferior (evita que sticky CTA tape contenido) ─── */
 
 @media (max-width: 900px) {
-  main {
+  .root {
     padding-bottom: 80px;
   }
 }
