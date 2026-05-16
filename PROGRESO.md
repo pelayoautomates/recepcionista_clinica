@@ -1,8 +1,23 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-15
+Última actualización: 2026-05-16
 
 ---
+
+## UX / Panel mejorado (2026-05-16)
+
+- **Sidebar**: "Facturación" → "Mi Plan"; "Estadísticas" añadido como primer ítem del menú
+- **Conversaciones**: eliminado tab "Canales" (movido a su propia página en sidebar); añadidos filtros por canal (Chat/WhatsApp/Llamadas), período (hoy/7d/30d/todo) y estado
+- **Configuración**: eliminada sección "Cómo habla tu recepcionista" (tono hardcodeado); eliminada sección "Email de notificaciones" (pendiente para futuro); añadidos tooltips (?) en campos clave
+- **Calendario**: fix timezone (timestamps tratados como UTC → hora Madrid correcta); botón "Sincronizar" GCal manual con feedback visual; fondo del calendario menos blanco (#f8f9fb); fondo día actual más distinguible
+- **Analytics** (`/panel/estadisticas`): nueva página con 4 KPIs, line chart SVG, donut por canal, heatmap 24h, funnel de leads, selector 7/30 días; nuevo endpoint `GET /admin/clinicas/{id}/analytics`
+
+## Página Analytics creada (2026-05-16)
+
+- `backend/routers/admin.py`: endpoint `GET /admin/clinicas/{id}/analytics?dias=7|30`
+- `dashboard/app/panel/estadisticas/page.tsx`: server component (auth + fetch)
+- `dashboard/app/panel/estadisticas/EstadisticasClient.tsx`: charts SVG puros (sin librerías)
+- `dashboard/app/api/clinicas/[id]/analytics/route.ts`: proxy Next.js autenticado
 
 ## SEO + GEO implementado (2026-05-15)
 

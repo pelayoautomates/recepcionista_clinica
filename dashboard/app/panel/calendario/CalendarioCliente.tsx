@@ -33,6 +33,16 @@ const ESTADO_STYLE: Record<string, { bg: string; color: string; border: string }
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Normalize DB timestamps to UTC so getHours() returns Spain local time correctly
+function toDate(s: string): Date {
+  if (!s) return new Date(NaN);
+  // If already has explicit timezone (+xx:xx or Z), parse as-is
+  if (/[Z+]/.test(s.slice(10))) return new Date(s);
+  // No timezone marker → treat as UTC (Supabase timestamptz without offset)
+  return new Date(s + "Z");
+}
+
 function getMonday(d: Date): Date {
   const date = new Date(d);
   const day = date.getDay();
@@ -58,13 +68,13 @@ function fmtFechaCorta(d: Date) {
 }
 
 function getCitaTop(fecha: string): number {
-  const d = new Date(fecha);
+  const d = toDate(fecha);
   return (d.getHours() - HORA_INICIO + d.getMinutes() / 60) * HORA_HEIGHT;
 }
 
 function getCitaHeight(inicio: string, fin?: string, duracion?: number): number {
   if (fin) {
-    const ms = new Date(fin).getTime() - new Date(inicio).getTime();
+    const ms = toDate(fin).getTime() - toDate(inicio).getTime();
     return Math.max(28, (ms / 3_600_000) * HORA_HEIGHT - 4);
   }
   const mins = duracion || 60;
@@ -122,6 +132,8 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalMode | null>(null);
   const [filtroProfesional, setFiltroProfesional] = useState<string>("todos");
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
@@ -172,6 +184,25 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
     }).catch(() => {});
   }, [clinicId]);
 
+  const syncGcal = async () => {
+    setSyncing(true); setSyncMsg(null);
+    try {
+      const res = await fetch(`/api/clinicas/${clinicId}/citas/sync-gcal`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncMsg(`✓ ${data.importados ?? 0} nuevas, ${data.actualizados ?? 0} actualizadas`);
+        await fetchData(vista, anchor);
+      } else {
+        setSyncMsg("Error al sincronizar");
+      }
+    } catch {
+      setSyncMsg("Error de conexión");
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 4000);
+    }
+  };
+
   useEffect(() => { refreshStaticData(); }, [refreshStaticData]);
 
   useEffect(() => { fetchData(vista, anchor); }, [vista, anchor, fetchData]);
@@ -206,8 +237,8 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
     if (filtroEstado !== "todos" && c.estado !== filtroEstado) return false;
     return true;
   });
-  const citasDelDia = (d: Date) => citasFiltradas.filter(c => isSameDay(new Date(c.fecha_inicio), d));
-  const bloquesDelDia = (d: Date) => bloques.filter(b => isSameDay(new Date(b.fecha_inicio), d));
+  const citasDelDia = (d: Date) => citasFiltradas.filter(c => isSameDay(toDate(c.fecha_inicio), d));
+  const bloquesDelDia = (d: Date) => bloques.filter(b => isSameDay(toDate(b.fecha_inicio), d));
 
   const diasSemana = Array.from({ length: 7 }, (_, i) => addDays(getMonday(anchor), i));
   const diasDia = vista === "dia"
@@ -216,6 +247,20 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 110px)", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+
+      {/* Sync flash message */}
+      {syncMsg && (
+        <div style={{
+          position: "fixed", top: 16, right: 16, zIndex: 100,
+          background: syncMsg.startsWith("✓") ? "#f0fdf4" : "#fef2f2",
+          border: `1px solid ${syncMsg.startsWith("✓") ? "#bbf7d0" : "#fca5a5"}`,
+          color: syncMsg.startsWith("✓") ? "#166534" : "#991b1b",
+          borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+        }}>
+          {syncMsg}
+        </div>
+      )}
 
       {/* GCal banner */}
       {!tieneCalendario && (
@@ -306,10 +351,30 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
 
           {/* GCal badge */}
           {tieneCalendario ? (
-            <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 20, padding: "4px 10px 4px 8px", textDecoration: "none" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: "#166534" }}>Google Calendar</span>
-            </a>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 20, padding: "4px 10px 4px 8px", textDecoration: "none" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: "#166534" }}>Google Calendar</span>
+              </a>
+              <button
+                onClick={syncGcal}
+                disabled={syncing}
+                title="Importar eventos de Google Calendar ahora"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  background: "white", border: "1px solid #e5e7eb",
+                  borderRadius: 20, padding: "4px 10px 4px 8px",
+                  fontSize: 11.5, fontWeight: 600, color: "#374151",
+                  cursor: syncing ? "wait" : "pointer", opacity: syncing ? 0.6 : 1,
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ animation: syncing ? "spin 1s linear infinite" : "none" }}>
+                  <path d="M10 5.5A4.5 4.5 0 1 1 5.5 1v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  <path d="M5.5 1L7.5 3 5.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {syncing ? "Sincronizando..." : "Sincronizar"}
+              </button>
+            </div>
           ) : (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 20, padding: "4px 10px 4px 8px", fontSize: 11.5, color: "#9ca3af" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#d1d5db", display: "inline-block" }} />
@@ -345,7 +410,7 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
       </div>
 
       {/* Calendar body */}
-      <div style={{ flex: 1, overflow: "hidden", background: "white", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+      <div style={{ flex: 1, overflow: "hidden", background: "#f8f9fb", borderRadius: 12, border: "1px solid #e2e6ea", boxShadow: "0 2px 8px rgba(15,23,42,0.07)" }}>
 
         {/* ── WEEK VIEW ── */}
         {vista === "semana" && (
@@ -489,8 +554,8 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
                   onClickSlot(d, Math.min(hour, HORA_FIN - 1));
                 }}
                 style={{
-                  position: "relative", borderRight: di < dias.length - 1 ? "1px solid #f3f4f6" : "none",
-                  background: isToday ? "#fafcff" : "white", cursor: "cell",
+                  position: "relative", borderRight: di < dias.length - 1 ? "1px solid #eaecf0" : "none",
+                  background: isToday ? "#f0f6ff" : "#f8f9fb", cursor: "cell",
                 }}
               >
                 {/* Hour grid lines */}
@@ -681,7 +746,7 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
                     )}
                     {height > 54 && (
                       <div style={{ fontSize: 10.5, color: est.color, opacity: 0.6 }}>
-                        {new Date(c.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                        {toDate(c.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                         {c.duracion_min ? ` · ${c.duracion_min}min` : ""}
                       </div>
                     )}
@@ -772,7 +837,7 @@ function VistaMes({ year, month, today, citasDelDia, profesionales, onSelectDia,
                       cursor: "pointer",
                     }}
                   >
-                    {new Date(c.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} {c.paciente_nombre || c.pacientes?.nombre || c.tipo_servicio || "Cita"}
+                    {toDate(c.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} {c.paciente_nombre || c.pacientes?.nombre || c.tipo_servicio || "Cita"}
                   </div>
                 );
               })}
@@ -797,6 +862,14 @@ function GoogleIcon() {
       <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
     </svg>
   );
+}
+
+// Inject keyframes for sync spinner (once per page)
+if (typeof window !== "undefined" && !document.getElementById("cal-keyframes")) {
+  const s = document.createElement("style");
+  s.id = "cal-keyframes";
+  s.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
+  document.head.appendChild(s);
 }
 
 const navBtn: React.CSSProperties = {

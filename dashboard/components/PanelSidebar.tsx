@@ -5,6 +5,15 @@ import { useState } from "react";
 
 const NAV_MAIN = [
   {
+    href: "/panel/estadisticas", label: "Estadísticas", exact: false,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path d="M2 13.5L6 8.5L9.5 11L13 5.5L15.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M2 15H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/conversaciones", label: "Conversaciones", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
@@ -75,7 +84,7 @@ const NAV_AJUSTES = [
     ),
   },
   {
-    href: "/panel/facturacion", label: "Facturación", exact: false,
+    href: "/panel/facturacion", label: "Mi Plan", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <rect x="2" y="4" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" />

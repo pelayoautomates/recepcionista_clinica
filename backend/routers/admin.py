@@ -927,6 +927,94 @@ async def metricas_clinica(clinic_id: UUID):
     }
 
 
+@router.get("/clinicas/{clinic_id}/analytics")
+async def analytics_clinica(clinic_id: UUID, dias: int = 30):
+    """Analytics histórico: serie diaria, canales, leads, horas pico."""
+    from collections import defaultdict
+    db = get_supabase()
+
+    ahora = datetime.now(_APP_TZ)
+    inicio_local = ahora.date() - timedelta(days=dias - 1)
+    inicio_utc = datetime.combine(inicio_local, time.min, tzinfo=_APP_TZ).astimezone(timezone.utc).isoformat()
+
+    convs = db.table("conversaciones").select("created_at, canal, estado") \
+        .eq("clinic_id", str(clinic_id)).gte("created_at", inicio_utc).execute().data or []
+    citas = db.table("citas").select("fecha_inicio, estado") \
+        .eq("clinic_id", str(clinic_id)).gte("fecha_inicio", inicio_utc).execute().data or []
+    leads = db.table("pacientes").select("created_at, estado_lead") \
+        .eq("clinic_id", str(clinic_id)).gte("created_at", inicio_utc).execute().data or []
+    clinica_row = db.table("clinicas").select(
+        "minutos_usados_mes, minutos_incluidos, plan"
+    ).eq("id", str(clinic_id)).single().execute().data or {}
+
+    def to_local_date(iso: str) -> str:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(_APP_TZ).date().isoformat()
+
+    daily_convs: dict[str, int] = defaultdict(int)
+    daily_citas: dict[str, int] = defaultdict(int)
+    daily_leads: dict[str, int] = defaultdict(int)
+    for c in convs:
+        daily_convs[to_local_date(c["created_at"])] += 1
+    for c in citas:
+        daily_citas[to_local_date(c["fecha_inicio"])] += 1
+    for l in leads:
+        daily_leads[to_local_date(l["created_at"])] += 1
+
+    serie_diaria = [
+        {
+            "fecha": (inicio_local + timedelta(days=i)).isoformat(),
+            "conversaciones": daily_convs.get((inicio_local + timedelta(days=i)).isoformat(), 0),
+            "citas": daily_citas.get((inicio_local + timedelta(days=i)).isoformat(), 0),
+            "leads": daily_leads.get((inicio_local + timedelta(days=i)).isoformat(), 0),
+        }
+        for i in range(dias)
+    ]
+
+    por_canal: dict[str, int] = defaultdict(int)
+    for c in convs:
+        por_canal[c.get("canal", "chat_web")] += 1
+
+    estados_citas: dict[str, int] = defaultdict(int)
+    for c in citas:
+        estados_citas[c.get("estado", "confirmada")] += 1
+
+    estado_leads: dict[str, int] = defaultdict(int)
+    for l in leads:
+        estado_leads[l.get("estado_lead", "nuevo")] += 1
+
+    horas: dict[int, int] = defaultdict(int)
+    for c in convs:
+        h = datetime.fromisoformat(c["created_at"].replace("Z", "+00:00")).astimezone(_APP_TZ).hour
+        horas[h] += 1
+    horas_pico = [{"hora": h, "count": horas.get(h, 0)} for h in range(24)]
+
+    total_leads = len(leads)
+    convertidos = sum(1 for l in leads if l.get("estado_lead") in ("cita_agendada", "completado"))
+    tasa_conversion = round(convertidos / total_leads * 100) if total_leads > 0 else 0
+    escalaciones = sum(1 for c in convs if c.get("estado") == "esperando_humano")
+
+    plan = clinica_row.get("plan", "trial")
+    from billing import MINUTOS_POR_PLAN
+    minutos_incluidos = clinica_row.get("minutos_incluidos") or MINUTOS_POR_PLAN.get(plan, 100)
+
+    return {
+        "serie_diaria": serie_diaria,
+        "por_canal": dict(por_canal),
+        "estados_citas": dict(estados_citas),
+        "estado_leads": dict(estado_leads),
+        "horas_pico": horas_pico,
+        "tasa_conversion": tasa_conversion,
+        "escalaciones": escalaciones,
+        "totales": {
+            "conversaciones": len(convs),
+            "citas": len(citas),
+            "leads": total_leads,
+            "minutos_usados": clinica_row.get("minutos_usados_mes") or 0,
+            "minutos_incluidos": minutos_incluidos,
+        },
+    }
+
+
 # ─── Base de conocimiento ─────────────────────────────────────────────────────
 
 @router.get("/clinicas/{clinic_id}/conocimiento")
@@ -1045,7 +1133,7 @@ async def eliminar_entrada_espera(clinic_id: UUID, entrada_id: UUID):
 
 @router.get("/clinicas/{clinic_id}/recuperacion")
 async def leads_recuperacion(clinic_id: UUID, limit: int | None = None):
-    """Leads fr�os: perdidos o sin cita y sin actividad reciente (>3 d�as)."""
+    """Leads fr�os: perdidos o sin cita y sin actividad reciente (>3 d�as)."""
     from scoring import enriquecer_leads
 
     db = get_supabase()
@@ -1058,7 +1146,7 @@ async def leads_recuperacion(clinic_id: UUID, limit: int | None = None):
         .eq("estado_lead", "perdido") \
         .execute().data
 
-    # Leads sin cita (nuevo/interesado/contactado) sin actividad >3 d�as y con tel�fono
+    # Leads sin cita (nuevo/interesado/contactado) sin actividad >3 d�as y con tel�fono
     sin_cita = db.table("pacientes").select("*") \
         .eq("clinic_id", str(clinic_id)) \
         .in_("estado_lead", ["nuevo", "interesado", "contactado"]) \

@@ -12,23 +12,20 @@ export default async function PanelConversacionesPage() {
   const rol = await rolRes.json();
   if (rol.rol !== "clinica") redirect("/login?error=sin_acceso");
 
-  const [convRes, canalesRes] = await Promise.all([
-    adminFetch(`/admin/clinicas/${rol.clinic_id}/conversaciones?limit=250`, { noStore: true }),
-    adminFetch(`/admin/clinicas/${rol.clinic_id}/canales`, { noStore: true }),
-  ]);
+  const convRes = await adminFetch(
+    `/admin/clinicas/${rol.clinic_id}/conversaciones?limit=250`,
+    { noStore: true }
+  );
 
   const conversaciones = convRes.ok ? await convRes.json() : [];
-  const canales = canalesRes.ok ? await canalesRes.json() : {};
-  const esperando = conversaciones.filter((c: any) => c.estado === "esperando_humano").length;
+  const esperando = Array.isArray(conversaciones)
+    ? conversaciones.filter((c: any) => c.estado === "esperando_humano").length
+    : 0;
 
   return (
     <ConversacionesWrapper
       conversaciones={Array.isArray(conversaciones) ? conversaciones : []}
       clinicId={rol.clinic_id}
-      telefono={canales.telefono_ia || canales.telefono || null}
-      twilioNumber={canales.twilio_whatsapp_number || null}
-      twilioConfigured={canales.twilio_configured ?? false}
-      smsActivo={canales.sms_activo ?? false}
       esperando={esperando}
     />
   );

@@ -2,9 +2,44 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
-//  Types 
+function InfoTooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", marginLeft: 5 }}>
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        style={{
+          width: 16, height: 16, borderRadius: "50%",
+          background: "#f3f4f6", border: "1px solid #d1d5db",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          fontSize: 9.5, color: "#6b7280", cursor: "help",
+          fontWeight: 700, padding: 0, flexShrink: 0,
+        }}
+      >
+        ?
+      </button>
+      {show && (
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
+          transform: "translateX(-50%)",
+          background: "#1f2937", color: "white",
+          padding: "8px 11px", borderRadius: 7,
+          fontSize: 11.5, lineHeight: 1.5,
+          width: 240, whiteSpace: "normal",
+          zIndex: 200, boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+          pointerEvents: "none",
+        }}>
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
 
-type Tono = "profesional" | "cercano" | "formal";
+//  Types
+
 type RoutingMode = "siempre" | "fuera_horario" | "si_no_contestan";
 interface Msg { role: "user" | "assistant"; content: string; }
 
@@ -14,7 +49,7 @@ interface Props {
   conocimiento: any[];
 }
 
-//  Helpers 
+// Helpers
 
 function getInitialDoc(clinica: any): string {
   const s = clinica.servicios;
@@ -39,25 +74,14 @@ function getInitialDoc(clinica: any): string {
   return parts.join("\n");
 }
 
-function getInitialTono(clinica: any): Tono {
-  const s = clinica.servicios;
-  if (s && typeof s === "object" && s._tono) return s._tono as Tono;
-  return "profesional";
-}
-
-function buildPrompt(nombre: string, doc: string, tono: Tono): string {
-  const tonoTexto = {
-    profesional: "Usa un tono profesional y directo. Se eficiente y claro.",
-    cercano: "Usa un tono cercano y amigable. Tutea al paciente y muestra empatia.",
-    formal: "Usa un tono formal y clinico. Trata de usted al paciente en todo momento.",
-  }[tono];
+function buildPrompt(nombre: string, doc: string): string {
   return `Eres la recepcionista virtual de ${nombre}. Responde siempre en espanol.
 
 INFORMACION VERIFICADA DE LA CLINICA:
 ${doc}
 
 INSTRUCCIONES:
-- ${tonoTexto}
+- Usa un tono cercano pero profesional.
 - Si el paciente quiere agendar una cita, usa las herramientas para consultar disponibilidad y crear la cita.
 - Si no sabes algo con certeza, dilo claramente y ofrece derivar a un humano.
 - Nunca inventes precios, horarios ni servicios que no esten en la informacion proporcionada.
@@ -87,12 +111,6 @@ const label: CSSProperties = {
 };
 const hint: CSSProperties = { fontSize: 12, color: "#9ca3af", marginTop: 6 };
 
-const TONOS: { key: Tono; label: string; desc: string }[] = [
-  { key: "profesional", label: "Profesional", desc: "Directo y eficiente. Ideal para clinicas de especialistas." },
-  { key: "cercano",     label: "Cercano",      desc: "Amigable y empatico. Tutea al paciente. Ideal para medicina general." },
-  { key: "formal",      label: "Formal",       desc: "Clnico y de usted. Ideal para hospitales y clinicas de alta gama." },
-];
-
 const ROUTING_MODES: { key: RoutingMode; label: string; desc: string; badge?: string }[] = [
   { key: "siempre",         label: "Siempre activo",         desc: "El agente contesta todas las llamadas entrantes, 24/7." },
   { key: "fuera_horario",   label: "Solo fuera de horario",  desc: "El agente solo contesta cuando la clinica est cerrada.", badge: "Gestionado por nosotros" },
@@ -106,9 +124,7 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
 
   // Form state
   const [doc, setDoc]           = useState(initialDoc);
-  const [tono, setTono]         = useState<Tono>(getInitialTono(clinica));
   const [routing, setRouting]   = useState<RoutingMode>(clinica.routing_mode || "siempre");
-  const [email, setEmail]       = useState(clinica.notification_email || "");
   const savedDocRef             = useRef(initialDoc);
   const [isDirty, setIsDirty]   = useState(false);
 
@@ -192,11 +208,10 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt_personalizado: buildPrompt(clinica.nombre, doc, tono),
-          servicios: { _doc: doc, _tono: tono },
+          prompt_personalizado: buildPrompt(clinica.nombre, doc),
+          servicios: { _doc: doc },
           horarios: clinica.horarios || {},
           routing_mode: routing,
-          notification_email: email || null,
         }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "Error al guardar"); }
@@ -332,7 +347,8 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
         <div style={card}>
           <div style={cardHeader}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#2563eb" strokeWidth="1.3"/><path d="M5 6h6M5 8.5h4M5 11h5" stroke="#2563eb" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            Informacion de tu clinica
+            Información de tu clínica
+            <InfoTooltip text="Esta es la 'memoria' de tu recepcionista IA. Cuanta más información incluyas (servicios, precios, horarios, FAQs), mejor responderá a los pacientes." />
             {isDirty && (
               <span style={{ fontSize: 11, fontWeight: 600, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "2px 7px", marginLeft: 4 }}>
                 Sin guardar
@@ -351,37 +367,12 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
           </div>
         </div>
 
-        {/*  3. Tono  */}
-        <div style={card}>
-          <div style={cardHeader}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2C4.7 2 2 4.7 2 8c0 1.2.4 2.4 1 3.3L2 14l2.7-1A6 6 0 1 0 8 2z" stroke="#059669" strokeWidth="1.3" strokeLinejoin="round"/></svg>
-            Como habla tu recepcionista
-          </div>
-          <div style={{ ...cardBody, display: "flex", gap: 10 }}>
-            {TONOS.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTono(t.key)}
-                style={{
-                  flex: 1, padding: "14px 12px", border: `2px solid ${tono === t.key ? "#059669" : "#e5e7eb"}`,
-                  borderRadius: 10, background: tono === t.key ? "#f0fdf4" : "white",
-                  cursor: "pointer", textAlign: "left", transition: "all 0.12s",
-                }}
-              >
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: tono === t.key ? "#065f46" : "#111827", marginBottom: 4 }}>
-                  {t.label}
-                </div>
-                <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.4 }}>{t.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/*  4. Routing  */}
+        {/*  3. Routing  */}
         <div style={card}>
           <div style={cardHeader}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.5A1.5 1.5 0 0 1 4.5 3h7A1.5 1.5 0 0 1 13 4.5v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 11.5v-7z" stroke="#f59e0b" strokeWidth="1.3"/><path d="M8 6v4M6 8h4" stroke="#f59e0b" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            Cuando atiende las llamadas
+            Cuándo atiende las llamadas
+            <InfoTooltip text="Controla en qué momento el agente coge las llamadas. Solo funciona si tienes un número de teléfono IA activo en Canales." />
           </div>
           <div style={{ ...cardBody, display: "flex", flexDirection: "column", gap: 8 }}>
             {ROUTING_MODES.map(m => (
@@ -421,23 +412,6 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
                 Este modo requiere configuracion en la central telefonica. Te contactaremos para aplicarlo en Telnyx.
               </div>
             )}
-          </div>
-        </div>
-
-        {/*  5. Email notificaciones  */}
-        <div style={card}>
-          <div style={cardHeader}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="#6b7280" strokeWidth="1.3"/><path d="M2 6l6 4 6-4" stroke="#6b7280" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            Email de notificaciones
-          </div>
-          <div style={cardBody}>
-            <input
-              type="email" value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="recepcion@tuclinica.com"
-              style={inputSt}
-            />
-            <p style={hint}>Recibiras un aviso cuando el agente agende una cita o escale a humano.</p>
           </div>
         </div>
 

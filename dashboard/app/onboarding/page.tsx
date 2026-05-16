@@ -336,20 +336,30 @@ export default function OnboardingPage() {
                   Para activar todos los canales completa estos pasos desde el panel:
                 </p>
                 {[
-                  { done: true, label: "Clínica creada" },
-                  { done: extraidoOk, label: urlWeb ? "Agente entrenado con tu web" : "Añadir web → Configuración" },
-                  { done: false, label: "Añadir servicios → Agenda IA" },
-                  { done: false, label: "Configurar profesionales → Agenda IA" },
-                  { done: false, label: "Conectar Google Calendar → Configuración" },
-                  { done: false, label: "Comprar número de teléfono → Canales" },
-                ].map(({ done, label }) => (
-                  <div key={label} style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "7px 0",
-                    borderBottom: "1px solid #f0f0f0",
-                  }}>
+                  { done: true, label: "Clínica creada", href: null },
+                  { done: extraidoOk, label: urlWeb ? "Agente entrenado con tu web" : "Añadir web → Configuración", href: extraidoOk ? null : "/panel/configuracion" },
+                  { done: false, label: "Añadir servicios", href: "/panel/agenda" },
+                  { done: false, label: "Configurar profesionales", href: "/panel/agenda" },
+                  { done: false, label: "Conectar Google Calendar", href: "/panel/configuracion" },
+                  { done: false, label: "Comprar número de teléfono", href: "/panel/canales" },
+                  { done: false, label: "Conectar WhatsApp", href: "/panel/canales" },
+                ].map(({ done, label, href }) => (
+                  <div
+                    key={label}
+                    onClick={() => href && router.push(href)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 6px",
+                      borderBottom: "1px solid #f0f0f0",
+                      borderRadius: 6,
+                      cursor: href ? "pointer" : "default",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={e => { if (href) (e.currentTarget as HTMLDivElement).style.background = "#f0f4ff"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                  >
                     <span style={{
                       width: 20, height: 20, borderRadius: "50%",
                       background: done ? "#dcfce7" : "#f3f4f6",
@@ -363,16 +373,28 @@ export default function OnboardingPage() {
                       fontSize: 13,
                       color: done ? "#166534" : "#374151",
                       fontWeight: done ? 500 : 400,
+                      flex: 1,
                     }}>
                       {label}
                     </span>
+                    {href && !done && (
+                      <span style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>→</span>
+                    )}
                   </div>
                 ))}
               </div>
 
-              <button onClick={() => router.push("/panel")} style={btnPrimary}>
-                Ir al panel →
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <button onClick={() => router.push("/panel/configuracion")} style={btnPrimary}>
+                  Configurar mi recepcionista →
+                </button>
+                <button
+                  onClick={() => router.push("/panel")}
+                  style={{ ...btnPrimary, background: "transparent", color: "#6b7280", border: "1px solid #e5e7eb", padding: "11px 24px" }}
+                >
+                  Ver el panel
+                </button>
+              </div>
             </>
           )}
         </div>
