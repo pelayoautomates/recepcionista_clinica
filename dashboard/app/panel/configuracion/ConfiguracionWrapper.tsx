@@ -193,7 +193,6 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
       }
       const newDoc = lines.join("\n");
       setDoc(newDoc); savedDocRef.current = newDoc; setIsDirty(false);
-      if (data.tono && ["profesional", "cercano", "formal"].includes(data.tono)) setTono(data.tono as Tono);
       setShowIA(false);
     } catch (e: any) { setError(e.message || "Error generando configuracion"); }
     finally { setProcesando(false); }
