@@ -83,6 +83,14 @@ async def guardar_configuracion(clinic_id: UUID, data: dict):
     return result.data[0]
 
 
+@router.post("/clinicas/{clinic_id}/onboarding-ok")
+async def marcar_onboarding_ok(clinic_id: UUID):
+    """Marca el onboarding guiado como completado."""
+    db = get_supabase()
+    db.table("clinicas").update({"onboarding_ok": True}).eq("id", str(clinic_id)).execute()
+    return {"ok": True}
+
+
 # ─── Extracción de texto ──────────────────────────────────────────────────────
 
 def _html_to_text(html: str) -> str:

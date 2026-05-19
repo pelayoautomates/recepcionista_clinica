@@ -167,7 +167,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       {/* Guided tour — solo para usuarios nuevos */}
       <GuidedTour
         clinicId={rol.clinic_id}
+        clinicName={clinica.nombre}
         isNewUser={!clinica.onboarding_ok}
+        gcalConnected={Boolean(clinica.google_tokens_enc)}
       />
     </div>
   );
