@@ -72,74 +72,81 @@ export default function MarketingLanding() {
                 <div className={styles.heroOrbitalGlow} aria-hidden="true" />
                 <div className={styles.hero3dStack}>
 
-                  {/* Left channel icons */}
-                  <div className={styles.flowLeftIcons} aria-hidden="true">
-                    <span className={`${styles.flowIconPill} ${styles.flowIconWA}`}><WaIcon /></span>
-                    <span className={`${styles.flowIconPill} ${styles.flowIconPhone}`}><PhoneIcon /></span>
-                    <span className={`${styles.flowIconPill} ${styles.flowIconChat}`}><ChatIcon /></span>
+                  {/* Col 1: channel icons */}
+                  <div className={styles.flowLeftIcons}>
+                    <span className={`${styles.flowIconCircle} ${styles.flowIconWA}`}><WaIcon /></span>
+                    <span className={`${styles.flowIconCircle} ${styles.flowIconPhone}`}><PhoneIcon /></span>
+                    <span className={`${styles.flowIconCircle} ${styles.flowIconChat}`}><ChatIcon /></span>
                   </div>
 
-                  {/* Connector lines */}
-                  <div className={styles.flowConnectors} aria-hidden="true">
-                    <div className={styles.flowLine1} />
-                    <div className={styles.flowLine2} />
-                    <div className={`${styles.flowParticle} ${styles.flowParticle1}`} />
-                    <div className={`${styles.flowParticle} ${styles.flowParticle2}`} />
-                  </div>
+                  {/* Col 2: cards + connectors */}
+                  <div className={styles.flowCenterFlow}>
 
-                  {/* Block 1: PACIENTE CONTACTA */}
-                  <article className={styles.flowCardContact}>
-                    <div className={styles.flowKicker}>
-                      <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
-                      PACIENTE CONTACTA
-                    </div>
-                    <div className={styles.flowCardMain}>WhatsApp, llamada o webchat</div>
-                    <div className={styles.flowCardQuote}>
-                      <span className={styles.flowQuoteIcon}>&ldquo;</span>
-                      <span className={styles.flowQuoteText}>Quiero una cita para esta semana</span>
-                    </div>
-                  </article>
-
-                  {/* Block 2: IA EN ACCIÓN — protagonist */}
-                  <article className={styles.flowCardAI}>
-                    <div className={styles.flowCardAIHalo} aria-hidden="true" />
-                    <div className={styles.flowCardAIContent}>
+                    <article className={styles.flowCardContact}>
                       <div className={styles.flowKicker}>
-                        <span className={`${styles.flowDot} ${styles.flowDotPulse}`} />
-                        IA EN ACCIÓN
+                        <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
+                        PACIENTE CONTACTA
                       </div>
-                      <div className={styles.flowCardAITitle}>Responde y propone hueco</div>
-                      <div className={styles.flowCardAITime}>Disponible hoy 18:30 o mañana 10:00</div>
-                    </div>
-                    <div className={styles.flowCardAIRobot} aria-hidden="true">
-                      <RobotIcon />
-                    </div>
-                  </article>
+                      <div className={styles.flowCardTitle}>WhatsApp, llamada o webchat</div>
+                      <div className={styles.flowQuote}>
+                        <span className={styles.flowQuoteMark}>&ldquo;</span>
+                        <span className={styles.flowQuoteText}>Quiero una cita para esta semana</span>
+                      </div>
+                    </article>
 
-                  {/* Block 3: CITA CONFIRMADA */}
-                  <article className={styles.flowCardConfirm}>
-                    <div className={`${styles.flowKicker} ${styles.flowKickerGreen}`}>
-                      <span className={`${styles.flowDot} ${styles.flowDotGreen}`} />
-                      CITA CONFIRMADA
+                    <div className={styles.flowConnector} aria-hidden="true">
+                      <div className={styles.flowConnectorTrack}>
+                        <div className={styles.flowConnectorDot} />
+                      </div>
                     </div>
-                    <div className={styles.flowCardConfirmRow}>
-                      <span className={styles.flowCalBadge}><CalendarIcon /></span>
-                      <div>
-                        <div className={styles.flowCardConfirmTitle}>
-                          Paciente agendado
-                          <span className={styles.flowCheckBadge}>✓</span>
+
+                    <article className={styles.flowCardAI}>
+                      <div className={styles.flowCardAIContent}>
+                        <div className={styles.flowKicker}>
+                          <span className={`${styles.flowDot} ${styles.flowDotPulse}`} />
+                          IA EN ACCIÓN
                         </div>
-                        <div className={styles.flowCardCalRow}>Hoy · 18:30 · Google Calendar</div>
+                        <div className={styles.flowCardAITitle}>Responde y propone hueco</div>
+                        <div className={styles.flowCardAITime}>Disponible hoy 18:30 o mañana 10:00</div>
+                      </div>
+                      <div className={styles.flowCardAIAvatar} aria-hidden="true">
+                        <RobotIcon />
+                      </div>
+                    </article>
+
+                    <div className={styles.flowConnector} aria-hidden="true">
+                      <div className={styles.flowConnectorTrack}>
+                        <div className={`${styles.flowConnectorDot} ${styles.flowConnectorDot2}`} />
                       </div>
                     </div>
-                  </article>
 
-                  {/* Badge: DERIVADO AL EQUIPO */}
-                  <div className={styles.flowBadgeHuman}>
-                    <span className={styles.flowBadgeHumanIcon}><UserIcon /></span>
-                    <div>
-                      <div className={styles.flowBadgeTitle}>DERIVADO AL EQUIPO</div>
-                      <div className={styles.flowBadgeSub}>Intervención humana cuando hace falta</div>
+                    <article className={styles.flowCardConfirm}>
+                      <div className={`${styles.flowKicker} ${styles.flowKickerGreen}`}>
+                        <span className={`${styles.flowDot} ${styles.flowDotGreen}`} />
+                        CITA CONFIRMADA
+                      </div>
+                      <div className={styles.flowConfirmRow}>
+                        <div className={styles.flowCalIcon}><CalendarIcon /></div>
+                        <div>
+                          <div className={styles.flowConfirmTitle}>
+                            Paciente agendado
+                            <span className={styles.flowCheckCircle}>✓</span>
+                          </div>
+                          <div className={styles.flowConfirmSub}>Hoy · 18:30 · Google Calendar</div>
+                        </div>
+                      </div>
+                    </article>
+
+                  </div>
+
+                  {/* Col 3: badge */}
+                  <div className={styles.flowRightSide}>
+                    <div className={styles.flowBadgeHuman}>
+                      <span className={styles.flowBadgeIcon}><UserIcon /></span>
+                      <div>
+                        <div className={styles.flowBadgeLabel}>DERIVADO AL EQUIPO</div>
+                        <div className={styles.flowBadgeText}>Intervención humana cuando hace falta</div>
+                      </div>
                     </div>
                   </div>
 
