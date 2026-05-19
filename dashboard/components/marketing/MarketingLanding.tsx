@@ -92,7 +92,7 @@ export default function MarketingLanding() {
                       <span className={styles.flowChannelChip}><PhoneIcon /> Voz</span>
                       <span className={styles.flowChannelChip}><ChatIcon /> Chat</span>
                     </div>
-                    <div className={styles.flowCardQuote}>"Quiero una cita para esta semana"</div>
+                    <div className={styles.flowCardQuote}>&ldquo;Quiero una cita para esta semana&rdquo;</div>
                   </article>
 
                   {/* Block 2: IA EN ACCIÓN — protagonist */}
@@ -103,7 +103,7 @@ export default function MarketingLanding() {
                       IA EN ACCIÓN
                     </div>
                     <div className={styles.flowCardAITitle}>Responde y propone hueco</div>
-                    <div className={styles.flowCardAITime}>"Disponible hoy 18:30 o mañana 10:00"</div>
+                    <div className={styles.flowCardAITime}>&ldquo;Disponible hoy 18:30 o mañana 10:00&rdquo;</div>
                   </article>
 
                   {/* Block 3: CITA CONFIRMADA */}
