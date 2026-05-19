@@ -1773,7 +1773,7 @@
 
 .heroConversionVisual {
   position: relative;
-  min-height: 360px;
+  min-height: 400px;
 }
 
 .heroOrbitalGlow {
@@ -1791,95 +1791,234 @@
   height: 100%;
 }
 
-.stackCardMain,
-.stackCardFloatA,
-.stackCardFloatB {
+/* ── HERO FLOW CARDS ─────────────────────────────────────────────────── */
+
+.flowCardContact,
+.flowCardAI,
+.flowCardConfirm {
   position: absolute;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(5px);
-  box-shadow: 0 18px 44px rgba(11, 27, 61, 0.26);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: #10244b;
 }
 
-.stackCardMain {
-  right: 28px;
-  top: 34px;
-  width: 280px;
-  min-height: 190px;
-  padding: 17px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(220, 235, 255, 0.86));
-  transform: rotateY(-12deg) rotateX(7deg);
+.flowCardContact {
+  left: 8px;
+  top: 52px;
+  width: 205px;
+  padding: 16px 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(220, 235, 255, 0.84));
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: 0 12px 36px rgba(11, 27, 61, 0.18);
+  animation: floatContact 5.2s ease-in-out infinite;
 }
 
-.stackCardMain small {
-  display: block;
-  color: #315189;
-  font-size: 12px;
+.flowCardAI {
+  right: 8px;
+  top: 100px;
+  width: 265px;
+  padding: 22px 20px 20px;
+  background: linear-gradient(145deg, rgba(241, 247, 255, 0.97), rgba(210, 228, 255, 0.92));
+  border: 1px solid rgba(99, 155, 235, 0.4);
+  box-shadow: 0 22px 54px rgba(11, 27, 61, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  animation: floatAI 5.8s ease-in-out infinite;
+  z-index: 2;
+  overflow: visible;
+}
+
+.flowCardAIHalo {
+  position: absolute;
+  inset: -28px;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 68%);
+  pointer-events: none;
+  animation: pulseGlow 3.2s ease-in-out infinite;
+}
+
+.flowCardConfirm {
+  left: 18px;
+  bottom: 14px;
+  width: 215px;
+  padding: 16px 18px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.93), rgba(224, 239, 255, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 14px 40px rgba(11, 27, 61, 0.2);
+  animation: floatConfirm 6.4s ease-in-out infinite;
+}
+
+/* Kicker row */
+.flowKicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: #3b6ab0;
+  margin-bottom: 10px;
 }
 
-.stackCardMain strong {
-  margin-top: 8px;
-  display: block;
-  font-size: 34px;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  font-family: var(--marketing-font-heading), sans-serif;
+.flowDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.stackCardMain p {
-  margin: 12px 0 0;
-  color: #355184;
-  font-size: 14px;
+.flowDotGreen {
+  background: #22c55e;
+}
+
+.flowDotBlue {
+  background: #3b82f6;
+}
+
+.flowDotPulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3b82f6;
+  flex-shrink: 0;
+  animation: pulseDot 1.5s ease-in-out infinite;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+}
+
+/* Card text content */
+.flowCardMain {
+  font-size: 15px;
   font-weight: 700;
+  color: #10244b;
+  line-height: 1.3;
 }
 
-.stackCardFloatA {
-  left: 16px;
-  top: 92px;
-  width: 180px;
-  padding: 12px 13px;
-  background: linear-gradient(140deg, rgba(15, 75, 217, 0.9), rgba(23, 160, 214, 0.9));
-  color: #eff5ff;
-  transform: rotateY(11deg) rotateX(-4deg);
-  animation: floatCardA 5s ease-in-out infinite;
-}
-
-.stackCardFloatA span,
-.stackCardFloatB span {
-  display: block;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.92;
-}
-
-.stackCardFloatA b {
-  margin-top: 7px;
-  display: block;
-  font-size: 28px;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.stackCardFloatB {
-  right: -4px;
-  bottom: 26px;
-  width: 196px;
-  padding: 12px 13px;
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(230, 241, 255, 0.94));
-  transform: rotateY(-9deg) rotateX(4deg);
-  animation: floatCardB 5.6s ease-in-out infinite;
-}
-
-.stackCardFloatB b {
-  margin-top: 7px;
-  display: block;
-  font-size: 18px;
+.flowCardAITitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f3080;
   line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-family: var(--marketing-font-heading), sans-serif;
+  margin-bottom: 8px;
+}
+
+.flowCardAITime {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b6ab0;
+  font-style: italic;
+}
+
+.flowCardQuote {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #4a6a9f;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.flowCardCalRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b6ab0;
+}
+
+/* Channel chips */
+.flowChannelRow {
+  display: flex;
+  gap: 5px;
+  margin: 10px 0 6px;
+  flex-wrap: wrap;
+}
+
+.flowChannelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: rgba(59, 130, 246, 0.09);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  font-size: 11px;
+  font-weight: 600;
+  color: #2d5da0;
+}
+
+/* Badge: DERIVADO AL EQUIPO */
+.flowBadgeHuman {
+  position: absolute;
+  right: 6px;
+  bottom: 80px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px 7px 10px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+  animation: floatBadge 7s ease-in-out infinite;
+  z-index: 3;
+}
+
+/* Connector lines & particles */
+.flowConnectors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.flowLine1 {
+  position: absolute;
+  left: 112px;
+  top: 172px;
+  width: 2px;
+  height: 50px;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0));
+  border-radius: 2px;
+}
+
+.flowLine2 {
+  position: absolute;
+  right: 130px;
+  top: 220px;
+  width: 70px;
+  height: 2px;
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0));
+  border-radius: 2px;
+}
+
+.flowParticle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.4);
+}
+
+.flowParticle1 {
+  left: 110px;
+  top: 195px;
+  animation: travelDown 2.4s ease-in-out infinite;
+}
+
+.flowParticle2 {
+  right: 138px;
+  top: 218px;
+  animation: travelRight 2.8s ease-in-out infinite 0.7s;
 }
 
 .channelRail {
@@ -2682,6 +2821,101 @@
   }
 }
 
+@keyframes floatContact {
+  0%,
+  100% {
+    transform: rotateY(-9deg) rotateX(6deg) translateZ(-15px) translateY(0);
+  }
+
+  50% {
+    transform: rotateY(-9deg) rotateX(6deg) translateZ(-15px) translateY(-7px);
+  }
+}
+
+@keyframes floatAI {
+  0%,
+  100% {
+    transform: rotateY(-11deg) rotateX(5deg) translateZ(25px) translateY(0);
+  }
+
+  50% {
+    transform: rotateY(-11deg) rotateX(5deg) translateZ(25px) translateY(6px);
+  }
+}
+
+@keyframes floatConfirm {
+  0%,
+  100% {
+    transform: rotateY(-7deg) rotateX(4deg) translateZ(5px) translateY(0);
+  }
+
+  50% {
+    transform: rotateY(-7deg) rotateX(4deg) translateZ(5px) translateY(-8px);
+  }
+}
+
+@keyframes floatBadge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.08);
+  }
+}
+
+@keyframes travelDown {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  20% {
+    opacity: 0.8;
+  }
+
+  80% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes travelRight {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+
+  20% {
+    opacity: 0.8;
+  }
+
+  80% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+}
+
 @keyframes voicePing {
   0% {
     box-shadow: 0 0 0 0 rgba(76, 168, 255, 0.45);
@@ -2898,21 +3132,6 @@
 
   .metricsRow {
     grid-template-columns: 1fr;
-  }
-
-  .stackCardMain {
-    right: 0;
-    width: 100%;
-    max-width: 258px;
-  }
-
-  .stackCardFloatA {
-    left: 0;
-    width: 150px;
-  }
-
-  .stackCardFloatB {
-    width: 164px;
   }
 
   .channelRail {

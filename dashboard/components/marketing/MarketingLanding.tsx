@@ -71,19 +71,60 @@ export default function MarketingLanding() {
               <div className={`${styles.heroConversionVisual} ${styles.desktopOnly} ${styles.animFadeIn}`} style={{ animationDelay: "200ms" }}>
                 <div className={styles.heroOrbitalGlow} aria-hidden="true" />
                 <div className={styles.hero3dStack}>
-                  <article className={styles.stackCardMain}>
-                    <small>Conversación real</small>
-                    <strong>Paciente reserva en 90 segundos</strong>
-                    <p>El agente pregunta, propone hueco y confirma. Todo queda en el panel.</p>
+
+                  {/* Connector particles */}
+                  <div className={styles.flowConnectors} aria-hidden="true">
+                    <div className={styles.flowLine1} />
+                    <div className={styles.flowLine2} />
+                    <div className={`${styles.flowParticle} ${styles.flowParticle1}`} />
+                    <div className={`${styles.flowParticle} ${styles.flowParticle2}`} />
+                  </div>
+
+                  {/* Block 1: PACIENTE CONTACTA */}
+                  <article className={styles.flowCardContact}>
+                    <div className={styles.flowKicker}>
+                      <span className={`${styles.flowDot} ${styles.flowDotGreen}`} />
+                      PACIENTE CONTACTA
+                    </div>
+                    <div className={styles.flowCardMain}>WhatsApp, llamada o webchat</div>
+                    <div className={styles.flowChannelRow}>
+                      <span className={styles.flowChannelChip}><WaIcon /> WA</span>
+                      <span className={styles.flowChannelChip}><PhoneIcon /> Voz</span>
+                      <span className={styles.flowChannelChip}><ChatIcon /> Chat</span>
+                    </div>
+                    <div className={styles.flowCardQuote}>"Quiero una cita para esta semana"</div>
                   </article>
-                  <article className={styles.stackCardFloatA}>
-                    <span>Nuevo lead</span>
-                    <b>Cita agendada</b>
+
+                  {/* Block 2: IA EN ACCIÓN — protagonist */}
+                  <article className={styles.flowCardAI}>
+                    <div className={styles.flowCardAIHalo} aria-hidden="true" />
+                    <div className={styles.flowKicker}>
+                      <span className={`${styles.flowDot} ${styles.flowDotPulse}`} />
+                      IA EN ACCIÓN
+                    </div>
+                    <div className={styles.flowCardAITitle}>Responde y propone hueco</div>
+                    <div className={styles.flowCardAITime}>"Disponible hoy 18:30 o mañana 10:00"</div>
                   </article>
-                  <article className={styles.stackCardFloatB}>
-                    <span>Derivado</span>
-                    <b>Al equipo</b>
+
+                  {/* Block 3: CITA CONFIRMADA */}
+                  <article className={styles.flowCardConfirm}>
+                    <div className={styles.flowKicker}>
+                      <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
+                      CITA CONFIRMADA
+                    </div>
+                    <div className={styles.flowCardMain}>Paciente agendado ✓</div>
+                    <div className={styles.flowCardCalRow}>
+                      <CalendarIcon />
+                      Hoy · 18:30 · Google Calendar
+                    </div>
                   </article>
+
+                  {/* Badge: DERIVADO AL EQUIPO */}
+                  <div className={styles.flowBadgeHuman}>
+                    <UserIcon />
+                    <span>Derivado al equipo</span>
+                  </div>
+
                 </div>
               </div>
 
@@ -362,6 +403,34 @@ export default function MarketingLanding() {
         </section>
       </main>
     </MarketingShell>
+  );
+}
+
+function WaIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12c0 2.017.5 3.917 1.38 5.583L.057 23.1a.75.75 0 0 0 .921.921l5.517-1.323A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75c-1.852 0-3.6-.49-5.107-1.346l-.366-.21-3.793.91.91-3.793-.21-.366A9.722 9.722 0 0 1 2.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="8" cy="15" r="1.2" fill="currentColor" />
+      <circle cx="12" cy="15" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }
 
