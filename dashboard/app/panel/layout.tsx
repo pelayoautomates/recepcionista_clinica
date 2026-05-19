@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { adminFetch } from "@/lib/api";
 import PanelSidebar from "@/components/PanelSidebar";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
+import GuidedTour from "@/components/GuidedTour";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -162,6 +163,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           trialDiasRestantes={trialDiasRestantes}
         />
       )}
+
+      {/* Guided tour — solo para usuarios nuevos */}
+      <GuidedTour
+        clinicId={rol.clinic_id}
+        isNewUser={!clinica.onboarding_ok}
+      />
     </div>
   );
 }

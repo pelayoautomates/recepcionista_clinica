@@ -302,7 +302,9 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
                 Pega la web de tu clinica y la IA extrae servicios, horarios y precios automaticamente.
               </p>
               <label style={label}>Web de la clinica</label>
+              <div data-tour="config-url">
               <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://miclinica.com" style={{ ...inputSt, marginBottom: 12 }} />
+              </div>
               <label style={label}>Documentos adicionales <span style={{ fontWeight: 400, color: "#9ca3af" }}>(PDF, DOCX, TXT)</span></label>
               <div
                 onClick={() => fileRef.current?.click()}
@@ -410,6 +412,52 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
               <div style={{ background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#92400e" }}>
                 Este modo requiere configuracion en la central telefonica. Te contactaremos para aplicarlo en Telnyx.
               </div>
+            )}
+          </div>
+        </div>
+
+        {/*  4. Google Calendar  */}
+        <div style={card} data-tour="config-gcal">
+          <div style={cardHeader}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2.5" width="12" height="11" rx="1.5" stroke="#0ea5e9" strokeWidth="1.3"/>
+              <path d="M2 6.5H14M5.5 1V4M10.5 1V4" stroke="#0ea5e9" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M5 9.5H7M9 9.5H11M5 12H7" stroke="#0ea5e9" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            Google Calendar
+          </div>
+          <div style={cardBody}>
+            {clinica.google_tokens_enc ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 13, background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 20, padding: "4px 12px", fontWeight: 600 }}>
+                  ✓ Conectado
+                </span>
+                <span style={{ fontSize: 13, color: "#6b7280" }}>Google Calendar sincronizado</span>
+              </div>
+            ) : (
+              <>
+                <p style={{ ...hint, marginTop: 0, marginBottom: 12, color: "#6b7280" }}>
+                  Conecta tu Google Calendar para que el agente vea tu disponibilidad real y pueda agendar citas directamente.
+                </p>
+                <a
+                  href={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/auth/google/${clinicId}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    background: "#0ea5e9", color: "white",
+                    border: "none", borderRadius: 8, padding: "10px 18px",
+                    fontSize: 13.5, fontWeight: 600, cursor: "pointer",
+                    textDecoration: "none",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                    <path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                    <path fill="rgba(255,255,255,0.85)" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                    <path fill="rgba(255,255,255,0.7)" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+                    <path fill="rgba(255,255,255,0.55)" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
+                  </svg>
+                  Conectar Google Calendar
+                </a>
+              </>
             )}
           </div>
         </div>

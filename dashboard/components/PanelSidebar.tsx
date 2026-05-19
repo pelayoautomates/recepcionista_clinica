@@ -54,7 +54,7 @@ const NAV_MAIN = [
 
 const NAV_AJUSTES = [
   {
-    href: "/panel/configuracion", label: "Configuración", exact: false,
+    href: "/panel/configuracion", label: "Configuración", exact: false, dataTour: "sidebar-config",
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <path d="M9.6 2.5a1.1 1.1 0 00-2.2 0l-.22 1.15c-.38.1-.74.26-1.07.47l-1.02-.38a1.1 1.1 0 00-1.34 1.34l.38 1.02c-.21.33-.37.69-.47 1.07L2.5 7.4a1.1 1.1 0 000 2.2l1.15.22c.1.38.26.74.47 1.07l-.38 1.02a1.1 1.1 0 001.34 1.34l1.02-.38c.33.21.69.37 1.07.47l.22 1.15a1.1 1.1 0 002.2 0l.22-1.15c.38-.1.74-.26 1.07-.47l1.02.38a1.1 1.1 0 001.34-1.34l-.38-1.02c.21-.33.37-.69.47-1.07l1.15-.22a1.1 1.1 0 000-2.2l-1.15-.22a4 4 0 00-.47-1.07l.38-1.02a1.1 1.1 0 00-1.34-1.34l-1.02.38a4 4 0 00-1.07-.47L9.6 2.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
@@ -73,7 +73,7 @@ const NAV_AJUSTES = [
     ),
   },
   {
-    href: "/panel/canales", label: "Canales", exact: false,
+    href: "/panel/canales", label: "Canales", exact: false, dataTour: "sidebar-canales",
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <circle cx="3.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
@@ -104,12 +104,13 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  function NavLink({ href, label, exact, icon }: { href: string; label: string; exact: boolean; icon: React.ReactNode }) {
+  function NavLink({ href, label, exact, icon, dataTour }: { href: string; label: string; exact: boolean; icon: React.ReactNode; dataTour?: string }) {
     const active = exact ? pathname === href : pathname.startsWith(href);
     return (
       <Link
         href={href}
         onClick={() => setMobileOpen(false)}
+        data-tour={dataTour}
         style={{
           display: "flex", alignItems: "center", gap: 10,
           padding: "9px 12px",

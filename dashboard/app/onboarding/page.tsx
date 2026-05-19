@@ -3,14 +3,12 @@
 import { useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 3;
 
 type ClinicaData = {
   clinic_id: string;
   nombre: string;
   especialidad: string;
-  url_web: string;
-  telefono: string;
   trial_expires_at: string;
 };
 
@@ -31,55 +29,16 @@ export default function OnboardingPage() {
   const [clinica, setClinica] = useState<ClinicaData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [extraidoOk, setExtraidoOk] = useState(false);
 
   // Step 1 fields
   const [nombre, setNombre] = useState("");
   const [especialidad, setEspecialidad] = useState("");
-  const [urlWeb, setUrlWeb] = useState("");
-  const [telefono, setTelefono] = useState("");
 
   const trialDias = clinica
     ? Math.ceil(
         (new Date(clinica.trial_expires_at).getTime() - Date.now()) / 86_400_000
       )
     : 7;
-
-  async function extraerConfig(clinicaData: ClinicaData) {
-    if (!clinicaData.url_web?.trim()) {
-      setStep(3);
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append("url", clinicaData.url_web.trim());
-
-      const res = await fetch(`/api/clinicas/${clinicaData.clinic_id}/configuracion/extraer`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Error al extraer configuración");
-      const data = await res.json();
-
-      const payload: Record<string, unknown> = {};
-      if (data.prompt_generado) payload.prompt_personalizado = data.prompt_generado;
-      if (data.servicios?.length) payload.servicios = data.servicios;
-      if (data.horarios && Object.keys(data.horarios).length) payload.horarios = data.horarios;
-
-      if (Object.keys(payload).length > 0) {
-        await fetch(`/api/clinicas/${clinicaData.clinic_id}/configuracion/guardar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
-      setExtraidoOk(true);
-    } catch {
-      // Extraction errors are non-blocking — user can do it later from Configuración
-    } finally {
-      setStep(3);
-    }
-  }
 
   async function crearClinica() {
     setLoading(true);
@@ -88,27 +47,18 @@ export default function OnboardingPage() {
       const res = await fetch("/api/clinicas/registro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, especialidad, url_web: urlWeb, telefono }),
+        body: JSON.stringify({ nombre, especialidad }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error al crear la clínica");
 
-      const nuevaClinica: ClinicaData = {
+      setClinica({
         clinic_id: data.clinic_id,
         nombre,
         especialidad,
-        url_web: urlWeb,
-        telefono,
         trial_expires_at: data.trial_expires_at,
-      };
-      setClinica(nuevaClinica);
-
-      if (urlWeb.trim()) {
-        setStep(2);
-        await extraerConfig(nuevaClinica);
-      } else {
-        setStep(3);
-      }
+      });
+      setStep(3);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
@@ -143,32 +93,36 @@ export default function OnboardingPage() {
 
           {/* Steps indicator */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0 }}>
-            {([1, 2, 3] as Step[]).map((s, i) => (
-              <div key={s} style={{ display: "flex", alignItems: "center" }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: step >= s ? "#2563eb" : "#e5e7eb",
-                  color: step >= s ? "white" : "#9ca3af",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 700,
-                  transition: "all 0.2s",
-                }}>
-                  {step > s ? "✓" : s}
-                </div>
-                {i < 2 && (
+            {[1, 2].map((s, i) => {
+              const realStep = s === 1 ? 1 : 3;
+              const active = step >= realStep;
+              const done = step > realStep;
+              return (
+                <div key={s} style={{ display: "flex", alignItems: "center" }}>
                   <div style={{
-                    width: 48, height: 2,
-                    background: step > s ? "#2563eb" : "#e5e7eb",
-                    transition: "background 0.3s",
-                  }} />
-                )}
-              </div>
-            ))}
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: active ? "#2563eb" : "#e5e7eb",
+                    color: active ? "white" : "#9ca3af",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12, fontWeight: 700,
+                    transition: "all 0.2s",
+                  }}>
+                    {done ? "✓" : s}
+                  </div>
+                  {i < 1 && (
+                    <div style={{
+                      width: 48, height: 2,
+                      background: done ? "#2563eb" : "#e5e7eb",
+                      transition: "background 0.3s",
+                    }} />
+                  )}
+                </div>
+              );
+            })}
           </div>
           <p style={{ marginTop: 8, fontSize: 12, color: "#9ca3af" }}>
             {step === 1 && "Tu clínica"}
-            {step === 2 && "Analizando tu web"}
-            {step === 3 && "¡Todo listo!"}
+            {step === 3 && "¡Lista para configurar!"}
           </p>
         </div>
 
@@ -215,30 +169,6 @@ export default function OnboardingPage() {
                   </select>
                 </label>
 
-                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span style={labelStyle}>Web de la clínica</span>
-                  <input
-                    value={urlWeb}
-                    onChange={e => setUrlWeb(e.target.value)}
-                    placeholder="https://tuclinica.com"
-                    type="url"
-                    style={inputStyle}
-                  />
-                  <span style={{ fontSize: 11.5, color: "#9ca3af" }}>
-                    La IA leerá toda tu web y configurará automáticamente los servicios y horarios.
-                  </span>
-                </label>
-
-                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span style={labelStyle}>Teléfono de contacto</span>
-                  <input
-                    value={telefono}
-                    onChange={e => setTelefono(e.target.value)}
-                    placeholder="+34 612 345 678"
-                    type="tel"
-                    style={inputStyle}
-                  />
-                </label>
               </div>
 
               {error && <p style={errorStyle}>{error}</p>}
@@ -255,59 +185,6 @@ export default function OnboardingPage() {
                 {loading ? "Creando clínica…" : "Continuar →"}
               </button>
             </>
-          )}
-
-          {/* ── STEP 2: Auto-scraping loading screen ── */}
-          {step === 2 && (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              {/* Animated logo */}
-              <div style={{
-                width: 72, height: 72,
-                background: "linear-gradient(135deg, #2563eb, #4f46e5)",
-                borderRadius: 20,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 24px",
-                boxShadow: "0 8px 32px rgba(37,99,235,0.3)",
-              }}>
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" style={{ animation: "pulse 2s ease-in-out infinite" }}>
-                  <circle cx="18" cy="18" r="14" stroke="white" strokeWidth="2" strokeDasharray="60" strokeDashoffset="20" strokeLinecap="round" style={{ animation: "spin 2s linear infinite" }} />
-                  <path d="M18 10v8l5 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-
-              <h2 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 700, color: "#111827" }}>
-                Analizando tu web...
-              </h2>
-              <p style={{ margin: "0 0 8px", fontSize: 14, color: "#6b7280", maxWidth: 360, marginLeft: "auto", marginRight: "auto" }}>
-                Estamos leyendo todas las páginas de <strong style={{ color: "#2563eb" }}>{urlWeb}</strong> para configurar tu recepcionista IA.
-              </p>
-              <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
-                Esto puede tardar hasta 30 segundos...
-              </p>
-
-              {/* Progress dots */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 28 }}>
-                {[0, 1, 2].map(i => (
-                  <div key={i} style={{
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: "#2563eb",
-                    animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
-                  }} />
-                ))}
-              </div>
-
-              <div style={{
-                marginTop: 28,
-                background: "#f0f4ff",
-                borderRadius: 10,
-                padding: "12px 16px",
-                fontSize: 12.5,
-                color: "#4f46e5",
-                border: "1px solid #dbeafe",
-              }}>
-                Cuanto más completa sea tu web, mejor entrenará la IA a tu recepcionista.
-              </div>
-            </div>
           )}
 
           {/* ── STEP 3 ── */}
@@ -333,16 +210,13 @@ export default function OnboardingPage() {
                 marginBottom: 24,
               }}>
                 <p style={{ margin: "0 0 14px", fontWeight: 600, fontSize: 13, color: "#374151" }}>
-                  Para activar todos los canales completa estos pasos desde el panel:
+                  El asistente te guiará paso a paso dentro del panel:
                 </p>
                 {[
                   { done: true, label: "Clínica creada", href: null },
-                  { done: extraidoOk, label: urlWeb ? "Agente entrenado con tu web" : "Añadir web → Configuración", href: extraidoOk ? null : "/panel/configuracion" },
-                  { done: false, label: "Añadir servicios", href: "/panel/agenda" },
-                  { done: false, label: "Configurar profesionales", href: "/panel/agenda" },
+                  { done: false, label: "Configurar agente IA", href: "/panel/configuracion" },
                   { done: false, label: "Conectar Google Calendar", href: "/panel/configuracion" },
-                  { done: false, label: "Comprar número de teléfono", href: "/panel/canales" },
-                  { done: false, label: "Conectar WhatsApp", href: "/panel/canales" },
+                  { done: false, label: "Activar canales (teléfono / WhatsApp)", href: "/panel/canales" },
                 ].map(({ done, label, href }) => (
                   <div
                     key={label}
@@ -385,14 +259,8 @@ export default function OnboardingPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <button onClick={() => router.push("/panel/configuracion")} style={btnPrimary}>
-                  Configurar mi recepcionista →
-                </button>
-                <button
-                  onClick={() => router.push("/panel")}
-                  style={{ ...btnPrimary, background: "transparent", color: "#6b7280", border: "1px solid #e5e7eb", padding: "11px 24px" }}
-                >
-                  Ver el panel
+                <button onClick={() => router.push("/panel")} style={btnPrimary}>
+                  Ir al panel — el asistente te guía →
                 </button>
               </div>
             </>
