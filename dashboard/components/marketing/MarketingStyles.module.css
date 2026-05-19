@@ -1773,15 +1773,18 @@
 
 .heroConversionVisual {
   position: relative;
-  min-height: 400px;
+  min-height: 540px;
 }
 
 .heroOrbitalGlow {
   position: absolute;
-  inset: 34px 34px 58px;
+  left: 55px;
+  right: 10px;
+  top: 20px;
+  bottom: 20px;
   border-radius: 30px;
-  background: linear-gradient(145deg, rgba(15, 75, 217, 0.24), rgba(23, 160, 214, 0.24));
-  filter: blur(8px);
+  background: linear-gradient(145deg, rgba(15, 75, 217, 0.12), rgba(23, 160, 214, 0.12));
+  filter: blur(14px);
   animation: pulseGlow 3.2s ease-in-out infinite;
 }
 
@@ -1793,6 +1796,47 @@
 
 /* ── HERO FLOW CARDS ─────────────────────────────────────────────────── */
 
+/* Left floating channel icons */
+.flowLeftIcons {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 95px;
+  z-index: 4;
+}
+
+.flowIconPill {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(11, 27, 61, 0.18);
+}
+
+.flowIconWA {
+  background: #25d366;
+  color: white;
+  animation: floatBadge 5.5s ease-in-out infinite;
+}
+
+.flowIconPhone {
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  color: white;
+  animation: floatBadge 6s ease-in-out infinite 0.8s;
+}
+
+.flowIconChat {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: white;
+  animation: floatBadge 6.5s ease-in-out infinite 1.6s;
+}
+
+/* Card base */
 .flowCardContact,
 .flowCardAI,
 .flowCardConfirm {
@@ -1804,47 +1848,108 @@
 }
 
 .flowCardContact {
-  left: 8px;
-  top: 52px;
-  width: 205px;
-  padding: 16px 18px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(220, 235, 255, 0.84));
-  border: 1px solid rgba(255, 255, 255, 0.68);
-  box-shadow: 0 12px 36px rgba(11, 27, 61, 0.18);
+  left: 62px;
+  top: 16px;
+  width: 256px;
+  padding: 18px 20px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(226, 239, 255, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 30px rgba(11, 27, 61, 0.14);
   animation: floatContact 5.2s ease-in-out infinite;
 }
 
 .flowCardAI {
-  right: 8px;
-  top: 100px;
-  width: 265px;
-  padding: 22px 20px 20px;
-  background: linear-gradient(145deg, rgba(241, 247, 255, 0.97), rgba(210, 228, 255, 0.92));
-  border: 1px solid rgba(99, 155, 235, 0.4);
-  box-shadow: 0 22px 54px rgba(11, 27, 61, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  left: 44px;
+  top: 196px;
+  width: 282px;
+  padding: 20px 18px 20px 20px;
+  background: linear-gradient(145deg, rgba(245, 249, 255, 0.98), rgba(215, 233, 255, 0.95));
+  border: 1.5px solid rgba(59, 130, 246, 0.42);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.07), 0 18px 48px rgba(11, 27, 61, 0.22), 0 0 30px rgba(59, 130, 246, 0.1);
   animation: floatAI 5.8s ease-in-out infinite;
   z-index: 2;
   overflow: visible;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flowCardAIContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.flowCardAIRobot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
 }
 
 .flowCardAIHalo {
   position: absolute;
-  inset: -28px;
+  inset: -30px;
   border-radius: 28px;
-  background: radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 68%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.14) 0%, transparent 68%);
   pointer-events: none;
   animation: pulseGlow 3.2s ease-in-out infinite;
 }
 
 .flowCardConfirm {
-  left: 18px;
-  bottom: 14px;
-  width: 215px;
-  padding: 16px 18px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.93), rgba(224, 239, 255, 0.88));
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: 0 14px 40px rgba(11, 27, 61, 0.2);
+  left: 62px;
+  bottom: 16px;
+  width: 256px;
+  padding: 18px 20px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(226, 239, 255, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 30px rgba(11, 27, 61, 0.14);
   animation: floatConfirm 6.4s ease-in-out infinite;
+}
+
+/* Confirm card row */
+.flowCardConfirmRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.flowCalBadge {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.flowCardConfirmTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #10244b;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flowCheckBadge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Kicker row */
@@ -1858,6 +1963,10 @@
   text-transform: uppercase;
   color: #3b6ab0;
   margin-bottom: 10px;
+}
+
+.flowKickerGreen {
+  color: #16a34a;
 }
 
 .flowDot {
@@ -1897,21 +2006,38 @@
   font-size: 22px;
   font-weight: 800;
   color: #0f3080;
-  line-height: 1.2;
+  line-height: 1.18;
   letter-spacing: -0.03em;
   font-family: var(--marketing-font-heading), sans-serif;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 .flowCardAITime {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #3b6ab0;
-  font-style: italic;
 }
 
 .flowCardQuote {
-  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  background: rgba(241, 245, 249, 0.75);
+  border-radius: 8px;
+}
+
+.flowQuoteIcon {
+  font-size: 18px;
+  line-height: 1;
+  color: #93c5fd;
+  font-family: Georgia, serif;
+  flex-shrink: 0;
+  margin-top: -1px;
+}
+
+.flowQuoteText {
   font-size: 12px;
   color: #4a6a9f;
   font-style: italic;
@@ -1919,58 +2045,52 @@
 }
 
 .flowCardCalRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #3b6ab0;
+  margin-top: 3px;
 }
 
-/* Channel chips */
-.flowChannelRow {
-  display: flex;
-  gap: 5px;
-  margin: 10px 0 6px;
-  flex-wrap: wrap;
-}
-
-.flowChannelChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 20px;
-  background: rgba(59, 130, 246, 0.09);
-  border: 1px solid rgba(59, 130, 246, 0.18);
-  font-size: 11px;
-  font-weight: 600;
-  color: #2d5da0;
-}
-
-/* Badge: DERIVADO AL EQUIPO */
+/* Badge: DERIVADO AL EQUIPO — orange */
 .flowBadgeHuman {
   position: absolute;
-  right: 6px;
-  bottom: 80px;
+  right: 0;
+  top: 288px;
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px 7px 10px;
-  border-radius: 30px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 237, 213, 0.97);
+  border: 1px solid rgba(249, 115, 22, 0.28);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
-  animation: floatBadge 7s ease-in-out infinite;
+  max-width: 145px;
+  box-shadow: 0 6px 22px rgba(249, 115, 22, 0.14);
+  animation: floatBadge 7s ease-in-out infinite 1s;
   z-index: 3;
+}
+
+.flowBadgeHumanIcon {
+  color: #ea580c;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.flowBadgeTitle {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c2410c;
+  margin-bottom: 3px;
+}
+
+.flowBadgeSub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a3412;
+  line-height: 1.3;
 }
 
 /* Connector lines & particles */
@@ -1983,42 +2103,45 @@
 
 .flowLine1 {
   position: absolute;
-  left: 112px;
-  top: 172px;
+  left: 188px;
+  top: 130px;
   width: 2px;
-  height: 50px;
-  background: linear-gradient(to bottom, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0));
+  height: 66px;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.55), rgba(59, 130, 246, 0));
   border-radius: 2px;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.35);
 }
 
 .flowLine2 {
   position: absolute;
-  right: 130px;
-  top: 220px;
-  width: 70px;
-  height: 2px;
-  background: linear-gradient(to right, rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0));
+  left: 184px;
+  top: 364px;
+  width: 2px;
+  height: 60px;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.55), rgba(59, 130, 246, 0));
   border-radius: 2px;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.35);
 }
 
 .flowParticle {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.65);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
 .flowParticle1 {
-  left: 110px;
-  top: 195px;
+  left: 186px;
+  top: 148px;
   animation: travelDown 2.4s ease-in-out infinite;
 }
 
 .flowParticle2 {
-  right: 138px;
-  top: 218px;
-  animation: travelRight 2.8s ease-in-out infinite 0.7s;
+  left: 182px;
+  top: 382px;
+  animation: travelDown 2.8s ease-in-out infinite 1s;
 }
 
 .channelRail {
@@ -3058,7 +3181,7 @@
   }
 
   .heroConversionVisual {
-    min-height: 310px;
+    min-height: 420px;
   }
 
   .channelRail {

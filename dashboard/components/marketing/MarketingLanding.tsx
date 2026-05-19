@@ -72,7 +72,14 @@ export default function MarketingLanding() {
                 <div className={styles.heroOrbitalGlow} aria-hidden="true" />
                 <div className={styles.hero3dStack}>
 
-                  {/* Connector particles */}
+                  {/* Left channel icons */}
+                  <div className={styles.flowLeftIcons} aria-hidden="true">
+                    <span className={`${styles.flowIconPill} ${styles.flowIconWA}`}><WaIcon /></span>
+                    <span className={`${styles.flowIconPill} ${styles.flowIconPhone}`}><PhoneIcon /></span>
+                    <span className={`${styles.flowIconPill} ${styles.flowIconChat}`}><ChatIcon /></span>
+                  </div>
+
+                  {/* Connector lines */}
                   <div className={styles.flowConnectors} aria-hidden="true">
                     <div className={styles.flowLine1} />
                     <div className={styles.flowLine2} />
@@ -83,46 +90,57 @@ export default function MarketingLanding() {
                   {/* Block 1: PACIENTE CONTACTA */}
                   <article className={styles.flowCardContact}>
                     <div className={styles.flowKicker}>
-                      <span className={`${styles.flowDot} ${styles.flowDotGreen}`} />
+                      <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
                       PACIENTE CONTACTA
                     </div>
                     <div className={styles.flowCardMain}>WhatsApp, llamada o webchat</div>
-                    <div className={styles.flowChannelRow}>
-                      <span className={styles.flowChannelChip}><WaIcon /> WA</span>
-                      <span className={styles.flowChannelChip}><PhoneIcon /> Voz</span>
-                      <span className={styles.flowChannelChip}><ChatIcon /> Chat</span>
+                    <div className={styles.flowCardQuote}>
+                      <span className={styles.flowQuoteIcon}>&ldquo;</span>
+                      <span className={styles.flowQuoteText}>Quiero una cita para esta semana</span>
                     </div>
-                    <div className={styles.flowCardQuote}>&ldquo;Quiero una cita para esta semana&rdquo;</div>
                   </article>
 
                   {/* Block 2: IA EN ACCIÓN — protagonist */}
                   <article className={styles.flowCardAI}>
                     <div className={styles.flowCardAIHalo} aria-hidden="true" />
-                    <div className={styles.flowKicker}>
-                      <span className={`${styles.flowDot} ${styles.flowDotPulse}`} />
-                      IA EN ACCIÓN
+                    <div className={styles.flowCardAIContent}>
+                      <div className={styles.flowKicker}>
+                        <span className={`${styles.flowDot} ${styles.flowDotPulse}`} />
+                        IA EN ACCIÓN
+                      </div>
+                      <div className={styles.flowCardAITitle}>Responde y propone hueco</div>
+                      <div className={styles.flowCardAITime}>Disponible hoy 18:30 o mañana 10:00</div>
                     </div>
-                    <div className={styles.flowCardAITitle}>Responde y propone hueco</div>
-                    <div className={styles.flowCardAITime}>&ldquo;Disponible hoy 18:30 o mañana 10:00&rdquo;</div>
+                    <div className={styles.flowCardAIRobot} aria-hidden="true">
+                      <RobotIcon />
+                    </div>
                   </article>
 
                   {/* Block 3: CITA CONFIRMADA */}
                   <article className={styles.flowCardConfirm}>
-                    <div className={styles.flowKicker}>
-                      <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
+                    <div className={`${styles.flowKicker} ${styles.flowKickerGreen}`}>
+                      <span className={`${styles.flowDot} ${styles.flowDotGreen}`} />
                       CITA CONFIRMADA
                     </div>
-                    <div className={styles.flowCardMain}>Paciente agendado ✓</div>
-                    <div className={styles.flowCardCalRow}>
-                      <CalendarIcon />
-                      Hoy · 18:30 · Google Calendar
+                    <div className={styles.flowCardConfirmRow}>
+                      <span className={styles.flowCalBadge}><CalendarIcon /></span>
+                      <div>
+                        <div className={styles.flowCardConfirmTitle}>
+                          Paciente agendado
+                          <span className={styles.flowCheckBadge}>✓</span>
+                        </div>
+                        <div className={styles.flowCardCalRow}>Hoy · 18:30 · Google Calendar</div>
+                      </div>
                     </div>
                   </article>
 
                   {/* Badge: DERIVADO AL EQUIPO */}
                   <div className={styles.flowBadgeHuman}>
-                    <UserIcon />
-                    <span>Derivado al equipo</span>
+                    <span className={styles.flowBadgeHumanIcon}><UserIcon /></span>
+                    <div>
+                      <div className={styles.flowBadgeTitle}>DERIVADO AL EQUIPO</div>
+                      <div className={styles.flowBadgeSub}>Intervención humana cuando hace falta</div>
+                    </div>
                   </div>
 
                 </div>
@@ -403,6 +421,21 @@ export default function MarketingLanding() {
         </section>
       </main>
     </MarketingShell>
+  );
+}
+
+function RobotIcon() {
+  return (
+    <svg width="54" height="54" viewBox="0 0 54 54" fill="none" aria-hidden="true">
+      <circle cx="27" cy="27" r="25" fill="rgba(59,130,246,0.08)" stroke="rgba(59,130,246,0.32)" strokeWidth="1.5" />
+      <line x1="27" y1="4" x2="27" y2="11" stroke="#3b82f6" strokeWidth="1.5" />
+      <circle cx="27" cy="3" r="2.5" fill="#3b82f6" />
+      <circle cx="20" cy="26" r="5.5" fill="#3b82f6" opacity="0.88" />
+      <circle cx="34" cy="26" r="5.5" fill="#3b82f6" opacity="0.88" />
+      <circle cx="21" cy="25" r="2.2" fill="white" />
+      <circle cx="35" cy="25" r="2.2" fill="white" />
+      <path d="M19 36 Q27 43 35 36" stroke="#3b82f6" strokeWidth="2" fill="none" strokeLinecap="round" />
+    </svg>
   );
 }
 
