@@ -162,7 +162,6 @@ async def resolver_conversacion(clinic_id: UUID, conv_id: UUID):
 @router.post("/clinicas/{clinic_id}/conversaciones/{conv_id}/responder")
 async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
     """Añade respuesta manual del humano y la envía al paciente por su canal."""
-    from datetime import datetime, timezone
     db = get_supabase()
 
     conv = db.table("conversaciones") \
@@ -285,7 +284,6 @@ async def listar_citas(
 
 @router.post("/clinicas/{clinic_id}/citas")
 async def crear_cita(clinic_id: UUID, data: dict):
-    from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     from google_calendar import client as gcal
     TZ = ZoneInfo("Europe/Madrid")
@@ -347,7 +345,6 @@ async def crear_cita(clinic_id: UUID, data: dict):
 
 @router.patch("/clinicas/{clinic_id}/citas/{cita_id}")
 async def actualizar_cita(clinic_id: UUID, cita_id: UUID, data: dict):
-    from datetime import datetime, timedelta
     from google_calendar import client as gcal
 
     db = get_supabase()
@@ -417,7 +414,6 @@ async def eliminar_cita(clinic_id: UUID, cita_id: UUID):
 
 def _do_sync_gcal(clinic_id_str: str) -> dict:
     """Importa eventos GCal→DB. Reutilizable por el endpoint HTTP y el scheduler."""
-    from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     from google_calendar import client as gcal
 
@@ -1167,7 +1163,6 @@ async def leads_recuperacion(clinic_id: UUID, limit: int | None = None):
 @router.post("/clinicas/{clinic_id}/leads/{lead_id}/seguimiento")
 async def disparar_seguimiento(clinic_id: UUID, lead_id: UUID):
     """Crea job inmediato de seguimiento WhatsApp para un lead."""
-    from datetime import datetime, timezone as tz
     db = get_supabase()
     paciente = db.table("pacientes").select("id, clinic_id, telefono") \
         .eq("id", str(lead_id)).eq("clinic_id", str(clinic_id)).single().execute()
@@ -1176,7 +1171,7 @@ async def disparar_seguimiento(clinic_id: UUID, lead_id: UUID):
     if not paciente.data.get("telefono"):
         raise HTTPException(status_code=400, detail="El lead no tiene teléfono")
 
-    ahora = datetime.now(tz.utc)
+    ahora = datetime.now(timezone.utc)
     idem_key = f"seguimiento_recovery_{str(lead_id)}_{ahora.date()}"
     result = db.table("jobs").upsert({
         "clinic_id": str(clinic_id),
@@ -1240,7 +1235,7 @@ async def delete_retell_agent(clinic_id: UUID):
     return {"ok": True}
 
 
-# Note: /clinicas/{clinic_id}/canales GET + 360dialog PATCH/DELETE are in routers/canales.py
+# Note: /clinicas/{clinic_id}/canales GET/PATCH/DELETE are in routers/canales.py
 
 
 # ── Test chat (bypasses billing) ──────────────────────────────────────────────
@@ -1264,5 +1259,23 @@ async def test_chat(clinic_id: UUID, body: TestChatBody):
         skip_billing=True,
     )
     return {"respuesta": respuesta, "conversacion_id": conversacion_id}
+
+
+class TestSmsBody(BaseModel):
+    telefono: str
+    mensaje: str = "Hola, este es un SMS de prueba de Atiende360. Si lo recibes, el sistema funciona correctamente."
+
+
+@router.post("/test-sms")
+async def test_sms(body: TestSmsBody):
+    """Envía un SMS de prueba al número indicado. Comprueba que TELNYX_SMS_NUMBER y TELNYX_API_KEY están configurados."""
+    import telnyx_sms as sms
+    from config import settings
+    if not settings.telnyx_api_key or not settings.telnyx_sms_number:
+        raise HTTPException(status_code=503, detail=f"Telnyx no configurado — TELNYX_API_KEY={'OK' if settings.telnyx_api_key else 'FALTA'}, TELNYX_SMS_NUMBER={'OK' if settings.telnyx_sms_number else 'FALTA'}")
+    ok = await sms.send_sms(to=body.telefono, text=body.mensaje)
+    if not ok:
+        raise HTTPException(status_code=502, detail="SMS no enviado — revisa los logs de Railway")
+    return {"ok": True, "to": body.telefono, "from": settings.telnyx_sms_number}
 
 
