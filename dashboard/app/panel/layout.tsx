@@ -32,8 +32,6 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const clinica = await clinicaRes.json();
   const metricas = await metricasRes.json().catch(() => ({}));
 
-  const userName = user.email?.split("@")[0] ?? "Usuario";
-
   // Días restantes de trial
   const trialDiasRestantes = rol.trial_expires_at && rol.plan === "trial"
     ? Math.ceil((new Date(rol.trial_expires_at).getTime() - Date.now()) / 86_400_000)
@@ -116,27 +114,15 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           borderBottom: "1px solid #e5e7eb",
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-end",
+          justifyContent: "center",
           padding: "0 28px",
           position: "sticky",
           top: 0,
           zIndex: 30,
-          gap: 16,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <div style={{
-              width: 32, height: 32,
-              background: "linear-gradient(135deg, #2563eb, #4f46e5)",
-              borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "white", fontSize: 12, fontWeight: 700,
-            }}>
-              {userName.slice(0, 2).toUpperCase()}
-            </div>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
-              {clinica.nombre}
-            </span>
-          </div>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
+            Atiende 360
+          </span>
         </header>
 
         <main id="panel-main" style={{ flex: 1, padding: "28px 32px" }}>

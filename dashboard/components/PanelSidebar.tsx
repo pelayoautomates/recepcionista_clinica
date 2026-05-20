@@ -5,6 +5,14 @@ import { useState } from "react";
 
 const NAV_MAIN = [
   {
+    href: "/panel", label: "Inicio", exact: true,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path d="M2 8L8.5 2.5L15 8V15H11V11H6V15H2V8Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/panel/estadisticas", label: "Estadísticas", exact: false,
     icon: (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
@@ -177,42 +185,10 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
         className={`panel-sidebar${mobileOpen ? " open" : ""}`}
         style={{ top: 0, left: 0, bottom: 0, width: 240, background: "white", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", zIndex: 40 }}
       >
-        {/* Logo → /panel */}
-        <Link
-          href="/panel"
-          onClick={() => setMobileOpen(false)}
-          style={{
-            padding: "20px 20px 16px",
-            borderBottom: "1px solid #f3f4f6",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            textDecoration: "none",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 36, height: 36,
-              background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
-              borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M3 13V7.5L9 3.5L15 7.5V13" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
-                <rect x="7" y="8" width="4" height="5" rx="0.75" fill="white" fillOpacity="0.9" />
-                <circle cx="9" cy="6" r="1" fill="white" fillOpacity="0.6" />
-              </svg>
-            </div>
-            <div style={{ lineHeight: 1.3 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", letterSpacing: "-0.01em" }}>
-                Inicio
-              </div>
-              <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>
-                {clinicName}
-              </div>
-            </div>
-          </div>
-
+        {/* Mobile close button only */}
+        <div className="sidebar-mobile-toggle" style={{ padding: "14px 16px 0", display: "flex", justifyContent: "flex-end" }}>
           <button
-            className="sidebar-mobile-toggle"
-            onClick={e => { e.preventDefault(); setMobileOpen(false); }}
+            onClick={() => setMobileOpen(false)}
             aria-label="Cerrar menú"
             style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, display: "flex", alignItems: "center", color: "#6b7280" }}
           >
@@ -220,10 +196,10 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
               <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </button>
-        </Link>
+        </div>
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: "10px 12px", overflowY: "auto" }}>
+        {/* Navigation — centrada verticalmente */}
+        <nav style={{ flex: 1, padding: "0 12px", overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {NAV_MAIN.map(item => (
               <NavLink key={item.href} {...item} />
