@@ -53,13 +53,13 @@ async def get_canales(clinic_id: UUID):
     """Devuelve el estado de los canales de una clínica."""
     db = get_supabase()
     res = db.table("clinicas").select(
-        "telefono, telefono_ia, whatsapp_number, retell_agent_id, twilio_whatsapp_number, google_tokens_enc"
+        "telefono, telefono_ia, whatsapp_number, retell_agent_id, twilio_whatsapp_number, "
+        "google_tokens_enc, meta_waba_id, meta_phone_number_id, meta_phone_number"
     ).eq("id", str(clinic_id)).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
     d = res.data
     twilio_num = d.get("twilio_whatsapp_number") or ""
-    # Strip "whatsapp:" prefix for display
     twilio_display = twilio_num.replace("whatsapp:", "") if twilio_num else None
     return {
         "telefono": d.get("telefono"),
@@ -71,7 +71,115 @@ async def get_canales(clinic_id: UUID):
         "twilio_configured": bool(twilio_num),
         "sms_activo": bool(settings.telnyx_sms_number),
         "tiene_gcal": bool(d.get("google_tokens_enc")),
+        "meta_waba_id": d.get("meta_waba_id"),
+        "meta_phone_number_id": d.get("meta_phone_number_id"),
+        "meta_phone_number": d.get("meta_phone_number"),
+        "meta_configured": bool(d.get("meta_phone_number_id")),
     }
+
+
+@router.post("/clinicas/{clinic_id}/canales/whatsapp/meta")
+async def connect_whatsapp_meta(clinic_id: UUID, body: dict):
+    """Intercambia el auth code de Meta Embedded Signup por token y guarda credenciales."""
+    code = body.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="Falta el código de autorización")
+    if not settings.meta_app_id or not settings.meta_app_secret:
+        raise HTTPException(status_code=503, detail="Meta App no configurada en el servidor")
+
+    waba_id = body.get("waba_id")
+    phone_number_id = body.get("phone_number_id")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        # 1. Intercambiar code por access token
+        token_r = await client.get(
+            f"https://graph.facebook.com/{settings.meta_graph_version}/oauth/access_token",
+            params={
+                "client_id": settings.meta_app_id,
+                "client_secret": settings.meta_app_secret,
+                "code": code,
+            },
+        )
+        if token_r.status_code != 200:
+            logger.error("Meta token exchange error: %s", token_r.text)
+            raise HTTPException(status_code=502, detail="Error obteniendo token de Meta")
+        access_token = token_r.json().get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=502, detail="Meta no devolvió access token")
+
+        # 2. Descubrir WABA si no vino del frontend
+        if not waba_id:
+            waba_r = await client.get(
+                f"https://graph.facebook.com/{settings.meta_graph_version}/me/whatsapp_business_accounts",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"fields": "id,name"},
+            )
+            if waba_r.status_code == 200:
+                data = waba_r.json().get("data", [])
+                if data:
+                    waba_id = data[0]["id"]
+
+        # 3. Descubrir phone_number_id y número display
+        phone_number = None
+        if waba_id and not phone_number_id:
+            phones_r = await client.get(
+                f"https://graph.facebook.com/{settings.meta_graph_version}/{waba_id}/phone_numbers",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"fields": "id,display_phone_number"},
+            )
+            if phones_r.status_code == 200:
+                phones = phones_r.json().get("data", [])
+                if phones:
+                    phone_number_id = phones[0]["id"]
+                    phone_number = phones[0].get("display_phone_number")
+        elif phone_number_id:
+            phone_r = await client.get(
+                f"https://graph.facebook.com/{settings.meta_graph_version}/{phone_number_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"fields": "display_phone_number"},
+            )
+            if phone_r.status_code == 200:
+                phone_number = phone_r.json().get("display_phone_number")
+
+        # 4. Suscribir webhook al WABA
+        if waba_id:
+            sub_r = await client.post(
+                f"https://graph.facebook.com/{settings.meta_graph_version}/{waba_id}/subscribed_apps",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if sub_r.status_code not in (200, 201):
+                logger.warning("Webhook subscription error para WABA %s: %s", waba_id, sub_r.text)
+
+    # 5. Encriptar token con Fernet y guardar
+    from cryptography.fernet import Fernet
+    fernet = Fernet(settings.fernet_key.encode())
+    encrypted_token = fernet.encrypt(access_token.encode()).decode()
+
+    db = get_supabase()
+    update: dict = {
+        "meta_waba_id": waba_id,
+        "meta_phone_number_id": phone_number_id,
+        "meta_access_token": encrypted_token,
+    }
+    if phone_number:
+        update["meta_phone_number"] = phone_number
+    db.table("clinicas").update(update).eq("id", str(clinic_id)).execute()
+    logger.info("Meta WhatsApp conectado para clínica %s — WABA %s / phone %s", clinic_id, waba_id, phone_number)
+    return {"ok": True, "waba_id": waba_id, "phone_number_id": phone_number_id, "phone_number": phone_number}
+
+
+@router.delete("/clinicas/{clinic_id}/canales/whatsapp/meta")
+async def disconnect_whatsapp_meta(clinic_id: UUID):
+    """Desconecta WhatsApp Meta Embedded Signup de la clínica."""
+    db = get_supabase()
+    db.table("clinicas").update({
+        "meta_waba_id": None,
+        "meta_phone_number_id": None,
+        "meta_phone_number": None,
+        "meta_access_token": None,
+    }).eq("id", str(clinic_id)).execute()
+    logger.info("Meta WhatsApp desconectado de clínica %s", clinic_id)
+    return {"ok": True}
 
 
 @router.patch("/clinicas/{clinic_id}/canales/360dialog")

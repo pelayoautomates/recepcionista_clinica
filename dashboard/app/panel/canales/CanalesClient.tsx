@@ -1,5 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+declare global {
+  interface Window {
+    FB: any;
+    fbAsyncInit: () => void;
+  }
+}
 
 interface Props {
   clinicId: string;
@@ -7,6 +14,8 @@ interface Props {
   twilioNumber: string | null;
   twilioConfigured: boolean;
   smsActivo: boolean;
+  metaConfigured: boolean;
+  metaPhoneNumber: string | null;
   compact?: boolean;
 }
 
@@ -63,7 +72,92 @@ const dot = (color: string): React.CSSProperties => ({
   width: 6, height: 6, borderRadius: "50%", background: color, display: "inline-block",
 });
 
-export default function CanalesClient({ clinicId, telefono, twilioNumber, twilioConfigured, smsActivo, compact }: Props) {
+export default function CanalesClient({ clinicId, telefono, twilioNumber, twilioConfigured, smsActivo, metaConfigured, metaPhoneNumber, compact }: Props) {
+  // WhatsApp Meta state
+  const [waLoading, setWaLoading] = useState(false);
+  const [waError, setWaError] = useState<string | null>(null);
+  const [waConnected, setWaConnected] = useState(metaConfigured);
+  const [waPhone, setWaPhone] = useState<string | null>(metaPhoneNumber);
+
+  // Cargar Facebook SDK
+  useEffect(() => {
+    if (document.getElementById("facebook-jssdk")) return;
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: process.env.NEXT_PUBLIC_META_APP_ID,
+        autoLogAppEvents: true,
+        xfbml: true,
+        version: "v21.0",
+      });
+    };
+    const script = document.createElement("script");
+    script.id = "facebook-jssdk";
+    script.src = "https://connect.facebook.net/es_ES/sdk.js";
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, []);
+
+  async function handleConectarWhatsApp() {
+    if (!window.FB) { setWaError("Facebook SDK no cargado, recarga la página"); return; }
+    setWaLoading(true); setWaError(null);
+    window.FB.login(
+      async function (response: any) {
+        if (!response.authResponse?.code) {
+          setWaLoading(false);
+          if (response.status !== "connected") setWaError("Conexión cancelada o no autorizada");
+          return;
+        }
+        const { code } = response.authResponse;
+        const extras = response.authResponse.extras || {};
+        const sessionInfo = extras.setup || {};
+        try {
+          const res = await fetch("/api/canales/whatsapp-meta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clinic_id: clinicId,
+              code,
+              waba_id: sessionInfo.waba_id || null,
+              phone_number_id: sessionInfo.phone_number_id || null,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Error conectando WhatsApp");
+          setWaConnected(true);
+          setWaPhone(data.phone_number || null);
+        } catch (e: any) {
+          setWaError(e.message);
+        } finally {
+          setWaLoading(false);
+        }
+      },
+      {
+        config_id: process.env.NEXT_PUBLIC_META_CONFIGURATION_ID,
+        response_type: "code",
+        override_default_response_type: true,
+        extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+      }
+    );
+  }
+
+  async function handleDesconectarWhatsApp() {
+    setWaLoading(true); setWaError(null);
+    try {
+      const res = await fetch("/api/canales/whatsapp-meta", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinic_id: clinicId }),
+      });
+      if (!res.ok) throw new Error("Error desconectando");
+      setWaConnected(false); setWaPhone(null);
+    } catch (e: any) {
+      setWaError(e.message);
+    } finally {
+      setWaLoading(false);
+    }
+  }
+
   // Voice state
   const [voiceMode, setVoiceMode] = useState<"idle" | "connect-existing" | "search-numbers">("idle");
   const [existingNumber, setExistingNumber] = useState("");
@@ -256,7 +350,7 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
           )}
         </div>
 
-        {/*  WhatsApp (Twilio)  */}
+        {/*  WhatsApp (Meta Embedded Signup)  */}
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -266,41 +360,37 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
             <h2 style={{ fontSize: 15, fontWeight: 700, color: "#111827", margin: 0 }}>WhatsApp Business</h2>
           </div>
 
-          {twilioConfigured ? (
+          {waConnected ? (
             <div>
-              <span style={badgeGreen}><span style={dot("#16a34a")} />Activo</span>
-              {twilioNumber && <div style={numberDisplay}>{twilioNumber}</div>}
+              <span style={badgeGreen}><span style={dot("#16a34a")} />Conectado</span>
+              {waPhone && <div style={numberDisplay}>{waPhone}</div>}
               <p style={{ ...helpText, marginTop: 0 }}>
-                Los pacientes pueden escribir a este numero de WhatsApp y la IA responde automaticamente.
+                Los pacientes pueden escribir a este numero y la IA responde automaticamente.
               </p>
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#166534" }}>
-                Canal gestionado por el equipo de Atiende360. Para cambiar el numero, contacta con soporte.
-              </div>
+              {waError && <p style={errorStyle}>{waError}</p>}
+              <button
+                style={{ ...btnDanger, opacity: waLoading ? 0.7 : 1 }}
+                onClick={handleDesconectarWhatsApp}
+                disabled={waLoading}
+              >
+                {waLoading ? "Desconectando..." : "Desconectar WhatsApp"}
+              </button>
             </div>
           ) : (
             <div>
               <span style={badgeGray}>Sin configurar</span>
               <p style={{ ...helpText, marginTop: 12 }}>
-                WhatsApp Business se gestiona a traves de <strong>Twilio</strong>. Nuestro equipo
-                configura el numero y el webhook - tu solo recibes los mensajes en el panel.
+                Conecta tu numero de WhatsApp Business en segundos. Funciona con numeros nuevos
+                o con el que ya tienes.
               </p>
-
-              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px", marginBottom: 14 }}>
-                <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Como activarlo?</p>
-                <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#6b7280", lineHeight: 1.9 }}>
-                  <li>Escribenos a <strong>hola@atiende360.com</strong></li>
-                  <li>Te asignamos un numero de WhatsApp Business dedicado</li>
-                  <li>Listo - los mensajes llegan aqui automaticamente</li>
-                </ol>
-              </div>
-
-              <div style={{ ...badgeBlue, marginBottom: 14, fontSize: 12 }}>
-                <span style={dot("#2563eb")} />Sandbox activo para pruebas
-              </div>
-              <p style={{ ...helpText, marginBottom: 0 }}>
-                Mientras tanto, puedes probar enviando un mensaje al{" "}
-                <strong>+1 415 523 8886</strong> con el codigo que te indicamos al configurar.
-              </p>
+              {waError && <p style={errorStyle}>{waError}</p>}
+              <button
+                style={{ ...btnPrimary, opacity: waLoading ? 0.7 : 1, display: "flex", alignItems: "center", gap: 8 }}
+                onClick={handleConectarWhatsApp}
+                disabled={waLoading}
+              >
+                {waLoading ? "Conectando..." : "Conectar WhatsApp"}
+              </button>
             </div>
           )}
         </div>

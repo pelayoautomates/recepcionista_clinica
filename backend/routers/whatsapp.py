@@ -109,56 +109,70 @@ async def receive_message_meta(request: Request):
         if not mark_webhook_event_once("meta_whatsapp", msg_key, raw_body.decode("utf-8", errors="ignore")):
             return {"status": "ok"}
 
-        clinic_id = await _get_meta_clinic(phone_number_id)
-        if not clinic_id:
+        result = await _get_meta_clinic(phone_number_id)
+        if not result:
             logger.warning("Meta WA: phone_number_id %s no asociado a clínica", phone_number_id)
             return {"status": "ok"}
+        clinic_id, access_token = result
 
-        text = await _extract_text_meta(message)
+        text = await _extract_text_meta(message, access_token)
         if not text:
             return {"status": "ok"}
 
         await _process_wa_message(
             clinic_id, from_number, text,
-            lambda to, reply: _send_meta(to, reply),
+            lambda to, reply: _send_meta(to, reply, phone_number_id, access_token),
         )
     except Exception as e:
         logger.error("Error procesando mensaje Meta WA: %s", e)
     return {"status": "ok"}
 
 
-async def _get_meta_clinic(phone_number_id: str | None) -> str | None:
+async def _get_meta_clinic(phone_number_id: str | None) -> tuple[str, str] | None:
+    """Devuelve (clinic_id, access_token) para un phone_number_id.
+    Primero busca clínicas conectadas via Embedded Signup; luego fallback al legacy global."""
     if not phone_number_id:
         return None
     from database.client import get_supabase
     db = get_supabase()
-    res = db.table("clinicas").select("id").eq("whatsapp_number", phone_number_id).limit(1).execute()
-    if res.data:
-        return res.data[0]["id"]
+
+    # 1. Embedded Signup: clínica con su propio token
+    res = db.table("clinicas").select("id, meta_access_token").eq("meta_phone_number_id", phone_number_id).limit(1).execute()
+    if res.data and res.data[0].get("meta_access_token"):
+        from cryptography.fernet import Fernet
+        fernet = Fernet(settings.fernet_key.encode())
+        token = fernet.decrypt(res.data[0]["meta_access_token"].encode()).decode()
+        return res.data[0]["id"], token
+
+    # 2. Legacy: clínica asociada por whatsapp_number (global token)
+    res2 = db.table("clinicas").select("id").eq("whatsapp_number", phone_number_id).limit(1).execute()
+    if res2.data and settings.meta_access_token:
+        return res2.data[0]["id"], settings.meta_access_token
+
     return None
 
 
-async def _extract_text_meta(message: dict) -> str:
+async def _extract_text_meta(message: dict, access_token: str) -> str:
     msg_type = message.get("type")
     if msg_type == "text":
         return message["text"]["body"]
     if msg_type == "audio":
-        return await _transcribe_meta_audio(message["audio"]["id"])
+        return await _transcribe_meta_audio(message["audio"]["id"], access_token)
     logger.info("Meta WA: tipo no soportado %s", msg_type)
     return ""
 
 
-async def _transcribe_meta_audio(audio_id: str) -> str:
+async def _transcribe_meta_audio(audio_id: str, access_token: str) -> str:
     import os
     from openai import AsyncOpenAI
     async with httpx.AsyncClient(timeout=30) as client:
         media_res = await client.get(
-            f"https://graph.facebook.com/v21.0/{audio_id}",
-            headers={"Authorization": f"Bearer {settings.meta_access_token}"},
+            f"https://graph.facebook.com/{settings.meta_graph_version}/{audio_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         media_res.raise_for_status()
         media_url = media_res.json().get("url")
-        audio_res = await client.get(media_url, headers={"Authorization": f"Bearer {settings.meta_access_token}"})
+        audio_res = await client.get(media_url, headers={"Authorization": f"Bearer {access_token}"})
         audio_res.raise_for_status()
         audio_bytes = audio_res.content
 
@@ -174,12 +188,12 @@ async def _transcribe_meta_audio(audio_id: str) -> str:
         os.unlink(tmp)
 
 
-async def _send_meta(to: str, text: str) -> None:
+async def _send_meta(to: str, text: str, phone_number_id: str, access_token: str) -> None:
     async with httpx.AsyncClient() as client:
         await client.post(
-            f"https://graph.facebook.com/v21.0/{settings.meta_phone_number_id}/messages",
+            f"https://graph.facebook.com/{settings.meta_graph_version}/{phone_number_id}/messages",
             json={"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}},
-            headers={"Authorization": f"Bearer {settings.meta_access_token}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
         )
 
 

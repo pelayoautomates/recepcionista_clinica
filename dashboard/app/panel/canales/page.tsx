@@ -26,6 +26,8 @@ export default async function CanalesPage() {
       twilioNumber={canales.twilio_whatsapp_number || null}
       twilioConfigured={canales.twilio_configured ?? false}
       smsActivo={canales.sms_activo ?? false}
+      metaConfigured={canales.meta_configured ?? false}
+      metaPhoneNumber={canales.meta_phone_number || null}
     />
   );
 }

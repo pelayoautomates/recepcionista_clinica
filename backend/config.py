@@ -29,11 +29,13 @@ class Settings(BaseSettings):
     # Cifrado tokens OAuth
     fernet_key: str
 
-    # WhatsApp (opcional hasta que se conecte Meta)
+    # WhatsApp / Meta
+    meta_app_id: str = ""
+    meta_graph_version: str = "v21.0"
     meta_verify_token: str = "token_provisional"
-    meta_access_token: str = ""
-    meta_phone_number_id: str = ""
-    meta_app_secret: str = ""  # Para validar firma X-Hub-Signature-256
+    meta_access_token: str = ""        # token global legacy
+    meta_phone_number_id: str = ""     # phone_number_id global legacy
+    meta_app_secret: str = ""          # validar firma X-Hub-Signature-256
 
     # Retell AI (voz)
     retell_api_key: str = ""   # API key de Retell — también usada para validar firmas
