@@ -107,24 +107,6 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           </div>
         )}
 
-        {/* Top bar */}
-        <header id="panel-header" style={{
-          height: 60,
-          background: "white",
-          borderBottom: "1px solid #e5e7eb",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "0 28px",
-          position: "sticky",
-          top: 0,
-          zIndex: 30,
-        }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
-            Atiende 360
-          </span>
-        </header>
-
         <main id="panel-main" style={{ flex: 1, padding: "28px 32px" }}>
           {children}
         </main>

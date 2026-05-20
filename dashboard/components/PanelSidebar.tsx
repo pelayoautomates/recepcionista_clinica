@@ -185,9 +185,13 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
         className={`panel-sidebar${mobileOpen ? " open" : ""}`}
         style={{ top: 0, left: 0, bottom: 0, width: 240, background: "white", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", zIndex: 40 }}
       >
-        {/* Mobile close button only */}
-        <div className="sidebar-mobile-toggle" style={{ padding: "14px 16px 0", display: "flex", justifyContent: "flex-end" }}>
+        {/* Brand */}
+        <div style={{ padding: "24px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
+            Atiende <span style={{ color: "#2563eb" }}>360</span>
+          </span>
           <button
+            className="sidebar-mobile-toggle"
             onClick={() => setMobileOpen(false)}
             aria-label="Cerrar menú"
             style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, display: "flex", alignItems: "center", color: "#6b7280" }}
