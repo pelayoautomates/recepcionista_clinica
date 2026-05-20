@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   },
   description:
     "Atiende360 es un software de recepcionista IA para clinicas privadas que atiende llamadas, WhatsApp y webchat, agenda citas y deriva a humano cuando hace falta.",
+  icons: {
+    icon: '/logo-web.png',
+    shortcut: '/logo-web.png',
+    apple: '/logo-web.png',
+  },
   authors: [{ name: "Atiende360" }],
   creator: "Atiende360",
   publisher: "Atiende360",
