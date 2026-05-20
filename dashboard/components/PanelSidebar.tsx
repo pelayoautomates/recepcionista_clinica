@@ -202,7 +202,7 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
             </div>
             <div style={{ lineHeight: 1.3 }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", letterSpacing: "-0.01em" }}>
-                Recepcionista IA
+                Inicio
               </div>
               <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>
                 {clinicName}

@@ -58,8 +58,20 @@ const ESTADO_CITA: Record<string, { label: string; bg: string; color: string }> 
 };
 
 function getLocalDateISO() {
-  // sv-SE locale gives YYYY-MM-DD format; force Spain timezone so server (UTC) shows correct date
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+}
+
+function getGreeting(): string {
+  const h = parseInt(new Date().toLocaleString("es-ES", { hour: "numeric", hour12: false, timeZone: "Europe/Madrid" }));
+  if (h < 14) return "Buenos días";
+  if (h < 21) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+function getFormattedDate(): string {
+  return new Date().toLocaleDateString("es-ES", {
+    weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid",
+  });
 }
 
 function getInitials(name: string) {
@@ -108,27 +120,91 @@ export default async function PanelPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{
-          margin: "0 0 4px",
-          fontSize: 24, fontWeight: 800,
-          color: "#111827", letterSpacing: "-0.03em",
-          display: "flex", alignItems: "center", gap: 8,
-        }}>
-          Panel principal
-          <span style={{ fontSize: 18 }}>✦</span>
-        </h1>
-        <p style={{ margin: 0, fontSize: 13.5, color: "#6b7280" }}>
-          Controla tu recepcionista IA, tus conversaciones y tus citas en un solo lugar.
-        </p>
+      {/* Header con saludo */}
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{
+            margin: "0 0 4px",
+            fontSize: 24, fontWeight: 800,
+            color: "#111827", letterSpacing: "-0.03em",
+          }}>
+            {getGreeting()}, <span style={{ color: "#2563eb" }}>{clinica.nombre}</span>
+          </h1>
+          <p style={{ margin: 0, fontSize: 13.5, color: "#9ca3af", textTransform: "capitalize" }}>
+            {getFormattedDate()}
+          </p>
+        </div>
+
+        {/* Quick actions */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/panel/citas" style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "8px 14px", borderRadius: 8,
+            background: "#2563eb", color: "white",
+            fontSize: 13, fontWeight: 600, textDecoration: "none",
+          }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="2" width="12" height="11" rx="1.5" stroke="white" strokeWidth="1.3" />
+              <path d="M1 5.5H13M4.5 1V3.5M9.5 1V3.5M7 8V10M6 9H8" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            Nueva cita
+          </Link>
+          {esperando > 0 && (
+            <Link href="/panel/conversaciones" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "8px 14px", borderRadius: 8,
+              background: "#fef3c7", color: "#92400e",
+              fontSize: 13, fontWeight: 600, textDecoration: "none",
+              border: "1px solid #fde68a",
+            }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1.5L13 12H1L7 1.5Z" stroke="#f59e0b" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M7 5.5V8M7 9.5V10" stroke="#f59e0b" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+              {esperando} pendiente{esperando > 1 ? "s" : ""}
+            </Link>
+          )}
+        </div>
       </div>
 
+      {/* Alerta urgente — arriba si hay pendientes */}
+      {esperando > 0 && (
+        <Link href="/panel/conversaciones" style={{ textDecoration: "none", display: "block", marginBottom: 20 }}>
+          <div style={{
+            background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12,
+            padding: "14px 20px", display: "flex", alignItems: "center",
+            justifyContent: "space-between", cursor: "pointer",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10, background: "#fef3c7",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M9 2L16.5 15H1.5L9 2Z" stroke="#f59e0b" strokeWidth="1.4" strokeLinejoin="round" />
+                  <path d="M9 7V10.5M9 12V12.5" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#92400e" }}>
+                  {esperando} paciente{esperando > 1 ? "s" : ""} esperando respuesta humana
+                </div>
+                <div style={{ fontSize: 12, color: "#a16207", marginTop: 1 }}>
+                  Requieren atención manual — haz clic para ver
+                </div>
+              </div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6 4L10 8L6 12" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </Link>
+      )}
 
-      {/* Metric cards */}
+      {/* Metric cards — 4 columnas */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
+        gridTemplateColumns: "repeat(4, 1fr)",
         gap: 14,
         marginBottom: 24,
       }}>
@@ -152,6 +228,15 @@ export default async function PanelPage() {
           icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5" /><path d="M3 17C3 13.69 6.13 11 10 11C13.87 11 17 13.69 17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M14 4L16 6L20 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
           iconBg="#ede9fe" iconColor="#7c3aed"
           pct={metricas.leads_pct ?? null}
+        />
+        <MetricCard
+          label="Esperando respuesta"
+          value={esperando}
+          icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2L18 16H2L10 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /><path d="M10 8V11.5M10 13V13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
+          iconBg={esperando > 0 ? "#fee2e2" : "#f1f5f9"}
+          iconColor={esperando > 0 ? "#dc2626" : "#94a3b8"}
+          pct={null}
+          urgent={esperando > 0}
         />
       </div>
 
@@ -186,7 +271,7 @@ export default async function PanelPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  {["Paciente", "Canal", "Intención", "Estado", "Hora"].map(h => (
+                  {["Paciente", "Canal", "Último mensaje", "Estado", "Hora"].map(h => (
                     <th key={h} style={{
                       padding: "9px 16px", textAlign: "left",
                       fontSize: 11, fontWeight: 600, color: "#9ca3af",
@@ -205,7 +290,8 @@ export default async function PanelPage() {
                   const pal = AVATAR_PALETTES[i % AVATAR_PALETTES.length];
                   const msgs: any[] = Array.isArray(conv.mensajes) ? conv.mensajes : [];
                   const userMsg = msgs.filter((m: any) => m.role === "user").pop();
-                  const intencion = userMsg?.content?.slice(0, 22) || "—";
+                  const fullMsg = userMsg?.content || "";
+                  const intencion = fullMsg.length > 38 ? fullMsg.slice(0, 38) + "…" : fullMsg || "—";
 
                   return (
                     <Link key={conv.id} href={`/panel/conversaciones/${conv.id}`} style={{ display: "contents", textDecoration: "none" }}>
@@ -231,7 +317,7 @@ export default async function PanelPage() {
                             </span>
                           </div>
                         </td>
-                        <td style={{ padding: "11px 16px", fontSize: 13, color: "#6b7280" }}>{intencion}</td>
+                        <td style={{ padding: "11px 16px", fontSize: 13, color: "#6b7280" }} title={fullMsg}>{intencion}</td>
                         <td style={{ padding: "11px 16px" }}>
                           <span style={{
                             fontSize: 11.5, fontWeight: 600,
@@ -317,73 +403,19 @@ export default async function PanelPage() {
         </div>
       </div>
 
-      {/* Alertas */}
-      {esperando > 0 && (
-        <div style={{
-          background: "white", borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
-          overflow: "hidden",
-        }}>
-          <div style={{
-            padding: "14px 20px",
-            borderBottom: "1px solid #f3f4f6",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-          }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#111827", display: "flex", alignItems: "center", gap: 8 }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 1.5L14.5 13H1.5L8 1.5Z" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M8 6v3M8 10.5v.5" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              Alertas importantes
-            </h2>
-            <Link href="/panel/conversaciones" style={{ fontSize: 12.5, color: "#2563eb", fontWeight: 500 }}>
-              Ver todas →
-            </Link>
-          </div>
-          <div style={{ padding: "4px 0" }}>
-            <Link href="/panel/conversaciones" style={{ textDecoration: "none" }}>
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "14px 20px",
-                borderBottom: "1px solid #f9fafb",
-                cursor: "pointer",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: "#fef3c7",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                      <path d="M3 4C3 4 2.5 7 4.5 9C4.5 9 2.5 11 2.5 14H15.5C15.5 11 13.5 9 13.5 9C15.5 7 15 4 15 4" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                  <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>
-                    {esperando} paciente{esperando > 1 ? "s" : ""} esperando respuesta humana
-                  </span>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M6 4L10 8L6 12" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </div>
-            </Link>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function MetricCard({ label, value, icon, iconBg, iconColor, pct }: {
+function MetricCard({ label, value, icon, iconBg, iconColor, pct, urgent }: {
   label: string; value: number; icon: React.ReactNode;
   iconBg: string; iconColor: string;
-  pct: number | null;
+  pct: number | null; urgent?: boolean;
 }) {
   const up = pct !== null && pct >= 0;
   const trendColor = pct === null ? "#9ca3af" : pct > 0 ? "#22c55e" : "#ef4444";
   const trendText = pct === null
-    ? "Sin datos de ayer"
+    ? urgent && value === 0 ? "Todo atendido" : urgent ? "Requiere atención" : "Sin datos de ayer"
     : pct === 0
     ? "Igual que ayer"
     : `${pct > 0 ? "+" : ""}${pct}% vs ayer`;
@@ -391,9 +423,9 @@ function MetricCard({ label, value, icon, iconBg, iconColor, pct }: {
   return (
     <div style={{
       background: "white", borderRadius: 12,
-      border: "1px solid #e5e7eb",
+      border: urgent && value > 0 ? "1px solid #fca5a5" : "1px solid #e5e7eb",
       padding: "20px 22px",
-      boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+      boxShadow: urgent && value > 0 ? "0 0 0 3px rgba(239,68,68,0.08)" : "0 1px 3px rgba(15,23,42,0.04)",
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 14 }}>
         <div style={{
@@ -405,7 +437,8 @@ function MetricCard({ label, value, icon, iconBg, iconColor, pct }: {
         </div>
       </div>
       <div style={{
-        fontSize: 32, fontWeight: 800, color: "#111827",
+        fontSize: 32, fontWeight: 800,
+        color: urgent && value > 0 ? "#dc2626" : "#111827",
         letterSpacing: "-0.04em", lineHeight: 1, marginBottom: 6,
       }}>
         {value}
@@ -420,7 +453,7 @@ function MetricCard({ label, value, icon, iconBg, iconColor, pct }: {
             }
           </svg>
         )}
-        <span style={{ color: trendColor, fontWeight: 500 }}>{trendText}</span>
+        <span style={{ color: urgent && value > 0 ? "#dc2626" : trendColor, fontWeight: 500 }}>{trendText}</span>
       </div>
     </div>
   );
