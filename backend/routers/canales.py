@@ -235,7 +235,7 @@ async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
         # 3. Importar en Retell (idempotente — si ya existe lo ignora)
         if settings.retell_api_key:
             r3 = await client.post(
-                "https://api.retellai.com/v2/phone-number/import",
+                "https://api.retellai.com/import-phone-number",
                 headers={"Authorization": f"Bearer {settings.retell_api_key}"},
                 json={"phone_number": telefono, "termination_uri": settings.telnyx_sip_subdomain},
             )
@@ -246,7 +246,7 @@ async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
             # 4. Asignar agente
             if retell_agent_id:
                 r4 = await client.patch(
-                    f"https://api.retellai.com/v2/phone-number/{telefono}",
+                    f"https://api.retellai.com/update-phone-number/{telefono}",
                     headers={"Authorization": f"Bearer {settings.retell_api_key}"},
                     json={"inbound_agent_id": retell_agent_id},
                 )
