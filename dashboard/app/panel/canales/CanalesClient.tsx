@@ -19,13 +19,6 @@ interface Props {
   compact?: boolean;
 }
 
-const PAISES = [
-  { code: "ES", label: "ES - Espana" },
-  { code: "PL", label: "PL - Polonia" },
-  { code: "DE", label: "DE - Alemania" },
-  { code: "FR", label: "FR - Francia" },
-  { code: "IT", label: "IT - Italia" },
-];
 
 const card: React.CSSProperties = {
   background: "white", borderRadius: 12, padding: 24,
@@ -159,7 +152,6 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
   // Voice state
   const [voiceMode, setVoiceMode] = useState<"idle" | "connect-existing" | "search-numbers">("idle");
   const [existingNumber, setExistingNumber] = useState("");
-  const [pais, setPais] = useState("ES");
   const [numeros, setNumeros] = useState<string[]>([]);
   const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
   const [voiceLoading, setVoiceLoading] = useState(false);
@@ -201,11 +193,11 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
   async function handleBuscarNumeros() {
     setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null); setNumeros([]); setSelectedNumber(null);
     try {
-      const res = await fetch(`/api/canales/numeros?pais=${pais}`);
+      const res = await fetch(`/api/canales/numeros`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error buscando numeros");
       setNumeros(data.numeros || []);
-      if (!data.numeros?.length) setVoiceError("No se encontraron numeros para este pais");
+      if (!data.numeros?.length) setVoiceError("No hay numeros disponibles en la cuenta Telnyx");
     } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
   }
 
@@ -279,12 +271,9 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
 
               {voiceMode === "search-numbers" && (
                 <div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                    <select style={{ ...input, flex: 1 }} value={pais} onChange={e => { setPais(e.target.value); setNumeros([]); setSelectedNumber(null); }}>
-                      {PAISES.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
-                    </select>
-                    <button style={{ ...btnPrimary, opacity: voiceLoading ? 0.7 : 1, whiteSpace: "nowrap" }} onClick={handleBuscarNumeros} disabled={voiceLoading}>
-                      {voiceLoading && !numeros.length ? "Buscando..." : "Buscar"}
+                  <div style={{ marginBottom: 12 }}>
+                    <button style={{ ...btnPrimary, opacity: voiceLoading ? 0.7 : 1 }} onClick={handleBuscarNumeros} disabled={voiceLoading}>
+                      {voiceLoading && !numeros.length ? "Cargando..." : "Ver números disponibles"}
                     </button>
                   </div>
                   {numeros.length > 0 && (
@@ -299,7 +288,7 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
                         ))}
                       </div>
                       <button style={{ ...btnPrimary, opacity: (voiceLoading || !selectedNumber) ? 0.7 : 1 }} onClick={handleComprar} disabled={voiceLoading || !selectedNumber}>
-                        {voiceLoading ? "Comprando..." : "Comprar y conectar"}
+                        {voiceLoading ? "Asignando..." : "Asignar numero"}
                       </button>
                     </div>
                   )}

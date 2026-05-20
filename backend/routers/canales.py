@@ -182,116 +182,68 @@ async def disconnect_whatsapp_meta(clinic_id: UUID):
     return {"ok": True}
 
 
-@router.patch("/clinicas/{clinic_id}/canales/360dialog")
-async def configure_360dialog(clinic_id: UUID, body: dict):
-    """Guarda credenciales 360dialog para una clínica."""
-    allowed = {"dialog360_api_key", "dialog360_phone_id", "dialog360_waba_id"}
-    update = {k: v for k, v in body.items() if k in allowed and v}
-    if not update:
-        raise HTTPException(status_code=400, detail="No hay campos válidos")
-    db = get_supabase()
-    db.table("clinicas").update(update).eq("id", str(clinic_id)).execute()
-    return {"ok": True}
-
-
-@router.delete("/clinicas/{clinic_id}/canales/360dialog")
-async def disconnect_360dialog(clinic_id: UUID):
-    """Elimina credenciales 360dialog de una clínica."""
-    db = get_supabase()
-    db.table("clinicas").update({
-        "dialog360_api_key": None, "dialog360_phone_id": None, "dialog360_waba_id": None,
-    }).eq("id", str(clinic_id)).execute()
-    return {"ok": True}
-
 
 @router.get("/telnyx/numeros")
-async def buscar_numeros_telnyx(pais: str = "ES", area_code: str = ""):
-    """Busca números disponibles en Telnyx para el país indicado."""
+async def buscar_numeros_telnyx():
+    """Devuelve los números ya comprados en la cuenta Telnyx que no están asignados a ninguna clínica."""
     if not settings.telnyx_api_key:
         raise HTTPException(status_code=503, detail="Telnyx no configurado")
 
-    params: dict = {
-        "filter[country_code]": pais,
-        "filter[phone_number_type]": "local",
-        "filter[features][]": "voice",
-        "page[size]": 20,
-    }
-    if area_code:
-        params["filter[national_destination_code]"] = area_code
+    db = get_supabase()
+    assigned_res = db.table("clinicas").select("telefono_ia").not_.is_("telefono_ia", "null").execute()
+    assigned = {r["telefono_ia"] for r in (assigned_res.data or [])}
 
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get(
-            "https://api.telnyx.com/v2/available_phone_numbers",
+            "https://api.telnyx.com/v2/phone_numbers",
             headers={"Authorization": f"Bearer {settings.telnyx_api_key}"},
-            params=params,
+            params={"page[size]": 100},
         )
         if r.status_code != 200:
-            logger.error("Telnyx search error %s: %s", r.status_code, r.text)
-            raise HTTPException(status_code=502, detail=f"Error al buscar números en Telnyx: {r.text}")
+            logger.error("Telnyx phone_numbers error %s: %s", r.status_code, r.text)
+            raise HTTPException(status_code=502, detail=f"Error al obtener números de Telnyx: {r.text}")
         data = r.json()
 
-    numeros = [item["phone_number"] for item in data.get("data", [])]
+    numeros = [item["phone_number"] for item in data.get("data", []) if item["phone_number"] not in assigned]
     return {"numeros": numeros}
 
 
-@router.post("/clinicas/{clinic_id}/canales/voz/comprar")
-async def comprar_numero(clinic_id: UUID, body: TelefonoBody):
-    """Compra un número de Telnyx, lo configura y lo conecta a Retell."""
-    telefono = body.telefono.strip()
-    if not settings.telnyx_api_key:
-        raise HTTPException(status_code=503, detail="Telnyx no configurado")
-
-    retell_agent_id = _get_retell_agent_id(str(clinic_id))
+async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
+    """Configura un número ya comprado en Telnyx: SIP + Retell + Supabase."""
+    retell_agent_id = _get_retell_agent_id(clinic_id)
     telnyx_number_id: str | None = None
 
     async with httpx.AsyncClient(timeout=30) as client:
-        # 1. Comprar el número en Telnyx
-        r = await client.post(
-            "https://api.telnyx.com/v2/number_orders",
-            headers={
-                "Authorization": f"Bearer {settings.telnyx_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={"phone_numbers": [{"phone_number": telefono}]},
+        # 1. Obtener ID interno Telnyx del número
+        r0 = await client.get(
+            f"https://api.telnyx.com/v2/phone_numbers/{telefono}",
+            headers={"Authorization": f"Bearer {settings.telnyx_api_key}"},
         )
-        if r.status_code not in (200, 201):
-            logger.error("Telnyx order error %s: %s", r.status_code, r.text)
-            raise HTTPException(status_code=502, detail=f"Error al comprar número en Telnyx: {r.text}")
+        if r0.status_code == 200:
+            telnyx_number_id = r0.json().get("data", {}).get("id")
 
-        order_data = r.json()
-        # Guardar el ID de Telnyx para gestión futura (cancelar, transferir, etc.)
-        phone_numbers = order_data.get("data", {}).get("phone_numbers", [])
-        if phone_numbers:
-            telnyx_number_id = phone_numbers[0].get("id")
-
-        # 2. Asignar conexión SIP de Telnyx
+        # 2. Asignar conexión SIP
         if settings.telnyx_sip_connection_id:
             r2 = await client.patch(
                 f"https://api.telnyx.com/v2/phone_numbers/{telefono}",
-                headers={
-                    "Authorization": f"Bearer {settings.telnyx_api_key}",
-                    "Content-Type": "application/json",
-                },
+                headers={"Authorization": f"Bearer {settings.telnyx_api_key}", "Content-Type": "application/json"},
                 json={"connection_id": settings.telnyx_sip_connection_id},
             )
             if r2.status_code not in (200, 201):
                 logger.warning("Telnyx SIP assign error %s: %s", r2.status_code, r2.text)
 
-        # 3. Importar en Retell
+        # 3. Importar en Retell (idempotente — si ya existe lo ignora)
         if settings.retell_api_key:
             r3 = await client.post(
                 "https://api.retellai.com/phone-number/import",
                 headers={"Authorization": f"Bearer {settings.retell_api_key}"},
-                json={
-                    "phone_number": telefono,
-                    "termination_uri": settings.telnyx_sip_subdomain,
-                },
+                json={"phone_number": telefono, "termination_uri": settings.telnyx_sip_subdomain},
             )
             if r3.status_code not in (200, 201):
                 logger.error("Retell import error %s: %s", r3.status_code, r3.text)
                 raise HTTPException(status_code=502, detail=f"Error al importar número en Retell: {r3.text}")
 
-            # 4. Asignar agente (per-clínica o global)
+            # 4. Asignar agente
             if retell_agent_id:
                 r4 = await client.patch(
                     f"https://api.retellai.com/phone-number/{telefono}",
@@ -301,15 +253,32 @@ async def comprar_numero(clinic_id: UUID, body: TelefonoBody):
                 if r4.status_code not in (200, 201):
                     logger.warning("Retell assign agent error %s: %s", r4.status_code, r4.text)
 
-    # 5. Guardar en Supabase — usar telefono_ia (no telefono)
+    # 5. Guardar en Supabase
     db = get_supabase()
     update_data: dict = {"telefono_ia": telefono}
     if telnyx_number_id:
         update_data["telnyx_number_id"] = telnyx_number_id
-    db.table("clinicas").update(update_data).eq("id", str(clinic_id)).execute()
-    logger.info("Número %s comprado y conectado a clínica %s (Telnyx ID: %s)", telefono, clinic_id, telnyx_number_id)
-
+    db.table("clinicas").update(update_data).eq("id", clinic_id).execute()
+    logger.info("Número %s asignado a clínica %s (Telnyx ID: %s)", telefono, clinic_id, telnyx_number_id)
     return {"ok": True, "telefono_ia": telefono, "telnyx_number_id": telnyx_number_id}
+
+
+@router.post("/clinicas/{clinic_id}/canales/voz/comprar")
+async def comprar_numero(clinic_id: UUID, body: TelefonoBody):
+    """Asigna a la clínica un número ya comprado en Telnyx (del pool propio)."""
+    telefono = body.telefono.strip()
+    if not settings.telnyx_api_key:
+        raise HTTPException(status_code=503, detail="Telnyx no configurado")
+    return await _asignar_numero_a_clinica(str(clinic_id), telefono)
+
+
+@router.post("/clinicas/{clinic_id}/canales/voz/conectar")
+async def conectar_numero(clinic_id: UUID, body: TelefonoBody):
+    """Conecta un número Telnyx existente introducido manualmente."""
+    telefono = body.telefono.strip()
+    if not settings.telnyx_api_key:
+        raise HTTPException(status_code=503, detail="Telnyx no configurado")
+    return await _asignar_numero_a_clinica(str(clinic_id), telefono)
 
 
 @router.delete("/clinicas/{clinic_id}/canales/voz")
