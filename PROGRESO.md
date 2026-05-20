@@ -1,6 +1,41 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-16
+Última actualización: 2026-05-20
+
+---
+
+## Test WhatsApp end-to-end + mejoras landing (2026-05-20)
+
+### Completado hoy
+
+- **Migración 016 ejecutada** en Supabase: columnas `meta_waba_id`, `meta_phone_number_id`, `meta_phone_number`, `meta_access_token` en tabla `clinicas`. DROP de columnas 360dialog obsoletas.
+- **Webhook Meta verificado**: `POST /webhook/whatsapp` llega a Railway, código procesa correctamente (confirmado con botón "Test" en Meta Developers → Webhooks → WhatsApp Business Account → field `messages`).
+- **Meta App en modo Live**: activado. Requirió añadir Privacy Policy URL (`https://atiende360.com/privacidad`).
+- **Clínica de test configurada en Supabase**: `clinicas` con `meta_phone_number_id = 1112874165244675` y `meta_access_token` cifrado con Fernet.
+- **Landing `/integraciones`**: rediseñada con logos oficiales via `react-icons` (SiWhatsapp, SiGooglecalendar, SiOpenai, SiStripe, SiMeta). Instalado `react-icons`.
+- **Política de privacidad y términos**: email actualizado a `equipo@atiende360.com`, proveedor "Meta Platforms (WhatsApp Cloud API)" en lugar de "360dialog / Meta", fecha actualizada.
+
+### Pendiente — Test WhatsApp completo
+
+- El número de prueba de Meta (`+1 555 632-0497`) **no recibe mensajes entrantes reales** — es solo para testing de API saliente desde el dashboard.
+- **Siguiente paso**: conectar número Telnyx real via Embedded Signup (`/panel/canales → Conectar WhatsApp`). El número debe recibir un SMS/llamada de Meta para verificación.
+- Pasos:
+  1. Ir a `/panel/canales` → "Conectar WhatsApp"
+  2. Completar flujo con cuenta Meta Business
+  3. Introducir el número Telnyx cuando pida el número
+  4. Recibir SMS de verificación en consola Telnyx
+  5. Enviar mensaje de prueba y verificar respuesta del agente en Railway logs
+
+### Estado webhook tras sesión
+
+| Check | Estado |
+|---|---|
+| Webhook URL configurada en Meta (WhatsApp Business Account) | ✅ |
+| Field `messages` suscrito | ✅ |
+| Meta App en modo Live | ✅ |
+| Código `_get_meta_clinic()` busca por `meta_phone_number_id` | ✅ |
+| Clínica test con credenciales en Supabase | ✅ |
+| Test con número real (Telnyx) | ⏳ Pendiente |
 
 ---
 

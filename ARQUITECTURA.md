@@ -1,6 +1,6 @@
 # Arquitectura — Recepcionista IA para Clínicas (Atiende360)
 
-> Última actualización: 2026-05-20
+> Última actualización: 2026-05-20 (noche)
 > Estado: Beta activa. Migración WhatsApp en curso (ver sección Progreso).
 
 ---
@@ -302,8 +302,10 @@ BACKEND_URL                        ← URL Railway
 ### Pendiente / En proceso
 - [ ] Meta App Review (necesaria para producción de Embedded Signup con clínicas reales)
 - [ ] Business Verification de Atiende360 en Meta Business Manager
-- [ ] Añadir variables de entorno META_APP_ID y NEXT_PUBLIC_META_CONFIGURATION_ID
-- [ ] Ejecutar migración 016 en Supabase
+- [x] Añadir variables de entorno META_APP_ID y NEXT_PUBLIC_META_CONFIGURATION_ID
+- [x] Ejecutar migración 016 en Supabase
+- [x] Meta App en modo Live (activado 2026-05-20)
+- [ ] Test end-to-end WhatsApp con número Telnyx real (número comprado, pendiente conectar via Embedded Signup)
 - [ ] Widget chat web embebible (en desarrollo)
 - [ ] Eliminar código 360dialog (dialog360.py, routers/canales 360dialog endpoints) cuando todas las clínicas estén migradas
 - [ ] Eliminar columna twilio_whatsapp_number cuando se confirme sin clínicas activas en Twilio
