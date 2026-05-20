@@ -71,17 +71,12 @@ export default function MarketingLanding() {
               <div className={`${styles.heroConversionVisual} ${styles.desktopOnly} ${styles.animFadeIn}`} style={{ animationDelay: "200ms" }}>
                 <div className={styles.heroOrbitalGlow} aria-hidden="true" />
                 <div className={styles.hero3dStack}>
+                  <div className={styles.flowGrid}>
 
-                  {/* Col 1: channel icons */}
-                  <div className={styles.flowLeftIcons}>
-                    <span className={`${styles.flowIconCircle} ${styles.flowIconWA}`}><WaIcon /></span>
-                    <span className={`${styles.flowIconCircle} ${styles.flowIconPhone}`}><PhoneIcon /></span>
-                    <span className={`${styles.flowIconCircle} ${styles.flowIconChat}`}><ChatIcon /></span>
-                  </div>
-
-                  {/* Col 2: cards + connectors */}
-                  <div className={styles.flowCenterFlow}>
-
+                    {/* ── Row 1: PACIENTE CONTACTA ── */}
+                    <div className={styles.flowGridIcon}>
+                      <span className={`${styles.flowIconCircle} ${styles.flowIconWA}`}><WaIcon /></span>
+                    </div>
                     <article className={styles.flowCardContact}>
                       <div className={styles.flowKicker}>
                         <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
@@ -93,13 +88,21 @@ export default function MarketingLanding() {
                         <span className={styles.flowQuoteText}>Quiero una cita para esta semana</span>
                       </div>
                     </article>
+                    <div />
 
+                    {/* ── Connector 1→2 ── */}
+                    <div className={styles.flowConnectorSpace} />
                     <div className={styles.flowConnector} aria-hidden="true">
                       <div className={styles.flowConnectorTrack}>
                         <div className={styles.flowConnectorDot} />
                       </div>
                     </div>
+                    <div />
 
+                    {/* ── Row 2: IA EN ACCIÓN ── */}
+                    <div className={styles.flowGridIcon}>
+                      <span className={`${styles.flowIconCircle} ${styles.flowIconPhone}`}><PhoneIcon /></span>
+                    </div>
                     <article className={styles.flowCardAI}>
                       <div className={styles.flowCardAIContent}>
                         <div className={styles.flowKicker}>
@@ -113,13 +116,29 @@ export default function MarketingLanding() {
                         <RobotIcon />
                       </div>
                     </article>
+                    <div className={styles.flowBadgeCell}>
+                      <div className={styles.flowBadgeHuman}>
+                        <span className={styles.flowBadgeIcon}><UserIcon /></span>
+                        <div>
+                          <div className={styles.flowBadgeLabel}>DERIVADO AL EQUIPO</div>
+                          <div className={styles.flowBadgeText}>Intervención humana cuando hace falta</div>
+                        </div>
+                      </div>
+                    </div>
 
+                    {/* ── Connector 2→3 ── */}
+                    <div className={styles.flowConnectorSpace} />
                     <div className={styles.flowConnector} aria-hidden="true">
                       <div className={styles.flowConnectorTrack}>
                         <div className={`${styles.flowConnectorDot} ${styles.flowConnectorDot2}`} />
                       </div>
                     </div>
+                    <div />
 
+                    {/* ── Row 3: CITA CONFIRMADA ── */}
+                    <div className={styles.flowGridIcon}>
+                      <span className={`${styles.flowIconCircle} ${styles.flowIconChat}`}><ChatIcon /></span>
+                    </div>
                     <article className={styles.flowCardConfirm}>
                       <div className={`${styles.flowKicker} ${styles.flowKickerGreen}`}>
                         <span className={`${styles.flowDot} ${styles.flowDotGreen}`} />
@@ -127,29 +146,16 @@ export default function MarketingLanding() {
                       </div>
                       <div className={styles.flowConfirmRow}>
                         <div className={styles.flowCalIcon}><CalendarIcon /></div>
-                        <div>
-                          <div className={styles.flowConfirmTitle}>
-                            Paciente agendado
-                            <span className={styles.flowCheckCircle}>✓</span>
-                          </div>
+                        <div className={styles.flowConfirmText}>
+                          <div className={styles.flowConfirmTitle}>Paciente agendado</div>
                           <div className={styles.flowConfirmSub}>Hoy · 18:30 · Google Calendar</div>
                         </div>
+                        <span className={styles.flowCheckCircle}>✓</span>
                       </div>
                     </article>
+                    <div />
 
                   </div>
-
-                  {/* Col 3: badge */}
-                  <div className={styles.flowRightSide}>
-                    <div className={styles.flowBadgeHuman}>
-                      <span className={styles.flowBadgeIcon}><UserIcon /></span>
-                      <div>
-                        <div className={styles.flowBadgeLabel}>DERIVADO AL EQUIPO</div>
-                        <div className={styles.flowBadgeText}>Intervención humana cuando hace falta</div>
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
               </div>
 
