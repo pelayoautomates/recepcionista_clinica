@@ -39,13 +39,13 @@ def _extract_clinic_id(call: dict, message: dict | None = None) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
 
-    # Fallback: look up clinic by the called number (to_number)
+    # Fallback: buscar clínica por telefono_ia (número Telnyx al que llamó el paciente)
     to_number = call.get("to_number") or call.get("to")
     if to_number:
         try:
             from database.client import get_supabase
             db = get_supabase()
-            res = db.table("clinicas").select("id").eq("telefono", to_number).limit(1).execute()
+            res = db.table("clinicas").select("id").eq("telefono_ia", to_number).limit(1).execute()
             if res.data:
                 return res.data[0]["id"]
         except Exception:
@@ -59,14 +59,37 @@ def _conversation_id_from_call_id(call_id: str) -> str:
     return str(uuid5(NAMESPACE_URL, f"retell:{call_id}"))
 
 
-def _retell_response(response_id: int, content: str, content_complete: bool = True, end_call: bool = False) -> dict:
-    return {
+def _retell_response(response_id: int, content: str, content_complete: bool = True, end_call: bool = False, transfer_number: str | None = None) -> dict:
+    r: dict = {
         "response_type": "response",
         "response_id": response_id,
         "content": content,
         "content_complete": content_complete,
         "end_call": end_call,
     }
+    if transfer_number:
+        r["transfer_number"] = transfer_number
+    return r
+
+
+def _get_transfer_number(clinic_id: str, conversacion_id: str | None) -> str | None:
+    """Devuelve el telefono real de la clínica si la conversación está en esperando_humano."""
+    if not conversacion_id:
+        return None
+    try:
+        from database.client import get_supabase
+        db = get_supabase()
+        conv = db.table("conversaciones").select("estado").eq("id", conversacion_id).single().execute()
+        if not conv.data or conv.data.get("estado") != "esperando_humano":
+            return None
+        clinic = db.table("clinicas").select("telefono").eq("id", clinic_id).single().execute()
+        telefono = clinic.data.get("telefono") if clinic.data else None
+        if telefono:
+            logger.info("Transfer activado — clínica %s → %s", clinic_id, telefono)
+        return telefono
+    except Exception as e:
+        logger.error("Error obteniendo número de transfer: %s", e)
+        return None
 
 
 def _verify_retell_signature(raw_body: str, signature: str, api_key: str) -> bool:
@@ -329,6 +352,7 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                     logger.error("Error in agent - call=%s: %s", call_id, e, exc_info=True)
                     respuesta = "Disculpa, ha ocurrido un problema. Puedes repetir lo que necesitas?"
 
+            transfer_number = _get_transfer_number(clinic_id, conversacion_id) if clinic_id else None
             await websocket.send_text(
                 json.dumps(
                     _retell_response(
@@ -336,6 +360,7 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                         content=respuesta,
                         content_complete=True,
                         end_call=False,
+                        transfer_number=transfer_number,
                     )
                 )
             )
