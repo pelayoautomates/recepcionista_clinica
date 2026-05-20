@@ -3,7 +3,7 @@ import MarketingShell from "./MarketingShell";
 import PricingPlans from "./PricingPlans";
 import AgentDemoSandbox from "./AgentDemoSandbox";
 import styles from "./MarketingStyles.module.css";
-import { GoogleCalendarLogo, WhatsAppLogo, MetaLogo, OpenAILogo, TelnyxLogo, StripeLogo } from "@/components/BrandLogos";
+import { GoogleCalendarLogo, WhatsAppLogo } from "@/components/BrandLogos";
 import { FEATURE_BENEFITS, LANDING_FAQS, PROCESS_STEPS } from "@/lib/marketing-content";
 
 export default function MarketingLanding() {
@@ -183,37 +183,6 @@ export default function MarketingLanding() {
                 <strong>7 días gratis</strong>
                 <p>Sin tarjeta. Sin compromiso.</p>
               </article>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── INTEGRACIONES OFICIALES ──────────────────────────────────── */}
-        <section className={styles.section} id="integraciones" style={{ paddingTop: 32, paddingBottom: 40 }}>
-          <div className={styles.container}>
-            <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9ca3af", marginBottom: 20 }}>
-              Integrado con tecnología oficial de
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 12 }}>
-              {[
-                { logo: <WhatsAppLogo size={20} />, name: "WhatsApp Business API", sub: "Meta oficial", color: "#25D366", bg: "#f0fdf4", border: "#bbf7d0" },
-                { logo: <GoogleCalendarLogo size={20} />, name: "Google Calendar", sub: "Google Workspace", color: "#4285F4", bg: "#eff6ff", border: "#bfdbfe" },
-                { logo: <OpenAILogo size={20} />, name: "GPT-4o", sub: "OpenAI", color: "#10a37f", bg: "#f0fdf9", border: "#99f6e4" },
-                { logo: <TelnyxLogo size={20} />, name: "Telnyx", sub: "Telefonía SIP", color: "#00876a", bg: "#f0fdfa", border: "#99f6e4" },
-                { logo: <StripeLogo size={20} />, name: "Stripe", sub: "Pagos seguros", color: "#635BFF", bg: "#f5f3ff", border: "#ddd6fe" },
-              ].map(({ logo, name, sub, color, bg, border }) => (
-                <div key={name} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  background: bg, border: `1px solid ${border}`,
-                  borderRadius: 12, padding: "10px 16px",
-                  minWidth: 180,
-                }}>
-                  {logo}
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#111827", lineHeight: 1.2 }}>{name}</div>
-                    <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 1 }}>{sub}</div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </section>

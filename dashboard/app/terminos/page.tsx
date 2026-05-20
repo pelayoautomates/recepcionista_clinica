@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   description: "Condiciones generales de uso y contratación de Atiende360.",
 };
 
-const LAST_UPDATED = "12 de mayo de 2026";
-const CONTROLLER_EMAIL = "pelayo.automates@gmail.com";
+const LAST_UPDATED = "20 de mayo de 2026";
+const CONTROLLER_EMAIL = "equipo@atiende360.com";
 
 export default function TerminosPage() {
   return (
