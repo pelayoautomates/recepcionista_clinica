@@ -187,9 +187,7 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
       >
         {/* Brand */}
         <div style={{ padding: "24px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
-            Atiende <span style={{ color: "#2563eb" }}>360</span>
-          </span>
+          <img src="/logo-largo.png" alt="Atiende 360" style={{ height: 32, width: "auto", objectFit: "contain" }} />
           <button
             className="sidebar-mobile-toggle"
             onClick={() => setMobileOpen(false)}
