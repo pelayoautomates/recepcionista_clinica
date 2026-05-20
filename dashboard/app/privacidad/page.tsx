@@ -6,10 +6,10 @@ export const metadata: Metadata = {
   description: "Política de privacidad y protección de datos de Atiende360.",
 };
 
-const LAST_UPDATED = "12 de mayo de 2026";
+const LAST_UPDATED = "20 de mayo de 2026";
 const CONTROLLER_NAME = "Atiende360";
-const CONTROLLER_EMAIL = "pelayo.automates@gmail.com";
-const CONTACT_EMAIL = "pelayo.automates@gmail.com";
+const CONTROLLER_EMAIL = "equipo@atiende360.com";
+const CONTACT_EMAIL = "equipo@atiende360.com";
 
 export default function PrivacidadPage() {
   return (
@@ -135,7 +135,7 @@ export default function PrivacidadPage() {
                 <Tr cols={["Railway (infraestructura)", "Hosting del servidor de aplicaciones", "EE.UU. — DPA firmado"]} />
                 <Tr cols={["Vercel", "Hosting del panel web", "EE.UU. — DPA firmado"]} />
                 <Tr cols={["Retell AI", "Procesamiento de llamadas de voz con IA", "EE.UU. — DPA firmado"]} />
-                <Tr cols={["360dialog / Meta", "Envío y recepción de mensajes WhatsApp", "UE / EE.UU. — DPA firmado"]} />
+                <Tr cols={["Meta Platforms (WhatsApp Cloud API)", "Envío y recepción de mensajes WhatsApp (Embedded Signup)", "EE.UU. — DPA firmado, cláusulas contractuales tipo"]} />
                 <Tr cols={["Telnyx", "Proveedor de numeración telefónica (SIP)", "EE.UU. — DPA firmado"]} />
               </tbody>
             </table>

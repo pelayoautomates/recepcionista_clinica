@@ -1,5 +1,42 @@
 import type { CSSProperties } from "react";
 
+export function MetaLogo({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
+      <path d="M6.918 3C4.758 3 3 4.758 3 6.918v10.164C3 19.242 4.758 21 6.918 21h10.164C19.242 21 21 19.242 21 17.082V6.918C21 4.758 19.242 3 17.082 3H6.918Z" fill="#0866FF"/>
+      <path d="M12 7.5c-2.485 0-4.5 2.015-4.5 4.5s2.015 4.5 4.5 4.5 4.5-2.015 4.5-4.5S14.485 7.5 12 7.5Zm0 7.4a2.9 2.9 0 1 1 0-5.8 2.9 2.9 0 0 1 0 5.8Z" fill="white"/>
+      <circle cx="16.8" cy="7.2" r="1" fill="white"/>
+    </svg>
+  );
+}
+
+export function OpenAILogo({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
+      <rect width="24" height="24" rx="6" fill="#10a37f"/>
+      <path d="M12 5.5a3.5 3.5 0 0 0-3.19 2.06A3 3 0 0 0 6.5 11a3 3 0 0 0 .46 1.6A3.5 3.5 0 0 0 8.5 18.5h7a3.5 3.5 0 0 0 3.5-3.5 3.5 3.5 0 0 0-.81-2.23A3 3 0 0 0 18.5 11a3 3 0 0 0-2.31-2.94A3.5 3.5 0 0 0 12 5.5Z" fill="white" opacity="0.9"/>
+    </svg>
+  );
+}
+
+export function TelnyxLogo({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
+      <rect width="24" height="24" rx="6" fill="#00C2A8"/>
+      <path d="M7 8h10M12 8v8M9.5 13l2.5 3 2.5-3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+export function StripeLogo({ size = 18, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={style}>
+      <rect width="24" height="24" rx="6" fill="#635BFF"/>
+      <path d="M11.5 9.5c0-.83.67-1.2 1.75-1.2 1.56 0 3.54.5 3.54.5V6.4s-1.97-.57-3.97-.57C10.08 5.83 8 7.1 8 9.67c0 4.83 6.67 4.05 6.67 6.12 0 .98-.85 1.3-2 1.3-1.7 0-3.9-.7-3.9-.7v2.45s2.15.7 4.2.7c3.2 0 5.4-1.25 5.4-3.9-.02-5.22-6.87-4.27-6.87-6.14Z" fill="white"/>
+    </svg>
+  );
+}
+
 type IconProps = {
   size?: number;
   style?: CSSProperties;
