@@ -98,11 +98,11 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
     document.body.appendChild(script);
   }, []);
 
-  async function handleConectarWhatsApp() {
+  function handleConectarWhatsApp() {
     if (!window.FB) { setWaError("Facebook SDK no cargado, recarga la página"); return; }
     setWaLoading(true); setWaError(null);
     window.FB.login(
-      async function (response: any) {
+      function (response: any) {
         if (!response.authResponse?.code) {
           setWaLoading(false);
           if (response.status !== "connected") setWaError("Conexión cancelada o no autorizada");
@@ -111,26 +111,24 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
         const { code } = response.authResponse;
         const extras = response.authResponse.extras || {};
         const sessionInfo = extras.setup || {};
-        try {
-          const res = await fetch("/api/canales/whatsapp-meta", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              clinic_id: clinicId,
-              code,
-              waba_id: sessionInfo.waba_id || null,
-              phone_number_id: sessionInfo.phone_number_id || null,
-            }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "Error conectando WhatsApp");
-          setWaConnected(true);
-          setWaPhone(data.phone_number || null);
-        } catch (e: any) {
-          setWaError(e.message);
-        } finally {
-          setWaLoading(false);
-        }
+        fetch("/api/canales/whatsapp-meta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clinic_id: clinicId,
+            code,
+            waba_id: sessionInfo.waba_id || null,
+            phone_number_id: sessionInfo.phone_number_id || null,
+          }),
+        })
+          .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+          .then(({ ok, data }) => {
+            if (!ok) throw new Error(data.detail || "Error conectando WhatsApp");
+            setWaConnected(true);
+            setWaPhone(data.phone_number || null);
+          })
+          .catch((e: any) => setWaError(e.message))
+          .finally(() => setWaLoading(false));
       },
       {
         config_id: process.env.NEXT_PUBLIC_META_CONFIGURATION_ID,
