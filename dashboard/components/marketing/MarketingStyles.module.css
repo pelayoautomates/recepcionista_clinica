@@ -2526,10 +2526,12 @@
 }
 
 .realPanelStage {
+  display: flex;
+  height: 440px;
   border-radius: 14px;
   border: 1px solid #d7deea;
   overflow: hidden;
-  background: #f6f7f9;
+  background: #f9fafb;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
 }
 
