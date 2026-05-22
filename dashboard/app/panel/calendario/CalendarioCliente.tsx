@@ -14,8 +14,8 @@ type BloqueAgenda = {
 type Vista = "dia" | "semana" | "mes";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const HORA_INICIO = 8;
-const HORA_FIN = 21;
+const HORA_INICIO = 7;
+const HORA_FIN = 22;
 const HORA_HEIGHT = 64; // px per hour
 const HORAS = Array.from({ length: HORA_FIN - HORA_INICIO }, (_, i) => HORA_INICIO + i);
 const DIAS_CORTO = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -184,28 +184,39 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
     }).catch(() => {});
   }, [clinicId]);
 
-  const syncGcal = async () => {
-    setSyncing(true); setSyncMsg(null);
+  const syncGcal = async (silent = false) => {
+    if (!silent) { setSyncing(true); setSyncMsg(null); }
     try {
       const res = await fetch(`/api/clinicas/${clinicId}/citas/sync-gcal`, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setSyncMsg(`✓ ${data.importados ?? 0} nuevas, ${data.actualizados ?? 0} actualizadas`);
+        if (!silent) setSyncMsg(`✓ ${data.importados ?? 0} nuevas, ${data.actualizados ?? 0} actualizadas`);
         await fetchData(vista, anchor);
       } else {
-        setSyncMsg("Error al sincronizar");
+        if (!silent) setSyncMsg("Error al sincronizar");
       }
     } catch {
-      setSyncMsg("Error de conexión");
+      if (!silent) setSyncMsg("Error de conexión");
     } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncMsg(null), 4000);
+      if (!silent) {
+        setSyncing(false);
+        setTimeout(() => setSyncMsg(null), 4000);
+      }
     }
   };
 
   useEffect(() => { refreshStaticData(); }, [refreshStaticData]);
 
   useEffect(() => { fetchData(vista, anchor); }, [vista, anchor, fetchData]);
+
+  // Auto-sync con GCal al cargar y cada 60s
+  useEffect(() => {
+    if (!tieneCalendario) return;
+    syncGcal(true); // sync silencioso al montar
+    const interval = setInterval(() => syncGcal(true), 60_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tieneCalendario, clinicId]);
 
   // ── Navigation ────────────────────────────────────────────
   const navAnterior = () => {
@@ -499,14 +510,14 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Day headers */}
-      <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`, borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
-        <div style={{ borderRight: "1px solid #f3f4f6" }} />
+      <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`, borderBottom: "1px solid #e5e7eb", flexShrink: 0 }}>
+        <div style={{ borderRight: "1px solid #e5e7eb" }} />
         {dias.map((d, i) => {
           const isToday = isSameDay(d, today);
           return (
             <div key={i} style={{
               padding: "10px 4px", textAlign: "center",
-              borderRight: i < dias.length - 1 ? "1px solid #f3f4f6" : "none",
+              borderRight: i < dias.length - 1 ? "1px solid #e5e7eb" : "none",
               background: isToday ? "#eff6ff" : "white",
             }}>
               <div style={{ fontSize: 11, color: isToday ? "#2563eb" : "#9ca3af", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -531,9 +542,9 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
       <div ref={gridRef} style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`, height: totalHeight, position: "relative" }}>
           {/* Hour labels */}
-          <div style={{ borderRight: "1px solid #f3f4f6" }}>
+          <div style={{ borderRight: "1px solid #e5e7eb" }}>
             {HORAS.map(h => (
-              <div key={h} style={{ height: HORA_HEIGHT, borderBottom: "1px solid #f9fafb", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4 }}>
+              <div key={h} style={{ height: HORA_HEIGHT, borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4 }}>
                 <span style={{ fontSize: 11, color: "#9ca3af" }}>{h}:00</span>
               </div>
             ))}
@@ -554,13 +565,13 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
                   onClickSlot(d, Math.min(hour, HORA_FIN - 1));
                 }}
                 style={{
-                  position: "relative", borderRight: di < dias.length - 1 ? "1px solid #eaecf0" : "none",
+                  position: "relative", borderRight: di < dias.length - 1 ? "1px solid #e5e7eb" : "none",
                   background: isToday ? "#f0f6ff" : "#f8f9fb", cursor: "cell",
                 }}
               >
                 {/* Hour grid lines */}
                 {HORAS.map(h => (
-                  <div key={h} style={{ position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT, left: 0, right: 0, height: HORA_HEIGHT, borderBottom: "1px solid #f9fafb" }}>
+                  <div key={h} style={{ position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT, left: 0, right: 0, height: HORA_HEIGHT, borderBottom: "1px solid #f0f2f5" }}>
                     <div style={{ position: "absolute", top: HORA_HEIGHT / 2, left: 0, right: 0, borderBottom: "1px dashed #f3f4f6" }} />
                   </div>
                 ))}
@@ -678,9 +689,9 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${cols.length + (sinAsignar.length > 0 ? 1 : 0)}, 1fr)`, height: totalHeight }}>
           {/* Hour labels */}
-          <div style={{ borderRight: "1px solid #f3f4f6" }}>
+          <div style={{ borderRight: "1px solid #e5e7eb" }}>
             {HORAS.map(h => (
-              <div key={h} style={{ height: HORA_HEIGHT, borderBottom: "1px solid #f9fafb", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4 }}>
+              <div key={h} style={{ height: HORA_HEIGHT, borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4 }}>
                 <span style={{ fontSize: 11, color: "#9ca3af" }}>{h}:00</span>
               </div>
             ))}
@@ -703,7 +714,7 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
               }}
             >
               {HORAS.map(h => (
-                <div key={h} style={{ position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT, left: 0, right: 0, height: HORA_HEIGHT, borderBottom: "1px solid #f9fafb" }}>
+                <div key={h} style={{ position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT, left: 0, right: 0, height: HORA_HEIGHT, borderBottom: "1px solid #f0f2f5" }}>
                   <div style={{ position: "absolute", top: HORA_HEIGHT / 2, left: 0, right: 0, borderBottom: "1px dashed #f3f4f6" }} />
                 </div>
               ))}
