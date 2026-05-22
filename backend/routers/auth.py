@@ -25,7 +25,10 @@ _SUCCESS_HTML = """
   <div style="max-width:420px;margin:auto;background:white;border-radius:16px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
     <div style="font-size:48px;margin-bottom:16px;">✅</div>
     <h2 style="margin:0 0 10px;color:#111827;font-size:20px;">Google Calendar conectado</h2>
-    <p style="color:#6b7280;margin:0;font-size:14px;">Ya puedes cerrar esta ventana. El sistema sincronizará las citas automáticamente.</p>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">El sistema sincronizará las citas automáticamente.</p>
+    <a href="{dashboard_url}/panel/configuracion" style="display:inline-block;padding:11px 24px;background:#111827;color:white;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">
+      Volver al panel →
+    </a>
   </div>
 </body>
 </html>
@@ -143,7 +146,8 @@ async def google_auth_callback(request: Request):
 
     try:
         save_tokens(clinic_id, code, state)
-        response = HTMLResponse(content=_SUCCESS_HTML)
+        dashboard_url = settings.allowed_origins.split(",")[0].strip().rstrip("/")
+        response = HTMLResponse(content=_SUCCESS_HTML.format(dashboard_url=dashboard_url))
         response.delete_cookie(_OAUTH_NONCE_COOKIE)
         return response
     except Exception as e:
