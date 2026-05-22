@@ -134,6 +134,7 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
   const [archivos, setArchivos] = useState<File[]>([]);
   const [procesando, setProcesando] = useState(false);
   const fileRef                 = useRef<HTMLInputElement>(null);
+  const [confirmingUrl, setConfirmingUrl] = useState(false);
 
   // Save
   const [saving, setSaving]     = useState(false);
@@ -161,8 +162,14 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
 
   //  IA extraction 
 
-  async function generarConIA() {
+  function handleAnalizar() {
     if (!url.trim() && archivos.length === 0) { setError("Pega la URL de tu clinica o sube un documento."); return; }
+    if (url.trim()) { setConfirmingUrl(true); return; }
+    generarConIA();
+  }
+
+  async function generarConIA() {
+    setConfirmingUrl(false);
     setProcesando(true); setError("");
     const form = new FormData();
     if (url.trim()) form.append("url", url.trim());
@@ -330,7 +337,7 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
                 </div>
               )}
               <button
-                onClick={generarConIA}
+                onClick={handleAnalizar}
                 disabled={procesando || (!url.trim() && archivos.length === 0)}
                 style={{
                   background: procesando ? "#9ca3af" : "#7c3aed", color: "white",
@@ -483,6 +490,47 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
           </button>
         </div>
       </div>
+
+      {/* URL confirmation modal */}
+      {confirmingUrl && (
+        <div
+          onClick={() => setConfirmingUrl(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "white", borderRadius: 16, padding: "28px 28px 24px", maxWidth: 420, width: "100%", boxShadow: "0 16px 48px rgba(0,0,0,0.18)" }}
+          >
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>🌐</div>
+            <h2 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 700, color: "#111827", textAlign: "center" }}>
+              ¿Esta es la web de tu clínica?
+            </h2>
+            <p style={{ margin: "0 0 16px", fontSize: 13.5, color: "#6b7280", textAlign: "center", lineHeight: 1.5 }}>
+              Vamos a leer esta página para extraer servicios, horarios y precios automáticamente.
+            </p>
+            <div style={{ background: "#f3f4f6", borderRadius: 8, padding: "10px 14px", marginBottom: 20, wordBreak: "break-all" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                {(() => { try { return new URL(url).hostname; } catch { return url; } })()}
+              </span>
+              <span style={{ fontSize: 12, color: "#9ca3af", display: "block", marginTop: 2 }}>{url}</span>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setConfirmingUrl(false)}
+                style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "white", color: "#374151", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={generarConIA}
+                style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "#7c3aed", color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                Sí, es mi web →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/*  Drawer: probar agente  */}
       {drawerOpen && (

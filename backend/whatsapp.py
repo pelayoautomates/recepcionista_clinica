@@ -1,5 +1,5 @@
 """
-Cliente centralizado de WhatsApp (Meta Cloud API v21.0).
+Cliente centralizado de WhatsApp (Meta Cloud API).
 Todas las operaciones de envío de mensajes pasan por aquí.
 """
 import logging
@@ -10,7 +10,9 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-GRAPH_URL = "https://graph.facebook.com/v21.0"
+
+def _graph_url() -> str:
+    return f"https://graph.facebook.com/{settings.meta_graph_version}"
 
 
 def _phone_number_id(clinic_whatsapp_number: str | None) -> str:
@@ -18,10 +20,11 @@ def _phone_number_id(clinic_whatsapp_number: str | None) -> str:
     return clinic_whatsapp_number or settings.meta_phone_number_id
 
 
-def send_text(
+async def send_text(
     to: str,
     body: str,
     clinic_whatsapp_number: str | None = None,
+    access_token: str | None = None,
 ) -> bool:
     """
     Envía un mensaje de texto por WhatsApp.
@@ -29,30 +32,30 @@ def send_text(
     No lanza excepciones — fallo silencioso con log.
     """
     phone_id = _phone_number_id(clinic_whatsapp_number)
-    if not phone_id or not settings.meta_access_token:
+    token = access_token or settings.meta_access_token
+    if not phone_id or not token:
         logger.debug("WhatsApp no configurado — mensaje no enviado a %s", to)
         return False
 
-    # Normalizar número: eliminar espacios/guiones, añadir + si falta
     numero = to.strip().replace(" ", "").replace("-", "")
     if not numero.startswith("+"):
         numero = f"+{numero}"
 
     try:
-        resp = httpx.post(
-            f"{GRAPH_URL}/{phone_id}/messages",
-            json={
-                "messaging_product": "whatsapp",
-                "to": numero,
-                "type": "text",
-                "text": {"body": body},
-            },
-            headers={
-                "Authorization": f"Bearer {settings.meta_access_token}",
-                "Content-Type": "application/json",
-            },
-            timeout=8,
-        )
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.post(
+                f"{_graph_url()}/{phone_id}/messages",
+                json={
+                    "messaging_product": "whatsapp",
+                    "to": numero,
+                    "type": "text",
+                    "text": {"body": body},
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+            )
         if resp.status_code >= 400:
             logger.warning("WhatsApp send error %s → %s: %s", numero, resp.status_code, resp.text[:200])
             return False
@@ -62,7 +65,7 @@ def send_text(
         return False
 
 
-def confirmacion_cita(
+async def confirmacion_cita(
     to: str,
     nombre_paciente: str,
     nombre_clinica: str,
@@ -70,6 +73,7 @@ def confirmacion_cita(
     profesional: str,
     fecha_texto: str,
     clinic_whatsapp_number: str | None = None,
+    access_token: str | None = None,
 ) -> bool:
     """Envía confirmación de cita recién agendada al paciente."""
     body = (
@@ -80,10 +84,10 @@ def confirmacion_cita(
         + (f"\n👤 {profesional}" if profesional and profesional != "—" else "")
         + "\n\nResponde a este mensaje si necesitas cambiar o cancelar tu cita."
     )
-    return send_text(to, body, clinic_whatsapp_number)
+    return await send_text(to, body, clinic_whatsapp_number, access_token)
 
 
-def recordatorio_cita(
+async def recordatorio_cita(
     to: str,
     nombre_paciente: str,
     nombre_clinica: str,
@@ -91,6 +95,7 @@ def recordatorio_cita(
     fecha_texto: str,
     tipo: str,  # "24h" | "1h"
     clinic_whatsapp_number: str | None = None,
+    access_token: str | None = None,
 ) -> bool:
     """Envía recordatorio de cita 24h o 1h antes."""
     cuando = "mañana" if tipo == "24h" else "en aproximadamente 1 hora"
@@ -101,13 +106,14 @@ def recordatorio_cita(
         f"📅 {fecha_texto}\n\n"
         f"Responde CANCELAR o MOVER si necesitas cambiarla."
     )
-    return send_text(to, body, clinic_whatsapp_number)
+    return await send_text(to, body, clinic_whatsapp_number, access_token)
 
 
-def seguimiento_lead(
+async def seguimiento_lead(
     to: str,
     nombre_paciente: str,
     clinic_whatsapp_number: str | None = None,
+    access_token: str | None = None,
 ) -> bool:
     """Mensaje de recuperación para lead frío."""
     saludo = f"Hola {nombre_paciente}" if nombre_paciente else "Hola"
@@ -115,4 +121,4 @@ def seguimiento_lead(
         f"{saludo}, ¿pudiste resolver tu consulta? "
         f"Seguimos aquí para ayudarte a encontrar el hueco que mejor te venga. 😊"
     )
-    return send_text(to, body, clinic_whatsapp_number)
+    return await send_text(to, body, clinic_whatsapp_number, access_token)

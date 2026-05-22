@@ -64,7 +64,7 @@ async def crear_lead(
     return paciente
 
 
-async def actualizar_estado_lead(paciente_id: str, estado: str) -> dict:
+async def actualizar_estado_lead(clinic_id: str, paciente_id: str, estado: str) -> dict:
     """Actualiza el estado del funnel de un paciente."""
     estados_validos = {
         "anonimo", "nuevo", "contactado", "interesado",
@@ -74,6 +74,12 @@ async def actualizar_estado_lead(paciente_id: str, estado: str) -> dict:
         raise ValueError(f"Estado inválido: {estado}")
 
     db = get_supabase()
-    result = db.table("pacientes").update({"estado_lead": estado}).eq("id", paciente_id).execute()
+    # Verifica que el paciente pertenece a la clínica antes de actualizar
+    check = db.table("pacientes").select("clinic_id").eq("id", paciente_id).single().execute()
+    if not check.data or check.data["clinic_id"] != clinic_id:
+        raise ValueError(f"Paciente {paciente_id} no pertenece a la clínica {clinic_id}")
+
+    result = db.table("pacientes").update({"estado_lead": estado}) \
+        .eq("id", paciente_id).eq("clinic_id", clinic_id).execute()
     logger.info("Estado lead paciente %s → %s", paciente_id, estado)
     return result.data[0]

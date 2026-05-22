@@ -1,6 +1,8 @@
 import io
+import ipaddress
 import logging
 import re
+import socket
 from urllib.parse import urljoin, urlparse
 from uuid import UUID
 
@@ -18,6 +20,16 @@ router = APIRouter(dependencies=[Depends(require_admin_key)])
 MAX_CHARS = 40_000  # límite para no enviar demasiado texto al LLM
 MAX_PAGES = 20      # máximo de páginas a rastrear por sitio
 CHARS_PER_PAGE = 6_000  # límite de texto por página individual
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB por archivo
+
+
+def _is_private_host(hostname: str) -> bool:
+    """Devuelve True si el hostname resuelve a una IP privada/reservada (protección SSRF)."""
+    try:
+        ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+    except Exception:
+        return True  # si no resuelve, bloquear por precaución
 
 
 # ─── Endpoint principal ───────────────────────────────────────────────────────
@@ -135,6 +147,11 @@ async def _crawl_site(start_url: str) -> str:
     parsed_start = urlparse(start_url)
     base_domain = parsed_start.netloc
 
+    if parsed_start.scheme not in ("http", "https"):
+        raise ValueError(f"Esquema no permitido: {parsed_start.scheme}")
+    if _is_private_host(base_domain):
+        raise ValueError(f"URL apunta a una dirección privada/reservada: {base_domain}")
+
     visited: set[str] = set()
     queue: list[str] = [start_url]
     sections: list[str] = []
@@ -177,7 +194,9 @@ async def _crawl_site(start_url: str) -> str:
 
 
 async def _extract_text_from_file(archivo: UploadFile) -> str:
-    content = await archivo.read()
+    content = await archivo.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Archivo demasiado grande (máx {MAX_UPLOAD_BYTES // 1024 // 1024} MB)")
     name = (archivo.filename or "").lower()
 
     if name.endswith(".txt") or name.endswith(".csv") or name.endswith(".md"):

@@ -77,6 +77,16 @@ async def registrar_clinica(data: RegistroClinicaRequest):
     }).execute()
 
     logger.info("Clínica '%s' creada (id=%s) para usuario %s", data.nombre, clinic_id, data.user_id)
+
+    # Provisionar agente Retell automáticamente (fallo silencioso — no bloquea el registro)
+    try:
+        from retell_manager import provision_clinic_agent
+        agent_id = await provision_clinic_agent(clinic_id, data.nombre)
+        db.table("clinicas").update({"retell_agent_id": agent_id}).eq("id", clinic_id).execute()
+        logger.info("Agente Retell provisionado para clínica %s: %s", clinic_id, agent_id)
+    except Exception as e:
+        logger.warning("provision_clinic_agent falló para %s: %s", clinic_id, e)
+
     return {
         "clinic_id": clinic_id,
         "trial_expires_at": trial_expires_at,

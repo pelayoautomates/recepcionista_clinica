@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # WhatsApp / Meta
     meta_app_id: str = ""
     meta_graph_version: str = "v21.0"
-    meta_verify_token: str = "token_provisional"
+    meta_verify_token: str = ""
     meta_access_token: str = ""        # token global legacy
     meta_phone_number_id: str = ""     # phone_number_id global legacy
     meta_app_secret: str = ""          # validar firma X-Hub-Signature-256

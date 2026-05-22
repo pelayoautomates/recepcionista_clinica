@@ -1,10 +1,8 @@
 """
 WhatsApp webhook router.
 Supports two BSPs:
-  - Meta Cloud API (legacy, direct): GET/POST /whatsapp
-  - 360dialog (recommended): GET/POST /whatsapp/360dialog
-
-Both use the same Meta webhook format, differ only in the send API.
+  - Meta Cloud API: GET/POST /whatsapp
+  - Twilio: POST /whatsapp/twilio
 """
 import hashlib
 import hmac
@@ -202,7 +200,9 @@ async def _send_meta(to: str, text: str, phone_number_id: str, access_token: str
 def _verify_twilio_signature(request: Request, form: Any) -> bool:
     """Verifica X-Twilio-Signature para webhooks de Twilio."""
     if not settings.twilio_auth_token:
-        return True
+        # Sin token configurado no se puede verificar — rechazar por seguridad
+        logger.warning("TWILIO_AUTH_TOKEN no configurado; rechazando webhook entrante")
+        return False
 
     signature = request.headers.get("X-Twilio-Signature", "")
     if not signature:
@@ -269,71 +269,3 @@ async def receive_message_twilio(request: Request):
     return Response(content="<Response/>", media_type="application/xml")
 
 
-# ── 360dialog ────────────────────────────────────────────────────────────────
-
-@router.get("/360dialog")
-async def verify_webhook_360(
-    hub_mode: str = Query(alias="hub.mode", default=""),
-    hub_verify_token: str = Query(alias="hub.verify_token", default=""),
-    hub_challenge: str = Query(alias="hub.challenge", default=""),
-):
-    """360dialog uses the same webhook verification as Meta."""
-    if hub_mode == "subscribe" and hub_verify_token == settings.meta_verify_token:
-        return int(hub_challenge)
-    raise HTTPException(status_code=403, detail="Token de verificación inválido")
-
-
-@router.post("/360dialog")
-async def receive_message_360(request: Request):
-    """Receive messages from 360dialog and process with agent."""
-    raw_body = await request.body()
-    body: dict[str, Any] = json.loads(raw_body)
-
-    try:
-        entry = body.get("entry", [{}])[0]
-        value = entry.get("changes", [{}])[0].get("value", {})
-        messages = value.get("messages", [])
-        if not messages:
-            return {"status": "ok"}
-
-        message = messages[0]
-        message_id = message.get("id") or ""
-        from_number = message.get("from")
-        phone_number_id = value.get("metadata", {}).get("phone_number_id")
-        msg_key = f"{phone_number_id}:{message_id}" if message_id else f"{phone_number_id}:{from_number}:{message.get('timestamp', '')}:{message.get('type', '')}"
-        if not mark_webhook_event_once("dialog360_whatsapp", msg_key, raw_body.decode("utf-8", errors="ignore")):
-            return {"status": "ok"}
-
-        # Look up clinic by 360dialog phone_id
-        from dialog360 import get_clinic_by_phone_id
-        clinic_row = await get_clinic_by_phone_id(phone_number_id)
-        if not clinic_row:
-            logger.warning("360dialog: phone_id %s no asociado a clínica", phone_number_id)
-            return {"status": "ok"}
-
-        clinic_id = clinic_row["id"]
-        api_key = clinic_row["dialog360_api_key"]
-
-        text = await _extract_text_360(message, api_key)
-        if not text:
-            return {"status": "ok"}
-
-        import dialog360
-        await _process_wa_message(
-            clinic_id, from_number, text,
-            lambda to, reply: dialog360.send_message(api_key, to, reply),
-        )
-    except Exception as e:
-        logger.error("Error procesando mensaje 360dialog: %s", e)
-    return {"status": "ok"}
-
-
-async def _extract_text_360(message: dict, api_key: str) -> str:
-    msg_type = message.get("type")
-    if msg_type == "text":
-        return message["text"]["body"]
-    if msg_type == "audio":
-        import dialog360
-        return await dialog360.transcribe_audio(api_key, message["audio"]["id"], settings.openai_api_key)
-    logger.info("360dialog: tipo no soportado %s", msg_type)
-    return ""
