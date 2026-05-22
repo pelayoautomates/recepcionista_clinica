@@ -7,12 +7,24 @@ logger = logging.getLogger(__name__)
 TELNYX_API = "https://api.telnyx.com/v2"
 
 
+def to_e164(phone: str, default_country: str = "34") -> str:
+    """Normaliza un número de teléfono a formato E.164. Asume España si no tiene prefijo."""
+    p = phone.strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if p.startswith("+"):
+        return p
+    if p.startswith("00"):
+        return "+" + p[2:]
+    if p.startswith("34") and len(p) == 11:
+        return "+" + p
+    return "+" + default_country + p
+
+
 async def send_sms(to: str, text: str) -> bool:
     if not settings.telnyx_api_key or not settings.telnyx_sms_number:
         logger.warning("Telnyx SMS no configurado (TELNYX_API_KEY o TELNYX_SMS_NUMBER vacío)")
         return False
 
-    to_e164 = to if to.startswith("+") else f"+{to}"
+    to_e164_num = to_e164(to)
 
     async with httpx.AsyncClient(timeout=15) as client:
         res = await client.post(
@@ -23,16 +35,16 @@ async def send_sms(to: str, text: str) -> bool:
             },
             json={
                 "from": settings.telnyx_sms_number,
-                "to": to_e164,
+                "to": to_e164_num,
                 "text": text,
             },
         )
 
     if res.status_code not in (200, 201):
-        logger.error("Telnyx SMS error %s → %s: %s", to, res.status_code, res.text)
+        logger.error("Telnyx SMS error %s → %s: %s", to_e164_num, res.status_code, res.text)
         return False
 
-    logger.info("SMS enviado a %s", to_e164)
+    logger.info("SMS enviado a %s", to_e164_num)
     return True
 
 

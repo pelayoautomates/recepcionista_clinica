@@ -96,22 +96,37 @@ async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
         paciente_id, clinic_id, motivo
     )
 
-    # Notificación por webhook configurable (Slack, Make, n8n, etc.)
+    # Notificación por webhook — primero webhook propio de la clínica, luego global
     from config import settings
-    if settings.notify_webhook_url:
+    import httpx
+
+    webhook_url = None
+    if clinic_id:
         try:
-            import httpx
-            payload = {
-                "tipo": "escalada_humano",
-                "clinic_id": clinic_id,
-                "paciente_id": paciente_id,
-                "conversacion_id": conv_id,
-                "motivo": motivo,
-                "resumen": resumen,
-            }
-            httpx.post(settings.notify_webhook_url, json=payload, timeout=5)
+            clinica_row = db.table("clinicas").select("notif_webhook").eq("id", clinic_id).single().execute()
+            webhook_url = (clinica_row.data or {}).get("notif_webhook") or None
+        except Exception:
+            pass
+    webhook_url = webhook_url or settings.notify_webhook_url
+
+    payload = {
+        "tipo": "escalada_humano",
+        "clinic_id": clinic_id,
+        "paciente_id": paciente_id,
+        "conversacion_id": conv_id,
+        "motivo": motivo,
+        "resumen": resumen,
+    }
+
+    if webhook_url:
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(webhook_url, json=payload)
+            logger.info("Notificación escalada enviada a %s", webhook_url)
         except Exception as e:
-            logger.error("Error enviando notificación de escalada: %s", e)
+            logger.error("Error enviando notificación de escalada a %s: %s", webhook_url, e)
+    else:
+        logger.warning("ESCALADA SIN NOTIFICACIÓN — clínica %s no tiene notif_webhook configurado", clinic_id)
 
     return {
         "estado": "esperando_humano",

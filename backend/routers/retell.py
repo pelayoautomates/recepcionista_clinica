@@ -84,9 +84,12 @@ def _get_transfer_number(clinic_id: str, conversacion_id: str | None) -> str | N
             return None
         clinic = db.table("clinicas").select("telefono").eq("id", clinic_id).single().execute()
         telefono = clinic.data.get("telefono") if clinic.data else None
-        if telefono:
-            logger.info("Transfer activado — clínica %s → %s", clinic_id, telefono)
-        return telefono
+        if not telefono:
+            return None
+        from telnyx_sms import to_e164
+        telefono_normalizado = to_e164(telefono)
+        logger.info("Transfer activado — clínica %s → %s", clinic_id, telefono_normalizado)
+        return telefono_normalizado
     except Exception as e:
         logger.error("Error obteniendo número de transfer: %s", e)
         return None

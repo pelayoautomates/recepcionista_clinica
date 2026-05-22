@@ -427,21 +427,22 @@ async def create_appointment_validated(
         db.table("citas").update({"estado": "sync_failed"}).eq("id", cita_id).execute()
 
     logger.info("Cita %s creada — profesional=%s servicio=%s", cita_id, prof_nombre, servicio_nombre)
-    _notificar_clinica_nueva_cita(clinic, servicio_nombre, prof_nombre, fecha_inicio, nombre_paciente, origen)
+    await _notificar_clinica_nueva_cita(clinic, servicio_nombre, prof_nombre, fecha_inicio, nombre_paciente, origen)
 
     # Confirmación al paciente por WhatsApp (si tiene teléfono y WhatsApp configurado)
     try:
         pac = db.table("pacientes").select("telefono").eq("id", paciente_id).single().execute()
         telefono_pac = pac.data.get("telefono") if pac.data else None
         if telefono_pac:
-            wa.confirmacion_cita(
+            await wa.confirmacion_cita(
                 to=telefono_pac,
                 nombre_paciente=nombre_paciente,
                 nombre_clinica=clinic.get("nombre", "la clínica"),
                 servicio=servicio_nombre,
                 profesional=prof_nombre,
                 fecha_texto=fecha_inicio.strftime("%d/%m/%Y a las %H:%M"),
-                clinic_whatsapp_number=clinic.get("whatsapp_number"),
+                clinic_whatsapp_number=clinic.get("meta_phone_number_id"),
+                access_token=clinic.get("meta_access_token"),
             )
     except Exception as exc:
         logger.warning("Confirmación WA paciente fallida para cita %s: %s", cita_id, exc)
@@ -474,7 +475,7 @@ async def create_appointment_validated(
     }
 
 
-def _notificar_clinica_nueva_cita(
+async def _notificar_clinica_nueva_cita(
     clinic: dict,
     servicio: str,
     profesional: str,
@@ -497,14 +498,13 @@ def _notificar_clinica_nueva_cita(
             f"Clínica: {clinic.get('nombre', '')}"
         )
 
-        # Webhook por clínica tiene prioridad; fallback al global
         webhook_url = clinic.get("notif_webhook") or settings.notify_webhook_url
         if webhook_url:
-            _httpx.post(
-                webhook_url,
-                json={"text": texto, "username": "Atiende360", "tipo": "nueva_cita"},
-                timeout=5,
-            )
+            async with _httpx.AsyncClient(timeout=5) as client:
+                await client.post(
+                    webhook_url,
+                    json={"text": texto, "username": "Atiende360", "tipo": "nueva_cita"},
+                )
     except Exception as exc:
         logger.warning("Notificación clínica fallida: %s", exc)
 
@@ -626,8 +626,13 @@ async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
     db.table("citas").update({
         "fecha_inicio": nueva_fecha_inicio.isoformat(),
         "fecha_fin": nueva_fecha_fin.isoformat(),
-        "estado": "reprogramada",
+        "estado": "confirmada",
     }).eq("id", cita_id).execute()
+
+    # Cancelar jobs de recordatorio anteriores — el scheduler creará nuevos con la fecha correcta
+    db.table("jobs").update({"estado": "cancelado"}).in_(
+        "idempotency_key", [f"recordatorio_24h_{cita_id}", f"recordatorio_1h_{cita_id}"]
+    ).eq("estado", "pendiente").execute()
 
     await audit(
         clinic_id=clinic_id,
@@ -662,6 +667,12 @@ async def cancelar_cita(cita_id: str) -> dict:
             logger.warning("GCal cancel failed: %s", exc)
 
     db.table("citas").update({"estado": "cancelada"}).eq("id", cita_id).execute()
+
+    # Cancelar jobs de recordatorio pendientes
+    db.table("jobs").update({"estado": "cancelado"}).in_(
+        "idempotency_key", [f"recordatorio_24h_{cita_id}", f"recordatorio_1h_{cita_id}"]
+    ).eq("estado", "pendiente").execute()
+
     logger.info("Cita %s cancelada", cita_id)
 
     await audit(

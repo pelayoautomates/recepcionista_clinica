@@ -283,11 +283,23 @@ async def conectar_numero(clinic_id: UUID, body: TelefonoBody):
 
 @router.delete("/clinicas/{clinic_id}/canales/voz")
 async def desconectar_numero(clinic_id: UUID):
-    """Desconecta el número IA de la clínica (limpia los campos en Supabase)."""
+    """Desconecta el número IA de la clínica: limpia Retell, Supabase."""
     db = get_supabase()
+    row = db.table("clinicas").select("telefono_ia").eq("id", str(clinic_id)).single().execute()
+    telefono = (row.data or {}).get("telefono_ia")
+
+    if telefono and settings.retell_api_key:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.delete(
+                f"https://api.retellai.com/delete-phone-number/{telefono}",
+                headers={"Authorization": f"Bearer {settings.retell_api_key}"},
+            )
+            if r.status_code not in (200, 204):
+                logger.warning("Retell delete phone error %s: %s", r.status_code, r.text)
+
     db.table("clinicas").update({
         "telefono_ia": None,
         "telnyx_number_id": None,
     }).eq("id", str(clinic_id)).execute()
-    logger.info("Número IA desconectado de clínica %s", clinic_id)
+    logger.info("Número IA %s desconectado de clínica %s", telefono, clinic_id)
     return {"ok": True}

@@ -14,6 +14,24 @@ logger = logging.getLogger(__name__)
 
 openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
 
+
+def _dentro_horario(horarios: dict) -> bool:
+    """Devuelve True si ahora mismo está dentro del horario de la clínica."""
+    from zoneinfo import ZoneInfo
+    TZ = ZoneInfo("Europe/Madrid")
+    ahora = datetime.now(TZ)
+    dias = {0: "lun", 1: "mar", 2: "mie", 3: "jue", 4: "vie", 5: "sab", 6: "dom"}
+    dia = dias[ahora.weekday()]
+    horario = horarios.get(dia)
+    if not horario:
+        return False
+    try:
+        h_ini = datetime.strptime(horario["start"], "%H:%M").time()
+        h_fin = datetime.strptime(horario["end"], "%H:%M").time()
+        return h_ini <= ahora.time() <= h_fin
+    except Exception:
+        return False
+
 # Dispatcher: mapea nombre de tool → función async
 async def _dispatch_tool(
     tool_name: str,
@@ -50,7 +68,7 @@ async def _dispatch_tool(
         elif tool_name == "crear_lead":
             result = await crear_lead(clinic_id, **args)
         elif tool_name == "actualizar_estado_lead":
-            result = await actualizar_estado_lead(**args)
+            result = await actualizar_estado_lead(clinic_id, **args)
         elif tool_name == "programar_seguimiento":
             result = await programar_seguimiento(**args)
         elif tool_name == "agregar_a_lista_espera":
@@ -90,7 +108,7 @@ async def run_agent(
     if conversacion_id:
         conv_res = (
             db.table("conversaciones")
-            .select("*")
+            .select("id, mensajes, paciente_id, estado")
             .eq("id", conversacion_id)
             .eq("clinic_id", clinic_id)
             .single()
@@ -114,6 +132,10 @@ async def run_agent(
         conversacion = conv_res.data[0]
         conversacion_id = conversacion["id"]
 
+    # Si la conversación está en mano humana no hace falta cargar nada más
+    if conversacion.get("estado") == "esperando_humano":
+        return "Un miembro del equipo de la clínica se pondrá en contacto contigo en breve.", conversacion_id
+
     historial = conversacion.get("mensajes") or []
 
     # Resolver paciente: request > conversación existente > lead anónimo nuevo
@@ -126,11 +148,24 @@ async def run_agent(
     elif paciente_id_resuelto != conversacion.get("paciente_id"):
         db.table("conversaciones").update({"paciente_id": paciente_id_resuelto}).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
 
-    # Cargar configuración de la clínica, servicios activos y base de conocimiento
-    clinica_res = db.table("clinicas").select("*").eq("id", clinic_id).single().execute()
+    # Cargar solo los campos que el agente necesita (no tokens cifrados ni datos de billing)
+    _CLINICA_FIELDS = "nombre, agente_nombre, tono, telefono, horarios, servicios, routing_mode, prompt_personalizado"
+    clinica_res = db.table("clinicas").select(_CLINICA_FIELDS).eq("id", clinic_id).single().execute()
     clinica = clinica_res.data
     if not clinica:
         raise ValueError(f"Clinica {clinic_id} no encontrada")
+
+    # routing_mode: si es "fuera_horario" y estamos dentro del horario → no atender
+    routing_mode = clinica.get("routing_mode", "siempre")
+    if routing_mode == "fuera_horario" and canal != "test":
+        if _dentro_horario(clinica.get("horarios") or {}):
+            telefono_clinica = clinica.get("telefono", "la clínica")
+            return (
+                f"Ahora mismo el equipo de {clinica.get('nombre', 'la clínica')} está disponible. "
+                f"Contacta directamente al {telefono_clinica}.",
+                conversacion_id,
+            )
+
     servicios_res = db.table("servicios").select(
         "nombre, duracion_min, precio, categoria, reservable_ia, activo"
     ).eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
@@ -139,10 +174,6 @@ async def run_agent(
     conocimiento_res = db.table("conocimientos").select("titulo, contenido, tipo") \
         .eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
     conocimiento = conocimiento_res.data or []
-
-    # Si la conversación está en mano humana, no responder
-    if conversacion.get("estado") == "esperando_humano":
-        return "Un miembro del equipo de la clínica se pondrá en contacto contigo en breve.", conversacion_id
 
     # Construir messages para OpenAI (solo role+content, sin campos extra como timestamp)
     system_prompt = build_system_prompt(clinica, servicios_tabla=servicios_tabla, conocimiento=conocimiento)
