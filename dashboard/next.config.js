@@ -54,6 +54,10 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Permissions-Policy", value: "camera=(), geolocation=(), payment=(), usb=()" },
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.facebook.com; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://graph.facebook.com https://recepcionista-clinica-production.up.railway.app; frame-src 'self' https://accounts.google.com",
+          },
         ],
       },
       {

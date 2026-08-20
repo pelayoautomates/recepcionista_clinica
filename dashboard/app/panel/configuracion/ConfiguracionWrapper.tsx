@@ -447,7 +447,7 @@ export default function ConfiguracionWrapper({ clinica, clinicId }: Props) {
                   Conecta tu Google Calendar para que el agente vea tu disponibilidad real y pueda agendar citas directamente.
                 </p>
                 <a
-                  href={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/auth/google/${clinicId}`}
+                  href={`/api/google-calendar/start?clinic_id=${encodeURIComponent(clinicId)}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 8,
                     background: "#0ea5e9", color: "white",

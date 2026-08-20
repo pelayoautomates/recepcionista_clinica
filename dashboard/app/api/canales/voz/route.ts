@@ -11,10 +11,10 @@ export async function POST(req: NextRequest) {
   if (access instanceof NextResponse) return access;
 
   const body = await req.json();
-  const { clinic_id, telefono, accion } = body; // accion: "conectar" | "comprar"
-  const accionesValidas = new Set(["conectar", "comprar"]);
+  const { clinic_id, telefono, telefono_clinica, routing_mode, segundos_desvio, accion } = body;
+  const accionesValidas = new Set(["activar", "conectar", "comprar"]);
 
-  if (!clinic_id || !telefono || !accion) {
+  if (!clinic_id || !accion || (accion === "activar" ? !telefono_clinica : !telefono)) {
     return NextResponse.json({ detail: "Faltan parámetros requeridos" }, { status: 400 });
   }
   const scopeError = enforceClinicScope(access, clinic_id);
@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
     `/admin/clinicas/${clinic_id}/canales/voz/${accion}`,
     {
       method: "POST",
-      body: JSON.stringify({ telefono }),
+      body: JSON.stringify(
+        accion === "activar"
+          ? { telefono_clinica, routing_mode, segundos_desvio }
+          : { telefono }
+      ),
       headers: { "Content-Type": "application/json" },
     }
   );

@@ -9,7 +9,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 export const metadata: Metadata = {
   title: "Pedir demo de recepcionista IA para clinicas",
   description:
-    "Solicita una demo guiada de Atiende360 para revisar llamadas, webchat, WhatsApp, agenda y derivacion humana en tu clinica.",
+    "Solicita una demo guiada de Atiende360 para revisar llamadas, WhatsApp, agenda y derivacion humana en tu clinica.",
   alternates: { canonical: "/demo" },
   openGraph: {
     title: "Pedir demo de Atiende360",
@@ -75,7 +75,7 @@ export default function DemoPage() {
                 <div className={styles.checkList}>
                   <p>Servicios principales y duracion aproximada.</p>
                   <p>Horarios, profesionales y disponibilidad.</p>
-                  <p>Canales actuales: telefono, webchat, WhatsApp o calendario.</p>
+                  <p>Canales actuales: teléfono, WhatsApp o calendario.</p>
                   <p>Preguntas frecuentes que recibe recepcion.</p>
                   <p>Criterios para no responder y pasar a humano.</p>
                 </div>

@@ -43,8 +43,20 @@ def start_scheduler():
         coalesce=True,
         misfire_grace_time=300,
     )
+    _scheduler.add_job(
+        _reset_periodos_facturacion,
+        trigger=IntervalTrigger(hours=6),
+        id="reset_periodos",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
+    )
     _scheduler.start()
-    logger.info("Scheduler iniciado: procesar_jobs (1min), programar_recordatorios (1h), sync_gcal (60min)")
+    logger.info(
+        "Scheduler iniciado: procesar_jobs (1min), programar_recordatorios (1h), "
+        "sync_gcal (60min), reset_periodos (6h)"
+    )
 
 
 def stop_scheduler():
@@ -106,6 +118,9 @@ def _ejecutar_job(job: dict):
         elif tipo == "recordatorio_1h":
             _enviar_recordatorio_sms(job, "1h")
         elif tipo == "seguimiento_lead":
+            from config import settings
+            if not settings.marketing_sms_enabled:
+                raise RuntimeError("Seguimientos comerciales desactivados")
             _enviar_seguimiento_lead(job)
 
         db.table("jobs").update({"estado": "ejecutado"}).eq("id", job_id).eq("estado", "ejecutando").execute()
@@ -142,7 +157,7 @@ def _enviar_recordatorio_sms(job: dict, tipo: str):
         return
 
     payload = job.get("payload", {})
-    sms.recordatorio_cita(
+    sent = sms.recordatorio_cita(
         to=telefono,
         nombre_paciente=nombre,
         nombre_clinica=payload.get("nombre_clinica", "la clínica"),
@@ -150,6 +165,8 @@ def _enviar_recordatorio_sms(job: dict, tipo: str):
         fecha_texto=payload.get("fecha_cita", ""),
         tipo=tipo,
     )
+    if not sent:
+        raise RuntimeError("El proveedor SMS no confirmó el recordatorio")
 
 
 def _enviar_seguimiento_lead(job: dict):
@@ -161,23 +178,32 @@ def _enviar_seguimiento_lead(job: dict):
     if not paciente_id:
         return
 
-    paciente = db.table("pacientes").select("nombre, telefono, estado_lead").eq("id", paciente_id).single().execute()
+    paciente = db.table("pacientes").select(
+        "nombre, telefono, estado_lead, sms_marketing_consent_at, sms_opted_out_at"
+    ).eq("id", paciente_id).eq("clinic_id", job.get("clinic_id")).single().execute()
     telefono = paciente.data.get("telefono")
     nombre = paciente.data.get("nombre", "")
     estado = paciente.data.get("estado_lead")
 
-    if not telefono or estado in ("cita_agendada", "completado"):
+    if (
+        not telefono
+        or estado in ("cita_agendada", "completado")
+        or not paciente.data.get("sms_marketing_consent_at")
+        or paciente.data.get("sms_opted_out_at")
+    ):
         return
 
     clinic_id = job.get("clinic_id")
     clinica = db.table("clinicas").select("nombre").eq("id", clinic_id).single().execute() if clinic_id else None
     nombre_clinica = (clinica.data or {}).get("nombre", "la clínica") if clinica else "la clínica"
 
-    sms.seguimiento_lead(
+    sent = sms.seguimiento_lead(
         to=telefono,
         nombre_paciente=nombre,
         nombre_clinica=nombre_clinica,
     )
+    if not sent:
+        raise RuntimeError("El proveedor SMS no confirmó el seguimiento")
 
 
 
@@ -227,6 +253,37 @@ def _programar_recordatorios_pendientes():
                     "idempotency_key": idem_key,
                     "payload": payload,
                 }, on_conflict="idempotency_key").execute()
+
+
+def _reset_periodos_facturacion():
+    """
+    Red de seguridad del contador de minutos: si una clínica lleva más de 31 días
+    sin reiniciar su período, se reinicia aquí.
+
+    El camino normal es el webhook `invoice.paid` de Stripe. Este job cubre los dos
+    huecos: clínicas en trial (sin Stripe) y webhooks que no llegaron.
+    """
+    from database.client import get_supabase
+
+    db = get_supabase()
+    ahora = datetime.now(timezone.utc)
+    limite = (ahora - timedelta(days=31)).isoformat()
+
+    # billing_period_start nulo = nunca inicializado; se abre el período ahora.
+    sin_periodo = db.table("clinicas").select("id") \
+        .is_("billing_period_start", "null").limit(500).execute().data or []
+    for c in sin_periodo:
+        db.table("clinicas").update({"billing_period_start": ahora.isoformat()}) \
+            .eq("id", c["id"]).execute()
+
+    caducadas = db.table("clinicas").select("id, minutos_usados_mes") \
+        .lt("billing_period_start", limite).limit(500).execute().data or []
+    for c in caducadas:
+        db.table("clinicas").update({
+            "minutos_usados_mes": 0,
+            "billing_period_start": ahora.isoformat(),
+        }).eq("id", c["id"]).execute()
+        logger.info("Período reiniciado (fallback) para clínica %s", c["id"])
 
 
 def _sync_all_gcal():

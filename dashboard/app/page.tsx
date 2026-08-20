@@ -7,14 +7,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 export const metadata: Metadata = {
   title: "Recepcionista IA para clinicas privadas",
   description:
-    "Atiende360 es un software de recepcionista IA para clinicas privadas: atiende llamadas, WhatsApp y webchat, agenda citas y deriva casos sensibles a humano.",
+    "Atiende360 es un software de recepcionista IA para clínicas privadas: recupera llamadas no atendidas, agenda citas y deriva casos sensibles a humano.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "Atiende360 | Recepcionista IA para clinicas privadas",
     description:
-      "Software de recepcionista IA 24/7 para convertir llamadas y mensajes en citas trazables.",
+      "Software de recepcionista IA para recuperar llamadas y convertirlas en citas trazables.",
     type: "website",
     url: "/",
     siteName: "Atiende360",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Atiende360 | Recepcionista IA para clinicas",
     description:
-      "Atiende llamadas, WhatsApp y webchat, agenda citas y deriva a humano cuando hace falta.",
+      "Recupera llamadas no atendidas, agenda citas y deriva a humano cuando hace falta.",
   },
 };
 
@@ -90,7 +90,7 @@ const jsonLd = {
           "Clinicas dentales, clinicas esteticas, fisioterapia, rehabilitacion y centros sanitarios privados",
       },
       description:
-        "Software SaaS de recepcionista IA para clinicas que atiende llamadas, WhatsApp y webchat, registra leads, agenda citas y escala conversaciones sensibles a humanos.",
+        "Software SaaS de recepcionista IA para clínicas que recupera llamadas, registra leads, agenda citas y escala conversaciones sensibles a humanos.",
       featureList: FEATURE_BENEFITS.map((feature) => feature.title),
       keywords: ENTITY_TERMS.join(", "),
       offers: {

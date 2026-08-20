@@ -1,5 +1,8 @@
 # FastAPI
 fastapi==0.115.5
+# starlette pinado: fastapi 0.115.x rompe con starlette >= 0.42 (APIRouter.__init__).
+# Sin este pin, cualquier otra dependencia puede arrastrar una versión incompatible.
+starlette==0.41.3
 uvicorn[standard]==0.32.1
 python-multipart==0.0.12
 

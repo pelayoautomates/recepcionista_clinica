@@ -3,6 +3,7 @@ Helpers de billing: verificación de plan activo y límites de minutos.
 """
 import asyncio
 import logging
+import math
 from datetime import datetime, timezone
 
 from database.client import get_supabase
@@ -54,7 +55,7 @@ def _check_plan_active_sync(clinic_id: str) -> dict:
 
     if plan not in ("trial", "cancelado"):
         sub_status = clinica.get("stripe_subscription_status")
-        if sub_status and sub_status not in ("active", "trialing", "past_due"):
+        if sub_status and sub_status not in ("active", "trialing"):
             raise PlanInactivo(f"suscripcion_{sub_status}")
 
     usados = clinica.get("minutos_usados_mes") or 0
@@ -73,8 +74,33 @@ async def check_plan_active(clinic_id: str) -> dict:
     return await asyncio.to_thread(_check_plan_active_sync, clinic_id)
 
 
+def reset_periodo_facturacion(clinic_id: str) -> None:
+    """Pone a cero el contador de minutos y abre un nuevo período de facturación."""
+    db = get_supabase()
+    db.table("clinicas").update({
+        "minutos_usados_mes": 0,
+        "billing_period_start": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", clinic_id).execute()
+    logger.info("Período de facturación reiniciado para clínica %s", clinic_id)
+
+
+def minutos_de_llamada(duracion_ms: int | float | None) -> int:
+    """
+    Convierte la duración de una llamada Retell a minutos facturables.
+    Redondeo hacia arriba con mínimo 1 minuto (igual que factura la telefonía).
+    Devuelve 0 si no hay duración válida.
+    """
+    try:
+        ms = float(duracion_ms or 0)
+    except (TypeError, ValueError):
+        return 0
+    if ms <= 0:
+        return 0
+    return max(1, math.ceil(ms / 60000))
+
+
 async def incrementar_minutos(clinic_id: str, minutos: int = 1) -> None:
-    """Incrementa minutos usados del mes de forma atómica. Fallo silencioso."""
+    """Incrementa minutos usados del mes de forma atómica; el caller decide el reintento."""
     try:
         db = get_supabase()
         # UPDATE atómico via RPC — evita race condition entre llamadas simultáneas
@@ -86,3 +112,4 @@ async def incrementar_minutos(clinic_id: str, minutos: int = 1) -> None:
         )
     except Exception as exc:
         logger.warning("incrementar_minutos failed for %s: %s", clinic_id, exc)
+        raise

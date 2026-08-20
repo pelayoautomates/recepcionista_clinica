@@ -19,6 +19,15 @@ class TelefonoBody(BaseModel):
     telefono: str
 
 
+class ActivarVozBody(BaseModel):
+    telefono_clinica: str          # el número real que ya tiene el negocio
+    routing_mode: str = "siempre"  # siempre | fuera_horario | si_no_contestan
+    segundos_desvio: int = 20      # solo aplica a si_no_contestan
+
+
+ROUTING_MODES = {"siempre", "fuera_horario", "si_no_contestan"}
+
+
 # ─── Helper ──────────────────────────────────────────────────────────────────
 
 def _lookup_clinic_by_phone(telefono: str) -> str | None:
@@ -33,17 +42,30 @@ def _lookup_clinic_by_phone(telefono: str) -> str | None:
     return None
 
 
-def _get_retell_agent_id(clinic_id: str) -> str | None:
-    """Devuelve el retell_agent_id de la clínica; cae back al global si no tiene uno propio."""
+async def _get_retell_agent_id(clinic_id: str) -> str | None:
+    """
+    Devuelve el agente Retell que debe atender las llamadas de esta clínica.
+
+    Modelo de agente único (Valeria): TODAS las clínicas comparten el mismo agente
+    de Retell. La clínica se identifica por el número al que llamó el paciente
+    (`to_number` → `clinicas.telefono_ia`), no por el agente, y su personalidad,
+    servicios y horarios se construyen en `build_system_prompt` a partir del
+    clinic_id. Ver `retell_manager.get_global_agent_id`.
+
+    Se respeta un `retell_agent_id` propio si una clínica lo tiene guardado (altas
+    antiguas, o un cliente que en el futuro quiera voz distinta).
+    """
+    db = get_supabase()
     try:
-        db = get_supabase()
         res = db.table("clinicas").select("retell_agent_id").eq("id", clinic_id).single().execute()
-        if res.data and res.data.get("retell_agent_id"):
-            return res.data["retell_agent_id"]
+        propio = (res.data or {}).get("retell_agent_id")
+        if propio:
+            return propio
     except Exception as e:
         logger.warning("Error fetching retell_agent_id for clinic %s: %s", clinic_id, e)
-    # Fallback al agente global de la plataforma (configurado en Railway)
-    return settings.retell_agent_id or None
+
+    from retell_manager import get_global_agent_id
+    return get_global_agent_id()
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
@@ -54,11 +76,12 @@ async def get_canales(clinic_id: UUID):
     db = get_supabase()
     res = db.table("clinicas").select(
         "telefono, telefono_ia, whatsapp_number, retell_agent_id, twilio_whatsapp_number, "
-        "google_tokens_enc, meta_waba_id, meta_phone_number_id, meta_phone_number"
+        "google_tokens_enc, meta_waba_id, meta_phone_number_id, meta_phone_number, routing_mode"
     ).eq("id", str(clinic_id)).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Clínica no encontrada")
     d = res.data
+    routing_mode = d.get("routing_mode") or "siempre"
     twilio_num = d.get("twilio_whatsapp_number") or ""
     twilio_display = twilio_num.replace("whatsapp:", "") if twilio_num else None
     return {
@@ -75,6 +98,9 @@ async def get_canales(clinic_id: UUID):
         "meta_phone_number_id": d.get("meta_phone_number_id"),
         "meta_phone_number": d.get("meta_phone_number"),
         "meta_configured": bool(d.get("meta_phone_number_id")),
+        "routing_mode": routing_mode,
+        # Códigos que el negocio marca en su teléfono para desviar a la IA.
+        "desvio": _codigos_desvio(d["telefono_ia"], routing_mode) if d.get("telefono_ia") else None,
     }
 
 
@@ -148,7 +174,14 @@ async def connect_whatsapp_meta(clinic_id: UUID, body: dict):
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             if sub_r.status_code not in (200, 201):
-                logger.warning("Webhook subscription error para WABA %s: %s", waba_id, sub_r.text)
+                logger.error("Webhook subscription error para WABA %s: %s", waba_id, sub_r.text)
+                raise HTTPException(status_code=502, detail="Meta no pudo suscribir el webhook de WhatsApp")
+
+    if not waba_id or not phone_number_id:
+        raise HTTPException(
+            status_code=502,
+            detail="Meta no devolvió la cuenta y el número necesarios para activar WhatsApp",
+        )
 
     # 5. Encriptar token con Fernet y guardar
     from cryptography.fernet import Fernet
@@ -210,7 +243,11 @@ async def buscar_numeros_telnyx():
 
 async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
     """Configura un número ya comprado en Telnyx: SIP + Retell + Supabase."""
-    retell_agent_id = _get_retell_agent_id(clinic_id)
+    if not settings.retell_api_key:
+        raise HTTPException(status_code=503, detail="Retell no está configurado")
+    if not settings.telnyx_sip_connection_id:
+        raise HTTPException(status_code=503, detail="La conexión SIP de Telnyx no está configurada")
+    retell_agent_id = await _get_retell_agent_id(clinic_id)
     telnyx_number_id: str | None = None
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -223,14 +260,14 @@ async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
             telnyx_number_id = r0.json().get("data", {}).get("id")
 
         # 2. Asignar conexión SIP
-        if settings.telnyx_sip_connection_id:
-            r2 = await client.patch(
-                f"https://api.telnyx.com/v2/phone_numbers/{telefono}",
-                headers={"Authorization": f"Bearer {settings.telnyx_api_key}", "Content-Type": "application/json"},
-                json={"connection_id": settings.telnyx_sip_connection_id},
-            )
-            if r2.status_code not in (200, 201):
-                logger.warning("Telnyx SIP assign error %s: %s", r2.status_code, r2.text)
+        r2 = await client.patch(
+            f"https://api.telnyx.com/v2/phone_numbers/{telefono}",
+            headers={"Authorization": f"Bearer {settings.telnyx_api_key}", "Content-Type": "application/json"},
+            json={"connection_id": settings.telnyx_sip_connection_id},
+        )
+        if r2.status_code not in (200, 201):
+            logger.error("Telnyx SIP assign error %s: %s", r2.status_code, r2.text)
+            raise HTTPException(status_code=502, detail="No se pudo conectar el número a la troncal SIP")
 
         # 3. Importar en Retell (idempotente — si ya existe lo ignora)
         if settings.retell_api_key:
@@ -243,15 +280,25 @@ async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
                 logger.error("Retell import error %s: %s", r3.status_code, r3.text)
                 raise HTTPException(status_code=502, detail=f"Error al importar número en Retell: {r3.text}")
 
-            # 4. Asignar agente
-            if retell_agent_id:
-                r4 = await client.patch(
-                    f"https://api.retellai.com/update-phone-number/{telefono}",
-                    headers={"Authorization": f"Bearer {settings.retell_api_key}"},
-                    json={"inbound_agent_id": retell_agent_id},
+            # 4. Asignar agente. Sin agente el número suena pero nadie contesta,
+            #    así que se falla en alto en vez de guardar un canal roto.
+            if not retell_agent_id:
+                raise HTTPException(
+                    status_code=502,
+                    detail="No se pudo crear el agente de voz de esta clínica. "
+                           "Revisa RETELL_API_KEY e inténtalo de nuevo.",
                 )
-                if r4.status_code not in (200, 201):
-                    logger.warning("Retell assign agent error %s: %s", r4.status_code, r4.text)
+            r4 = await client.patch(
+                f"https://api.retellai.com/update-phone-number/{telefono}",
+                headers={"Authorization": f"Bearer {settings.retell_api_key}"},
+                json={"inbound_agent_id": retell_agent_id},
+            )
+            if r4.status_code not in (200, 201):
+                logger.error("Retell assign agent error %s: %s", r4.status_code, r4.text)
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"El número se importó pero no se pudo asignar al agente: {r4.text}",
+                )
 
     # 5. Guardar en Supabase
     db = get_supabase()
@@ -261,6 +308,95 @@ async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
     db.table("clinicas").update(update_data).eq("id", clinic_id).execute()
     logger.info("Número %s asignado a clínica %s (Telnyx ID: %s)", telefono, clinic_id, telnyx_number_id)
     return {"ok": True, "telefono_ia": telefono, "telnyx_number_id": telnyx_number_id}
+
+
+def _codigos_desvio(destino: str, routing_mode: str, segundos: int = 20) -> dict:
+    """
+    Códigos MMI que el negocio marca en su propio teléfono para desviar las
+    llamadas hacia el número de la IA. Sintaxis GSM estándar (**SC*número*BS*T#,
+    donde BS=11 es voz). Los operadores españoles la soportan, pero alguno usa
+    variantes, así que la UI debe ofrecer también la vía "llama a tu operador".
+    """
+    seg = max(5, min(30, int(segundos or 20)))
+    if routing_mode == "si_no_contestan":
+        activar = f"**61*{destino}*11*{seg}#"
+        explicacion = (
+            f"Las llamadas suenan primero en la clínica. Si nadie contesta en {seg} "
+            "segundos, entra la IA."
+        )
+    elif routing_mode == "fuera_horario":
+        activar = f"**21*{destino}#"
+        explicacion = (
+            "Desvío total: actívalo al cerrar y desactívalo al abrir. La IA ya sabe "
+            "que la clínica está cerrada y lo explica al paciente."
+        )
+    else:  # siempre
+        activar = f"**21*{destino}#"
+        explicacion = "Todas las llamadas entran directamente a la IA, 24/7."
+
+    return {
+        "activar": activar,
+        "desactivar": "##002#",
+        "explicacion": explicacion,
+        "segundos": seg if routing_mode == "si_no_contestan" else None,
+    }
+
+
+@router.post("/clinicas/{clinic_id}/canales/voz/activar")
+async def activar_voz(clinic_id: UUID, body: ActivarVozBody):
+    """
+    Activa el canal de voz sin que el negocio compre ni cambie de número.
+
+    Toma automáticamente un número libre del pool de Telnyx de la agencia, lo
+    conecta al agente único, y devuelve el código de desvío que el negocio marca
+    en su propio teléfono. El cliente conserva su número de siempre.
+    """
+    if not settings.telnyx_api_key:
+        raise HTTPException(status_code=503, detail="Telnyx no configurado")
+
+    routing_mode = (body.routing_mode or "siempre").strip()
+    if routing_mode not in ROUTING_MODES:
+        raise HTTPException(status_code=400, detail=f"routing_mode no válido: {routing_mode}")
+
+    telefono_clinica = body.telefono_clinica.strip()
+    if not telefono_clinica:
+        raise HTTPException(status_code=400, detail="Falta el teléfono de la clínica")
+
+    db = get_supabase()
+
+    # ¿Ya tiene número asignado? Entonces solo se actualiza el desvío.
+    actual = db.table("clinicas").select("telefono_ia").eq("id", str(clinic_id)).single().execute()
+    numero_ia = (actual.data or {}).get("telefono_ia")
+
+    if not numero_ia:
+        disponibles = await buscar_numeros_telnyx()
+        numeros = disponibles.get("numeros") or []
+        if not numeros:
+            raise HTTPException(
+                status_code=409,
+                detail="No quedan números libres en el pool de Telnyx. Compra más números "
+                       "en Telnyx antes de dar de alta este canal.",
+            )
+        numero_ia = numeros[0]
+        await _asignar_numero_a_clinica(str(clinic_id), numero_ia)
+
+    db.table("clinicas").update({
+        "telefono": telefono_clinica,
+        "routing_mode": routing_mode,
+    }).eq("id", str(clinic_id)).execute()
+
+    logger.info(
+        "Voz activada para clínica %s — número IA %s, desvío desde %s, modo %s",
+        clinic_id, numero_ia, telefono_clinica, routing_mode,
+    )
+
+    return {
+        "ok": True,
+        "telefono_ia": numero_ia,
+        "telefono_clinica": telefono_clinica,
+        "routing_mode": routing_mode,
+        "desvio": _codigos_desvio(numero_ia, routing_mode, body.segundos_desvio),
+    }
 
 
 @router.post("/clinicas/{clinic_id}/canales/voz/comprar")

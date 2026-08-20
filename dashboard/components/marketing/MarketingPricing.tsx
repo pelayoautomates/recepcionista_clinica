@@ -13,14 +13,14 @@ export default function MarketingPricing() {
               <p className={styles.sectionKicker}>Pricing de Atiende360</p>
               <h1>Elige el plan que mejor encaja con la recepcion de tu clinica</h1>
               <p>
-                Mantienes control total de costes, limites y canales. Sin letra pequena y sin permanencia.
+                Planes mensuales, IVA no incluido y sin permanencia. Los canales opcionales se confirman antes de activar.
               </p>
               <div className={styles.heroCtaRow}>
                 <Link href="/demo" className={styles.btnPrimary} prefetch={false}>
                   Probar Atiende360
                 </Link>
-                <Link href="/#calculadora" className={styles.btnSecondary} prefetch={false}>
-                  Calcular impacto
+                <Link href="/#como-funciona" className={styles.btnSecondary} prefetch={false}>
+                  Ver como funciona
                 </Link>
               </div>
             </div>

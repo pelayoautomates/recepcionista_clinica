@@ -10,7 +10,10 @@ declare global {
 
 interface Props {
   clinicId: string;
-  telefono: string | null;
+  telefonoClinica: string | null;
+  telefonoIa: string | null;
+  routingMode: "si_no_contestan" | "fuera_horario" | "siempre";
+  desvioInicial: Desvio | null;
   twilioNumber: string | null;
   twilioConfigured: boolean;
   smsActivo: boolean;
@@ -18,6 +21,13 @@ interface Props {
   metaPhoneNumber: string | null;
   compact?: boolean;
 }
+
+type Desvio = {
+  activar: string;
+  desactivar: string;
+  explicacion: string;
+  segundos: number | null;
+};
 
 
 const card: React.CSSProperties = {
@@ -65,7 +75,7 @@ const dot = (color: string): React.CSSProperties => ({
   width: 6, height: 6, borderRadius: "50%", background: color, display: "inline-block",
 });
 
-export default function CanalesClient({ clinicId, telefono, twilioNumber, twilioConfigured, smsActivo, metaConfigured, metaPhoneNumber, compact }: Props) {
+export default function CanalesClient({ clinicId, telefonoClinica, telefonoIa, routingMode, desvioInicial, twilioNumber, twilioConfigured, smsActivo, metaConfigured, metaPhoneNumber, compact }: Props) {
   // WhatsApp Meta state
   const [waLoading, setWaLoading] = useState(false);
   const [waError, setWaError] = useState<string | null>(null);
@@ -150,10 +160,10 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
   }
 
   // Voice state
-  const [voiceMode, setVoiceMode] = useState<"idle" | "connect-existing" | "search-numbers">("idle");
-  const [existingNumber, setExistingNumber] = useState("");
-  const [numeros, setNumeros] = useState<string[]>([]);
-  const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
+  const [clinicNumber, setClinicNumber] = useState(telefonoClinica || "");
+  const [selectedRoutingMode, setSelectedRoutingMode] = useState(routingMode || "si_no_contestan");
+  const [desvio, setDesvio] = useState<Desvio | null>(desvioInicial);
+  const [copied, setCopied] = useState<string | null>(null);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceSuccess, setVoiceSuccess] = useState<string | null>(null);
@@ -161,6 +171,10 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
   //  Voice handlers 
 
   async function handleDesconectar() {
+    const confirmed = window.confirm(
+      "Antes de desconectar, marca ##002# desde la linea de la clinica para cancelar el desvio. Confirma solo cuando el operador haya aceptado el codigo."
+    );
+    if (!confirmed) return;
     setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null);
     try {
       const res = await fetch("/api/canales/voz", {
@@ -175,45 +189,31 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
     } catch { setVoiceError("Error al desconectar"); } finally { setVoiceLoading(false); }
   }
 
-  async function handleConectar() {
-    if (!existingNumber.trim()) { setVoiceError("Introduce un numero"); return; }
+  async function handleActivar() {
+    if (!clinicNumber.trim()) { setVoiceError("Introduce el numero habitual de la clinica"); return; }
     setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null);
     try {
       const res = await fetch("/api/canales/voz", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clinic_id: clinicId, telefono: existingNumber.trim(), accion: "conectar" }),
+        body: JSON.stringify({
+          clinic_id: clinicId,
+          telefono_clinica: clinicNumber.trim(),
+          routing_mode: selectedRoutingMode,
+          segundos_desvio: 20,
+          accion: "activar",
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error al conectar");
-      setVoiceSuccess("Numero conectado correctamente.");
-      setTimeout(() => window.location.reload(), 800);
+      if (!res.ok) throw new Error(data.detail || "No se pudo preparar el desvio");
+      setDesvio(data.desvio);
+      setVoiceSuccess("Canal preparado. Marca el codigo en el telefono de la clinica y haz una llamada de prueba.");
     } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
   }
 
-  async function handleBuscarNumeros() {
-    setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null); setNumeros([]); setSelectedNumber(null);
-    try {
-      const res = await fetch(`/api/canales/numeros`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error buscando numeros");
-      setNumeros(data.numeros || []);
-      if (!data.numeros?.length) setVoiceError("No hay numeros disponibles en la cuenta Telnyx");
-    } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
-  }
-
-  async function handleComprar() {
-    if (!selectedNumber) { setVoiceError("Selecciona un numero"); return; }
-    setVoiceLoading(true); setVoiceError(null); setVoiceSuccess(null);
-    try {
-      const res = await fetch("/api/canales/voz", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clinic_id: clinicId, telefono: selectedNumber, accion: "comprar" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error al comprar numero");
-      setVoiceSuccess("Numero comprado y conectado correctamente.");
-      setTimeout(() => window.location.reload(), 800);
-    } catch (e: any) { setVoiceError(e.message); } finally { setVoiceLoading(false); }
+  async function copyCode(code: string, label: string) {
+    await navigator.clipboard.writeText(code);
+    setCopied(label);
+    setTimeout(() => setCopied(null), 1800);
   }
 
   return (
@@ -236,69 +236,92 @@ export default function CanalesClient({ clinicId, telefono, twilioNumber, twilio
             <h2 style={{ fontSize: 15, fontWeight: 700, color: "#111827", margin: 0 }}>Llamadas (IA de voz)</h2>
           </div>
 
-          {telefono ? (
-            <div>
-              <span style={badgeGreen}><span style={dot("#16a34a")} />Conectado</span>
-              <div style={numberDisplay}>{telefono}</div>
-              <p style={{ ...helpText, marginTop: 0 }}>Los pacientes llaman a este numero y la IA responde automaticamente.</p>
-              {voiceError && <p style={errorStyle}>{voiceError}</p>}
-              {voiceSuccess && <p role="status" style={successStyle}>{voiceSuccess}</p>}
-              <button style={{ ...btnDanger, opacity: voiceLoading ? 0.7 : 1 }} onClick={handleDesconectar} disabled={voiceLoading}>
-                {voiceLoading ? "Desconectando..." : "Desconectar numero"}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <span style={badgeGray}>Sin configurar</span>
-              <p style={{ ...helpText, marginTop: 12 }}>Conecta un numero de telefono para que los pacientes puedan llamar y la IA los atienda.</p>
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <button style={voiceMode === "connect-existing" ? { ...btnSecondary, borderColor: "#2563eb", color: "#2563eb" } : btnSecondary}
-                  onClick={() => setVoiceMode("connect-existing")}>Ya tengo numero</button>
-                <button style={voiceMode === "search-numbers" ? { ...btnSecondary, borderColor: "#2563eb", color: "#2563eb" } : btnSecondary}
-                  onClick={() => setVoiceMode("search-numbers")}>Buscar numero</button>
+          <div>
+            <span style={telefonoIa ? badgeGreen : badgeBlue}>
+              <span style={dot(telefonoIa ? "#16a34a" : "#2563eb")} />
+              {telefonoIa ? "Numero tecnico preparado" : "Activacion guiada"}
+            </span>
+            <h3 style={{ margin: "14px 0 6px", fontSize: 20, letterSpacing: "-0.02em", color: "#111827" }}>
+              Conserva el numero que ya conocen tus pacientes
+            </h3>
+            <p style={{ ...helpText, marginTop: 0 }}>
+              Configuramos un desvio. Tu telefono suena primero y Atiende360 entra solo segun la regla que elijas.
+            </p>
+
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+              Numero habitual de la clinica
+            </label>
+            <input
+              style={input}
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+34 912 345 678"
+              value={clinicNumber}
+              onChange={e => setClinicNumber(e.target.value)}
+            />
+
+            <fieldset style={{ border: 0, padding: 0, margin: "16px 0" }}>
+              <legend style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Cuando responde la IA</legend>
+              {[
+                ["si_no_contestan", "Si nadie contesta", "Recomendado: la clinica mantiene la primera oportunidad de responder."],
+                ["fuera_horario", "Fuera de horario", "Activa el desvio al cerrar y desactivalo al abrir."],
+                ["siempre", "Siempre", "Todas las llamadas pasan directamente a Atiende360."],
+              ].map(([value, title, description]) => (
+                <label key={value} style={{
+                  display: "grid", gridTemplateColumns: "18px 1fr", gap: 9, alignItems: "start",
+                  padding: "10px 12px", marginBottom: 7, borderRadius: 9, cursor: "pointer",
+                  border: selectedRoutingMode === value ? "1px solid #2563eb" : "1px solid #e5e7eb",
+                  background: selectedRoutingMode === value ? "#eff6ff" : "#fff",
+                }}>
+                  <input type="radio" name="routing-mode" value={value} checked={selectedRoutingMode === value}
+                    onChange={() => { setSelectedRoutingMode(value as typeof selectedRoutingMode); setDesvio(null); }}
+                    style={{ marginTop: 2, accentColor: "#2563eb" }} />
+                  <span>
+                    <strong style={{ display: "block", fontSize: 13, color: "#111827" }}>{title}</strong>
+                    <small style={{ color: "#6b7280", lineHeight: 1.4 }}>{description}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
+            <button style={{ ...btnPrimary, width: "100%", opacity: voiceLoading ? 0.7 : 1 }} onClick={handleActivar} disabled={voiceLoading}>
+              {voiceLoading ? "Preparando desvio..." : telefonoIa ? "Actualizar instrucciones" : "Preparar activacion"}
+            </button>
+
+            {desvio && (
+              <div style={{ marginTop: 16, padding: 16, borderRadius: 12, background: "#0f172a", color: "white" }}>
+                <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#93c5fd" }}>Paso final en el telefono</p>
+                <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.5, color: "#cbd5e1" }}>{desvio.explicacion}</p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#020617", borderRadius: 9, padding: "10px 12px" }}>
+                  <code style={{ fontSize: 17, fontWeight: 800, letterSpacing: "0.04em", color: "#f8fafc" }}>{desvio.activar}</code>
+                  <button type="button" onClick={() => copyCode(desvio.activar, "activar")} style={{ ...btnSecondary, padding: "6px 10px", background: "#1e293b", borderColor: "#334155", color: "white" }}>
+                    {copied === "activar" ? "Copiado" : "Copiar"}
+                  </button>
+                </div>
+                <ol style={{ margin: "12px 0 0", paddingLeft: 18, fontSize: 12.5, lineHeight: 1.65, color: "#cbd5e1" }}>
+                  <li>Marca el codigo desde la linea habitual de la clinica.</li>
+                  <li>Espera la confirmacion del operador.</li>
+                  <li>Llama desde otro telefono y comprueba el saludo de IA.</li>
+                </ol>
+                <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#94a3b8" }}>
+                  Si tu operador no acepta el codigo, pide que desvien las llamadas a {telefonoIa || "el numero tecnico asignado"}.
+                </p>
               </div>
+            )}
 
-              {voiceMode === "connect-existing" && (
-                <div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input style={{ ...input, flex: 1 }} placeholder="+34 951 000 000" value={existingNumber} onChange={e => setExistingNumber(e.target.value)} />
-                    <button style={{ ...btnPrimary, opacity: voiceLoading ? 0.7 : 1 }} onClick={handleConectar} disabled={voiceLoading}>
-                      {voiceLoading ? "Conectando..." : "Conectar"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {voiceMode === "search-numbers" && (
-                <div>
-                  <div style={{ marginBottom: 12 }}>
-                    <button style={{ ...btnPrimary, opacity: voiceLoading ? 0.7 : 1 }} onClick={handleBuscarNumeros} disabled={voiceLoading}>
-                      {voiceLoading && !numeros.length ? "Cargando..." : "Ver números disponibles"}
-                    </button>
-                  </div>
-                  {numeros.length > 0 && (
-                    <div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto", marginBottom: 12 }}>
-                        {numeros.map(n => (
-                          <div key={n} onClick={() => setSelectedNumber(n)}
-                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", border: `${selectedNumber === n ? "2px solid #2563eb" : "1px solid #e5e7eb"}`, borderRadius: 8, cursor: "pointer", background: selectedNumber === n ? "#eff6ff" : "white" }}>
-                            <input type="radio" checked={selectedNumber === n} onChange={() => setSelectedNumber(n)} style={{ accentColor: "#2563eb" }} />
-                            <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 14 }}>{n}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <button style={{ ...btnPrimary, opacity: (voiceLoading || !selectedNumber) ? 0.7 : 1 }} onClick={handleComprar} disabled={voiceLoading || !selectedNumber}>
-                        {voiceLoading ? "Asignando..." : "Asignar numero"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {voiceError && <p style={errorStyle}>{voiceError}</p>}
-              {voiceSuccess && <p role="status" style={successStyle}>{voiceSuccess}</p>}
-            </div>
-          )}
+            {voiceError && <p role="alert" style={errorStyle}>{voiceError}</p>}
+            {voiceSuccess && <p role="status" style={successStyle}>{voiceSuccess}</p>}
+            {telefonoIa && (
+              <div style={{ marginTop: 12 }}>
+                <p style={{ margin: "0 0 8px", fontSize: 12, color: "#6b7280" }}>
+                  Para apagar el desvio marca <strong>##002#</strong> desde la linea de la clinica antes de desconectar el canal.
+                </p>
+                <button style={{ ...btnDanger, opacity: voiceLoading ? 0.7 : 1 }} onClick={handleDesconectar} disabled={voiceLoading}>
+                  {voiceLoading ? "Desconectando..." : "Ya he cancelado el desvio; desconectar"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/*  SMS (Telnyx)  */}

@@ -14,11 +14,11 @@ type Message = {
 const CALL_MAX_SECONDS = 50;
 
 const VALERIA_CALL_GREETING =
-  "Hola, Clínica Estética Luna, le atiende Valeria. Tenemos disponibilidad esta semana. ¿Le puedo ayudar a reservar una cita o tiene alguna consulta?";
+  "Hola, soy Valeria, asistente virtual con inteligencia artificial de Clínica Estética Luna. Tenemos disponibilidad esta semana. ¿Le puedo ayudar a reservar una cita o tiene alguna consulta?";
 
 const VALERIA_CHAT_GREETING: Message = {
   role: "assistant",
-  text: "¡Hola! Soy Valeria, de Clínica Estética Luna 👋 Tenemos disponibilidad mañana a las 10:30, 12:00 y 17:00. ¿Te gustaría reservar una cita o tienes alguna duda sobre nuestros tratamientos?",
+  text: "¡Hola! Soy Valeria, asistente virtual con inteligencia artificial de Clínica Estética Luna 👋 Tenemos disponibilidad mañana a las 10:30, 12:00 y 17:00. ¿Te gustaría reservar una cita o tienes alguna duda sobre nuestros tratamientos?",
   time: "",
 };
 
@@ -28,7 +28,9 @@ function getNow() {
 
 export default function AgentDemoSandbox() {
   const [mode, setMode] = useState<DemoMode>("chat");
-  const [messages, setMessages] = useState<Message[]>([{ ...VALERIA_CHAT_GREETING, time: getNow() }]);
+  // El servidor y el navegador deben renderizar exactamente el mismo primer frame.
+  // La hora real se añade tras hidratar para evitar errores por zona horaria/reloj.
+  const [messages, setMessages] = useState<Message[]>([{ ...VALERIA_CHAT_GREETING }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -49,6 +51,9 @@ export default function AgentDemoSandbox() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    setMessages((current) => current.map((message, index) =>
+      index === 0 && !message.time ? { ...message, time: getNow() } : message
+    ));
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setVoiceSupported(Boolean(SR));
     return () => {

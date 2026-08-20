@@ -27,19 +27,19 @@ export default function MarketingLanding() {
 
               <div className={styles.heroConversionCopy}>
                 <p className={`${styles.heroKicker} ${styles.animFadeUp}`} style={{ animationDelay: "0ms" }}>
-                  RECEPCIONISTA IA PARA CLINICAS PRIVADAS
+                  RECUPERACION DE LLAMADAS PARA CLINICAS ESTETICAS
                 </p>
                 <h1 className={`${styles.heroConversionTitle} ${styles.animFadeUp}`} style={{ animationDelay: "80ms" }}>
-                  Tu clínica atiende 24/7.<br />Sin perder una sola cita.
+                  Recupera las primeras consultas<br />que hoy no puedes atender.
                 </h1>
                 <p className={`${styles.heroConversionLead} ${styles.animFadeUp}`} style={{ animationDelay: "160ms" }}>
-                  Atiende360 responde llamadas, WhatsApp y webchat, agenda citas y avisa a tu equipo
-                  cuando hace falta intervención humana. Todo conectado en un panel.
+                  Si nadie coge el telefono, Atiende360 responde con el contexto de tu clinica,
+                  agenda valoraciones y deja a tu equipo el control de los casos sensibles.
                 </p>
 
                 <div className={`${styles.heroConversionCta} ${styles.animFadeUp}`} style={{ animationDelay: "240ms" }}>
-                  <Link href="/onboarding" prefetch={false} className={styles.btnPrimary}>
-                    Empezar gratis — 7 días sin tarjeta
+                  <Link href="/demo" prefetch={false} className={styles.btnPrimary}>
+                    Solicitar piloto asistido
                   </Link>
                   <a href="#demo" className={styles.btnSecondary}>
                     Probar ahora
@@ -47,20 +47,20 @@ export default function MarketingLanding() {
                 </div>
 
                 <div className={styles.heroMobileTrust}>
-                  <span>✓ Sin tarjeta</span>
-                  <span>✓ Cancela cuando quieras</span>
-                  <span>✓ Activo en 24h</span>
+                  <span>✓ Conservas tu numero</span>
+                  <span>✓ Activacion asistida</span>
+                  <span>✓ Derivacion humana</span>
                 </div>
 
                 <div className={`${styles.heroBadgeRow} ${styles.animFadeUp}`} style={{ animationDelay: "320ms" }}>
                   <span className={styles.heroBadge}>
-                    <PhoneIcon /> Voz 24/7
+                    <PhoneIcon /> Desvio por no respuesta
                   </span>
                   <span className={styles.heroBadge}>
-                    <WhatsAppLogo size={15} /> WhatsApp
+                    <WhatsAppLogo size={15} /> WhatsApp asistido
                   </span>
                   <span className={styles.heroBadge}>
-                    <ChatIcon /> Webchat
+                    <ChatIcon /> Panel de seguimiento
                   </span>
                   <span className={styles.heroBadge}>
                     <GoogleCalendarLogo size={15} /> Google Calendar
@@ -80,9 +80,9 @@ export default function MarketingLanding() {
                     <article className={styles.flowCardContact}>
                       <div className={styles.flowKicker}>
                         <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
-                        PACIENTE CONTACTA
+                        LLAMADA NO ATENDIDA
                       </div>
-                      <div className={styles.flowCardTitle}>WhatsApp, llamada o webchat</div>
+                      <div className={styles.flowCardTitle}>La clinica esta atendiendo</div>
                       <div className={styles.flowQuote}>
                         <span className={styles.flowQuoteMark}>&ldquo;</span>
                         <span className={styles.flowQuoteText}>Quiero una cita para esta semana</span>
@@ -168,20 +168,20 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.proofGrid}>
               <article className={styles.animFadeUp}>
-                <strong>24/7</strong>
-                <p>Atención sin interrupciones</p>
+                <strong>Tu número</strong>
+                <p>La clínica conserva su identidad</p>
               </article>
               <article className={styles.animFadeUp} style={{ animationDelay: "60ms" }}>
-                <strong>3 canales</strong>
-                <p>Voz, WhatsApp y webchat</p>
+                <strong>Control humano</strong>
+                <p>Los casos sensibles se derivan</p>
               </article>
               <article className={styles.animFadeUp} style={{ animationDelay: "120ms" }}>
-                <strong>&lt;2 min</strong>
-                <p>Respuesta media en hora punta</p>
+                <strong>IA visible</strong>
+                <p>Se identifica desde el saludo</p>
               </article>
               <article className={styles.animFadeUp} style={{ animationDelay: "180ms" }}>
-                <strong>7 días gratis</strong>
-                <p>Sin tarjeta. Sin compromiso.</p>
+                <strong>Sin permanencia</strong>
+                <p>Piloto con activación asistida</p>
               </article>
             </div>
           </div>
@@ -557,9 +557,9 @@ export default function MarketingLanding() {
           <div className={styles.container}>
             <div className={styles.sectionHeader}>
               <p className={styles.sectionKicker}>Precios</p>
-              <h2 className={styles.sectionTitle}>Empieza gratis. Paga cuando veas resultados.</h2>
+              <h2 className={styles.sectionTitle}>Elige capacidad; valida el resultado con un piloto.</h2>
               <p className={styles.sectionSubtitle}>
-                Prueba de 7 días sin tarjeta. Si no funciona para tu clínica, no pagas.
+                El piloto empieza cuando el primer canal esta preparado y ha superado las pruebas acordadas.
               </p>
             </div>
             <PricingPlans variant="landing" />

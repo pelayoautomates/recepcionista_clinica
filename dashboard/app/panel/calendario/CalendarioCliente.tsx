@@ -368,7 +368,7 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
                 <span style={{ fontSize: 11.5, fontWeight: 600, color: "#166534" }}>Google Calendar</span>
               </a>
               <button
-                onClick={syncGcal}
+                onClick={() => syncGcal(false)}
                 disabled={syncing}
                 title="Importar eventos de Google Calendar ahora"
                 style={{
@@ -421,7 +421,7 @@ export default function CalendarioCliente({ clinicId, tieneCalendario, googleAut
       </div>
 
       {/* Calendar body */}
-      <div style={{ flex: 1, overflow: "hidden", background: "#f8f9fb", borderRadius: 12, border: "1px solid #e2e6ea", boxShadow: "0 2px 8px rgba(15,23,42,0.07)" }}>
+      <div style={{ flex: 1, overflow: "hidden", borderRadius: 12, border: "1px solid #dadce0", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
 
         {/* ── WEEK VIEW ── */}
         {vista === "semana" && (
@@ -492,60 +492,91 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
   onSelectCita: (c: Cita) => void;
   onClickSlot: (date: Date, hour: number) => void;
 }) {
-  const gridRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const totalHeight = (HORA_FIN - HORA_INICIO) * HORA_HEIGHT;
+  const LABEL_W = 56;
 
-  // Scroll to 8:00
-  useEffect(() => {
-    if (gridRef.current) gridRef.current.scrollTop = 0;
-  }, []);
-
-  // Current time line
   const now = new Date();
   const nowTop = (now.getHours() - HORA_INICIO + now.getMinutes() / 60) * HORA_HEIGHT;
   const showNow = now.getHours() >= HORA_INICIO && now.getHours() < HORA_FIN;
 
-  const LABEL_W = 52;
+  // Scroll to show current time or 8:00
+  useEffect(() => {
+    if (scrollRef.current) {
+      const target = showNow ? Math.max(0, nowTop - 120) : 0;
+      scrollRef.current.scrollTop = target;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Day headers */}
-      <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`, borderBottom: "1px solid #e5e7eb", flexShrink: 0 }}>
-        <div style={{ borderRight: "1px solid #e5e7eb" }} />
-        {dias.map((d, i) => {
-          const isToday = isSameDay(d, today);
-          return (
-            <div key={i} style={{
-              padding: "10px 4px", textAlign: "center",
-              borderRight: i < dias.length - 1 ? "1px solid #e5e7eb" : "none",
-              background: isToday ? "#eff6ff" : "white",
-            }}>
-              <div style={{ fontSize: 11, color: isToday ? "#2563eb" : "#9ca3af", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"][d.getDay()]}
-              </div>
-              <div style={{
-                fontSize: 18, fontWeight: 700,
-                color: isToday ? "white" : "#111827",
-                background: isToday ? "#2563eb" : "transparent",
-                width: 32, height: 32, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "2px auto 0",
-              }}>
-                {d.getDate()}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "white", borderRadius: 12, overflow: "hidden" }}>
+      {/* Single scrollable area — header sticky inside, fixes scrollbar misalignment */}
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
 
-      {/* Scrollable grid */}
-      <div ref={gridRef} style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`, height: totalHeight, position: "relative" }}>
-          {/* Hour labels */}
-          <div style={{ borderRight: "1px solid #e5e7eb" }}>
+        {/* Sticky day headers */}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 20,
+          display: "grid",
+          gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`,
+          background: "white",
+          borderBottom: "1px solid #dadce0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}>
+          <div style={{ borderRight: "1px solid #dadce0" }} />
+          {dias.map((d, i) => {
+            const isToday = isSameDay(d, today);
+            return (
+              <div key={i} style={{
+                padding: "8px 4px 10px",
+                textAlign: "center",
+                borderRight: i < dias.length - 1 ? "1px solid #dadce0" : "none",
+              }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 500,
+                  color: isToday ? "#1a73e8" : "#70757a",
+                  textTransform: "uppercase", letterSpacing: "0.08em",
+                  marginBottom: 4,
+                }}>
+                  {["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"][d.getDay()]}
+                </div>
+                <div style={{
+                  fontSize: 20, fontWeight: isToday ? 700 : 400,
+                  color: isToday ? "white" : "#3c4043",
+                  background: isToday ? "#1a73e8" : "transparent",
+                  width: 36, height: 36, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  margin: "0 auto",
+                  lineHeight: 1,
+                }}>
+                  {d.getDate()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: `${LABEL_W}px repeat(${dias.length}, 1fr)`,
+          height: totalHeight,
+          position: "relative",
+        }}>
+          {/* Hour label column */}
+          <div style={{ position: "relative", borderRight: "1px solid #dadce0" }}>
             {HORAS.map(h => (
-              <div key={h} style={{ height: HORA_HEIGHT, borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4 }}>
-                <span style={{ fontSize: 11, color: "#9ca3af" }}>{h}:00</span>
+              <div key={h} style={{
+                position: "absolute",
+                top: (h - HORA_INICIO) * HORA_HEIGHT - 8,
+                right: 8,
+                fontSize: 10,
+                color: "#70757a",
+                userSelect: "none",
+                fontWeight: 400,
+                letterSpacing: "0.01em",
+              }}>
+                {h < 10 ? `0${h}:00` : `${h}:00`}
               </div>
             ))}
           </div>
@@ -565,14 +596,28 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
                   onClickSlot(d, Math.min(hour, HORA_FIN - 1));
                 }}
                 style={{
-                  position: "relative", borderRight: di < dias.length - 1 ? "1px solid #e5e7eb" : "none",
-                  background: isToday ? "#f0f6ff" : "#f8f9fb", cursor: "cell",
+                  position: "relative",
+                  borderRight: di < dias.length - 1 ? "1px solid #dadce0" : "none",
+                  background: isToday ? "#f8f9fe" : "white",
+                  cursor: "cell",
                 }}
               >
-                {/* Hour grid lines */}
+                {/* Hour lines */}
                 {HORAS.map(h => (
-                  <div key={h} style={{ position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT, left: 0, right: 0, height: HORA_HEIGHT, borderBottom: "1px solid #f0f2f5" }}>
-                    <div style={{ position: "absolute", top: HORA_HEIGHT / 2, left: 0, right: 0, borderBottom: "1px dashed #f3f4f6" }} />
+                  <div key={h} style={{
+                    position: "absolute",
+                    top: (h - HORA_INICIO) * HORA_HEIGHT,
+                    left: 0, right: 0,
+                    borderTop: "1px solid #dadce0",
+                    pointerEvents: "none",
+                  }}>
+                    {/* Half-hour line */}
+                    <div style={{
+                      position: "absolute",
+                      top: HORA_HEIGHT / 2,
+                      left: 0, right: 0,
+                      borderTop: "1px solid #f1f3f4",
+                    }} />
                   </div>
                 ))}
 
@@ -583,8 +628,8 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
                   return (
                     <div key={b.id} title={b.titulo} style={{
                       position: "absolute", top, left: 2, right: 2, height,
-                      background: "#f3f4f6", border: "1px solid #d1d5db",
-                      borderRadius: 4, padding: "2px 5px", fontSize: 11, color: "#6b7280",
+                      background: "#f1f3f4", border: "1px solid #dadce0",
+                      borderRadius: 4, padding: "2px 5px", fontSize: 11, color: "#5f6368",
                       overflow: "hidden", zIndex: 1,
                     }}>
                       🚫 {b.titulo}
@@ -610,31 +655,54 @@ function VistaHoras({ dias, today, citasDelDia, bloquesDelDia, profesionales, on
                         width: `calc(${c._width}% - 4px)`,
                         background: est.bg,
                         borderLeft: `3px solid ${color}`,
-                        borderRadius: 5, padding: "3px 6px",
+                        borderRadius: 4, padding: "3px 6px",
                         overflow: "hidden", cursor: "pointer", zIndex: 2,
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                        transition: "opacity 0.1s",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                        transition: "filter 0.12s",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
-                      onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+                      onMouseEnter={e => (e.currentTarget.style.filter = "brightness(0.94)")}
+                      onMouseLeave={e => (e.currentTarget.style.filter = "none")}
                     >
-                      <div style={{ fontSize: 11.5, fontWeight: 700, color: est.color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombre}</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: est.color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombre}</div>
                       {height > 36 && c.tipo_servicio && (
-                        <div style={{ fontSize: 10.5, color: est.color, opacity: 0.75, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.tipo_servicio}</div>
+                        <div style={{ fontSize: 10.5, color: est.color, opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.tipo_servicio}</div>
                       )}
                     </div>
                   );
                 })}
-
-                {/* Current time line */}
-                {isToday && showNow && (
-                  <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 5 }}>
-                    <div style={{ position: "absolute", left: 0, top: -4, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                  </div>
-                )}
               </div>
             );
           })}
+
+          {/* Current time line — spans all columns, aligned with hour labels */}
+          {showNow && (
+            <div style={{
+              position: "absolute",
+              top: nowTop,
+              left: LABEL_W,
+              right: 0,
+              zIndex: 10,
+              pointerEvents: "none",
+            }}>
+              <div style={{
+                position: "absolute",
+                left: -5,
+                top: -5,
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "#ea4335",
+              }} />
+              <div style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                height: 2,
+                background: "#ea4335",
+                top: 0,
+              }} />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -651,54 +719,87 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
   onSelectCita: (c: Cita) => void;
   onClickSlot: (hour: number, profesional?: string) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const totalHeight = (HORA_FIN - HORA_INICIO) * HORA_HEIGHT;
-  const LABEL_W = 52;
+  const LABEL_W = 56;
   const isToday = isSameDay(date, today);
   const now = new Date();
   const nowTop = (now.getHours() - HORA_INICIO + now.getMinutes() / 60) * HORA_HEIGHT;
   const showNow = isToday && now.getHours() >= HORA_INICIO && now.getHours() < HORA_FIN;
 
-  // Columns: one per professional, or single if no professionals
+  useEffect(() => {
+    if (scrollRef.current) {
+      const target = showNow ? Math.max(0, nowTop - 120) : 0;
+      scrollRef.current.scrollTop = target;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const cols = profesionales.length > 0
     ? profesionales.map(p => ({ label: p.nombre, color: p.color, id: p.id, citas: layoutDia(citas.filter(c => c.profesional === p.nombre)) }))
-    : [{ label: "Citas del día", color: "#2563eb", id: "_all", citas: layoutDia(citas) }];
+    : [{ label: "Citas del día", color: "#1a73e8", id: "_all", citas: layoutDia(citas) }];
 
   const sinAsignar = profesionales.length > 0 ? layoutDia(citas.filter(c => !c.profesional)) : [];
+  const totalCols = cols.length + (sinAsignar.length > 0 ? 1 : 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Column headers */}
-      <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${cols.length + (sinAsignar.length > 0 ? 1 : 0)}, 1fr)`, borderBottom: "1px solid #f3f4f6", flexShrink: 0 }}>
-        <div style={{ borderRight: "1px solid #f3f4f6" }} />
-        {cols.map((col, i) => (
-          <div key={col.id} style={{ padding: "10px 8px", textAlign: "center", borderRight: "1px solid #f3f4f6", background: "#fafafa" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: col.color }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{col.label}</span>
-            </div>
-          </div>
-        ))}
-        {sinAsignar.length > 0 && (
-          <div style={{ padding: "10px 8px", textAlign: "center", background: "#fafafa" }}>
-            <span style={{ fontSize: 12, color: "#9ca3af" }}>Sin asignar</span>
-          </div>
-        )}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "white", borderRadius: 12, overflow: "hidden" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
 
-      {/* Grid */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: `${LABEL_W}px repeat(${cols.length + (sinAsignar.length > 0 ? 1 : 0)}, 1fr)`, height: totalHeight }}>
+        {/* Sticky column headers */}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 20,
+          display: "grid",
+          gridTemplateColumns: `${LABEL_W}px repeat(${totalCols}, 1fr)`,
+          background: "white",
+          borderBottom: "1px solid #dadce0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}>
+          <div style={{ borderRight: "1px solid #dadce0" }} />
+          {cols.map((col, i) => (
+            <div key={col.id} style={{
+              padding: "10px 8px",
+              textAlign: "center",
+              borderRight: "1px solid #dadce0",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: col.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "#3c4043" }}>{col.label}</span>
+              </div>
+            </div>
+          ))}
+          {sinAsignar.length > 0 && (
+            <div style={{ padding: "10px 8px", textAlign: "center" }}>
+              <span style={{ fontSize: 12, color: "#70757a" }}>Sin asignar</span>
+            </div>
+          )}
+        </div>
+
+        {/* Grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: `${LABEL_W}px repeat(${totalCols}, 1fr)`,
+          height: totalHeight,
+          position: "relative",
+        }}>
           {/* Hour labels */}
-          <div style={{ borderRight: "1px solid #e5e7eb" }}>
+          <div style={{ position: "relative", borderRight: "1px solid #dadce0" }}>
             {HORAS.map(h => (
-              <div key={h} style={{ height: HORA_HEIGHT, borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4 }}>
-                <span style={{ fontSize: 11, color: "#9ca3af" }}>{h}:00</span>
+              <div key={h} style={{
+                position: "absolute",
+                top: (h - HORA_INICIO) * HORA_HEIGHT - 8,
+                right: 8,
+                fontSize: 10,
+                color: "#70757a",
+                userSelect: "none",
+              }}>
+                {h < 10 ? `0${h}:00` : `${h}:00`}
               </div>
             ))}
           </div>
 
           {/* Professional columns */}
-          {[...cols, ...(sinAsignar.length > 0 ? [{ label: "Sin asignar", color: "#9ca3af", id: "_sin", citas: sinAsignar }] : [])].map((col, ci) => (
+          {[...cols, ...(sinAsignar.length > 0 ? [{ label: "Sin asignar", color: "#9aa0a6", id: "_sin", citas: sinAsignar }] : [])].map((col, ci) => (
             <div
               key={col.id}
               onClick={e => {
@@ -709,29 +810,38 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
               }}
               style={{
                 position: "relative",
-                borderRight: "1px solid #f3f4f6",
+                borderRight: ci < totalCols - 1 ? "1px solid #dadce0" : "none",
                 cursor: "cell", background: "white",
               }}
             >
               {HORAS.map(h => (
-                <div key={h} style={{ position: "absolute", top: (h - HORA_INICIO) * HORA_HEIGHT, left: 0, right: 0, height: HORA_HEIGHT, borderBottom: "1px solid #f0f2f5" }}>
-                  <div style={{ position: "absolute", top: HORA_HEIGHT / 2, left: 0, right: 0, borderBottom: "1px dashed #f3f4f6" }} />
+                <div key={h} style={{
+                  position: "absolute",
+                  top: (h - HORA_INICIO) * HORA_HEIGHT,
+                  left: 0, right: 0,
+                  borderTop: "1px solid #dadce0",
+                  pointerEvents: "none",
+                }}>
+                  <div style={{
+                    position: "absolute",
+                    top: HORA_HEIGHT / 2,
+                    left: 0, right: 0,
+                    borderTop: "1px solid #f1f3f4",
+                  }} />
                 </div>
               ))}
 
-              {/* Bloques */}
               {bloques.filter(b => !b.profesional || b.profesional === col.label).map(b => (
                 <div key={b.id} style={{
                   position: "absolute", top: getCitaTop(b.fecha_inicio), left: 2, right: 2,
                   height: getCitaHeight(b.fecha_inicio, b.fecha_fin),
-                  background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: 4,
-                  padding: "2px 5px", fontSize: 11, color: "#6b7280", overflow: "hidden", zIndex: 1,
+                  background: "#f1f3f4", border: "1px solid #dadce0", borderRadius: 4,
+                  padding: "2px 5px", fontSize: 11, color: "#5f6368", overflow: "hidden", zIndex: 1,
                 }}>
                   🚫 {b.titulo}
                 </div>
               ))}
 
-              {/* Citas */}
               {col.citas.map(c => {
                 const top = getCitaTop(c.fecha_inicio);
                 const height = getCitaHeight(c.fecha_inicio, c.fecha_fin, c.duracion_min);
@@ -745,18 +855,19 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
                       position: "absolute", top, height,
                       left: `calc(${c._left}% + 2px)`, width: `calc(${c._width}% - 4px)`,
                       background: est.bg, borderLeft: `3px solid ${col.color}`,
-                      borderRadius: 5, padding: "3px 7px", overflow: "hidden",
-                      cursor: "pointer", zIndex: 2, boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                      borderRadius: 4, padding: "3px 7px", overflow: "hidden",
+                      cursor: "pointer", zIndex: 2, boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                      transition: "filter 0.12s",
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+                    onMouseEnter={e => (e.currentTarget.style.filter = "brightness(0.94)")}
+                    onMouseLeave={e => (e.currentTarget.style.filter = "none")}
                   >
-                    <div style={{ fontSize: 12, fontWeight: 700, color: est.color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombre}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: est.color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombre}</div>
                     {height > 36 && c.tipo_servicio && (
-                      <div style={{ fontSize: 11, color: est.color, opacity: 0.75, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.tipo_servicio}</div>
+                      <div style={{ fontSize: 11, color: est.color, opacity: 0.8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.tipo_servicio}</div>
                     )}
                     {height > 54 && (
-                      <div style={{ fontSize: 10.5, color: est.color, opacity: 0.6 }}>
+                      <div style={{ fontSize: 10.5, color: est.color, opacity: 0.65 }}>
                         {toDate(c.fecha_inicio).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                         {c.duracion_min ? ` · ${c.duracion_min}min` : ""}
                       </div>
@@ -764,14 +875,28 @@ function VistaDia({ date, today, profesionales, citas, bloques, onSelectCita, on
                   </div>
                 );
               })}
-
-              {showNow && (
-                <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 5, pointerEvents: "none" }}>
-                  <div style={{ position: "absolute", left: 0, top: -4, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                </div>
-              )}
             </div>
           ))}
+
+          {/* Current time line — outside columns, spans full width */}
+          {showNow && (
+            <div style={{
+              position: "absolute",
+              top: nowTop,
+              left: LABEL_W,
+              right: 0,
+              zIndex: 10,
+              pointerEvents: "none",
+            }}>
+              <div style={{
+                position: "absolute", left: -5, top: -5,
+                width: 10, height: 10, borderRadius: "50%", background: "#ea4335",
+              }} />
+              <div style={{
+                position: "absolute", left: 0, right: 0, top: 0, height: 2, background: "#ea4335",
+              }} />
+            </div>
+          )}
         </div>
       </div>
     </div>

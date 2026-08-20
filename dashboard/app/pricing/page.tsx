@@ -45,7 +45,7 @@ const jsonLd = {
       name: "Atiende360",
       category: "Software de recepcionista IA para clinicas",
       description:
-        "Planes de Atiende360 para atender llamadas, webchat, WhatsApp, leads y citas en clinicas privadas.",
+        "Planes de Atiende360 para recuperar llamadas, gestionar leads y citas en clínicas privadas.",
       brand: {
         "@type": "Brand",
         name: "Atiende360",

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { adminFetch } from "@/lib/api";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 async function getClinicas() {
   const res = await adminFetch("/admin/clinicas", { noStore: true });
@@ -14,6 +16,13 @@ async function getMetricas(clinicId: string) {
 }
 
 export default async function AgenciaDashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const superadminEmail = process.env.SUPERADMIN_EMAIL;
+  if (!user || !superadminEmail || user.email !== superadminEmail) {
+    redirect("/panel");
+  }
+
   const clinicas = await getClinicas();
   const todasMetricas = await Promise.all(clinicas.map((c: any) => getMetricas(c.id)));
 

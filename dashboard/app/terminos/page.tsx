@@ -55,7 +55,7 @@ export default function TerminosPage() {
             <p>
               Atiende360 es una plataforma SaaS (Software como Servicio) que proporciona a clínicas,
               consultas médicas y profesionales de la salud un recepcionista con inteligencia artificial
-              capaz de gestionar llamadas telefónicas, mensajes de WhatsApp y chat web para:
+              capaz de gestionar llamadas telefónicas y, cuando se active, mensajes de WhatsApp para:
             </p>
             <ul>
               <li>Atender y cualificar pacientes de forma automatizada</li>
@@ -170,9 +170,9 @@ export default function TerminosPage() {
 
           <Section title="8. Disponibilidad del servicio">
             <p>
-              Atiende360 se compromete a mantener una disponibilidad del servicio del <strong>99,5% mensual</strong>
-              (excluido mantenimiento programado). Las interrupciones planificadas se comunicarán con
-              un mínimo de 24 horas de antelación salvo emergencias de seguridad.
+              La disponibilidad depende también de proveedores de telefonía, mensajería, calendario,
+              infraestructura e inteligencia artificial. Cualquier nivel de servicio comprometido se
+              documentará expresamente en la propuesta o contrato particular del cliente.
             </p>
             <p>
               El servicio se proporciona &quot;tal cual&quot; y &quot;según disponibilidad&quot;. No garantizamos que el

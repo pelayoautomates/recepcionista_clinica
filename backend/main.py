@@ -46,6 +46,9 @@ app = FastAPI(
     title="Recepcionista IA — API",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
 
 # Rate limiting
@@ -79,7 +82,7 @@ app.include_router(stripe_billing.router, prefix="/billing", tags=["billing"])
 
 
 @app.get("/health")
-async def health():
+async def health(response: Response):
     from database.client import get_supabase
     from jobs.scheduler import scheduler_status
     db_ok = False
@@ -88,6 +91,8 @@ async def health():
         db_ok = True
     except Exception:
         pass
+    if not db_ok:
+        response.status_code = 503
     return {
         "status": "ok" if db_ok else "degraded",
         "database": db_ok,

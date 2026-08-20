@@ -1,6 +1,222 @@
 # Progreso de Implementación
 
-Última actualización: 2026-05-20
+Última actualización: 2026-07-27
+
+---
+
+## Giro de producto: agente único, desvío de llamadas y verticales (2026-07-27)
+
+Decisiones de producto tomadas tras la auditoría, con el foco puesto en venta puerta a
+puerta a **clínicas estéticas, psicología y fisioterapia** (no dentales, ver más abajo).
+
+### Agente único "Valeria"
+
+Se abandona el modelo de un agente de Retell por clínica. Ahora **todas las clínicas
+comparten el agente configurado en `RETELL_AGENT_ID`**.
+
+Funciona porque la clínica se identifica por el número al que llamó el paciente
+(`to_number` → `clinicas.telefono_ia`) en `routers/retell.py:_extract_clinic_id`, no por
+el agente. La personalidad, servicios y horarios se construyen en el servidor por
+`clinic_id`. El agente de Retell es solo el cascarón (voz, idioma, latencia).
+
+- `retell_manager.get_global_agent_id()` — nueva función, fuente única del agente.
+- `routers/registro.py` — el alta ya NO crea agentes. Desaparece el paso que fallaba.
+- `routers/canales.py:_get_retell_agent_id` — usa el global, respetando un
+  `retell_agent_id` propio si la clínica lo tuviera guardado (altas antiguas).
+- Se conservan create/update agent para uso puntual desde `/admin/.../retell/agent`.
+
+**Pendiente manual:** configurar el `begin_message` del agente en el panel de Retell
+con la declaración de IA (ver más abajo), ya que con custom-LLM el saludo inicial lo
+emite Retell, no nuestro backend.
+
+### Desvío de llamadas en vez de compra de números
+
+El negocio **conserva su número de siempre**. Activa un desvío hacia un número técnico
+del pool de Telnyx que compra la agencia (~1 €/mes) y que el cliente nunca ve ni paga.
+
+Nuevo endpoint `POST /admin/clinicas/{id}/canales/voz/activar`: toma un número libre del
+pool automáticamente, lo conecta al agente único, guarda el número real del negocio en
+`clinicas.telefono` y devuelve el código MMI que hay que marcar.
+
+Códigos por modo (`_codigos_desvio`), alineados con los `routing_mode` que ya existían:
+
+| Modo | Código | Uso comercial |
+|---|---|---|
+| `siempre` | `**21*<num>#` | La IA coge todo, 24/7 |
+| `si_no_contestan` | `**61*<num>*11*20#` | **El mejor argumento de venta**: sigue cogiendo el teléfono como siempre; solo si nadie contesta en 20s entra la IA |
+| `fuera_horario` | `**21*<num>#` | Se activa al cerrar |
+
+Desactivar todos: `##002#`. La sintaxis MMI es estándar GSM pero algún operador usa
+variantes, así que la UI debe ofrecer también la vía "llama a tu operador".
+
+`GET /admin/clinicas/{id}/canales` ahora devuelve `routing_mode` y el objeto `desvio`.
+
+**Pendiente:** la pantalla del panel que sustituye "comprar número" por "conectar tu
+número actual" con el código de desvío. El backend ya está listo.
+
+### Declaración de IA — artículo 50 del Reglamento Europeo de IA
+
+**Obligatorio desde el 2 de agosto de 2026.** Hay que informar de que se habla con una
+IA. Las pymes están dentro del ámbito. El prompt decía solo "recepcionista virtual", que
+no es una declaración clara.
+
+Añadido bloque de transparencia en `BASE_SYSTEM_PROMPT`: identificarse como IA en el
+primer mensaje y responder con claridad si preguntan, sin excepción posible por tono ni
+por prompt personalizado. Cubierto con tests.
+
+### Protocolos por vertical (`agent/prompts.py`)
+
+El prompt estaba pensado para dentales ("dolor fuerte, sangrado"). Para los segmentos
+objetivo eso es insuficiente y, en psicología, peligroso.
+
+Nueva función `bloque_vertical(especialidad)` que inyecta el protocolo según
+`clinicas.especialidad` (añadida a los campos que carga `run_agent`):
+
+- **Psicología** — protocolo de crisis con prioridad sobre todo lo demás: detección de
+  ideación suicida, autolesiones, pánico o violencia; derivación al **024** y al **112**;
+  llamada inmediata a `escalar_a_humano`; prohibición explícita de hacer terapia,
+  diagnosticar u opinar sobre medicación; y no indagar en el motivo de consulta.
+- **Fisioterapia** — no valorar lesiones ni sugerir ejercicios; escalar ante pérdida de
+  fuerza, hormigueo, traumatismo reciente o postoperatorio.
+- **Estética** — nunca cerrar precio final ni prometer resultados; escalar ante
+  contraindicaciones, embarazo, lunares, alergias o medicación.
+- **Dental** — se conserva: urgencias, y presupuestos solo en visita de valoración.
+
+`tests/test_prompts.py` (nuevo, 19 tests) blinda la declaración de IA y el protocolo de
+crisis. **Total de la suite: 62/62 en verde.**
+
+### Otros
+
+- La fecha del prompt salía en inglés ("Monday 27 de July") porque `strftime` depende del
+  locale del servidor, y el agente llegaba a leerla así en voz alta. Ahora se formatea a
+  mano en español.
+
+### Investigación de mercado — conclusiones que condicionan el producto
+
+- **Doctoralia ya lanzó su agente de voz IA**: 1.300 médicos en 3 días, el doble de
+  reservas que un call center. Es el incumbente con distribución. No se puede competir
+  por "una IA que coge el teléfono": es un commodity con competidores españoles a
+  29-300 €/mes.
+- **Gesden domina el sector dental (~14.000 clínicas) y NO tiene API pública.** Datos en
+  SQL Server local; integrar exige instalar un agente en el PC de la clínica. Nuestro
+  producto solo integra Google Calendar → **una dental con Gesden no puede usarlo sin
+  doble introducción de datos.** De ahí la decisión de no atacar dental de momento.
+- **El dolor está cuantificado**: 30% de llamadas sin contestar, 90% de esas no vuelven
+  a llamar, no-shows del 12-18% (25% en primeras visitas), 18.000-35.000 €/año perdidos
+  en una clínica media. Recuperar 8 citas/mes = 1.200-3.500 € extra.
+- **Ventaja del segmento elegido**: en estética, psicología y fisioterapia el profesional
+  ES la recepción y físicamente no puede coger el teléfono mientras atiende. No hay
+  recepcionista que sustituir → desaparece la objeción más difícil.
+- **Kit Digital sigue activo en 2026** (Orden TDF/39/2026) y **por primera vez incluye
+  herramientas de IA** en el catálogo: hasta 3.000 € para 0-3 empleados. Funciona como
+  bono que se gasta con un Agente Digitalizador adherido → el cliente pagaría 0 €.
+  Vía paralela a explorar; darse de alta lleva papeleo.
+- **RGPD**: los datos de salud son categoría especial. Hace falta tener redactado un
+  contrato de encargado del tratamiento para firmar con cada clínica, y ellas necesitan
+  una EIPD. La gestoría del cliente lo pedirá.
+
+---
+
+## Auditoría pre-MVP España (2026-07-27)
+
+Auditoría de código completa tras un mes de pausa. Contexto de negocio: el proyecto
+nació en Polonia con venta online (cero configuración manual por cliente); ahora la
+venta es puerta a puerta a negocios locales en España. Eso cambia las prioridades:
+lo que importa es que una demo en vivo funcione y que el alta de un cliente nuevo no
+se rompa.
+
+### Fallos críticos encontrados y corregidos
+
+**1. Creación de agentes Retell rota (bloqueaba TODAS las altas nuevas)**
+`retell_manager.create_agent_for_clinic()` enviaba `llm_websocket_url` en la raíz del
+JSON. La API de Retell exige ese campo dentro de un objeto `response_engine` de tipo
+`custom-llm`. Cada llamada devolvía 4xx y el error se tragaba silenciosamente en
+`registro.py`, así que **ninguna clínica registrada desde el pivote tenía agente de voz
+propio**. Corregido en `create_agent_for_clinic` y `update_agent_for_clinic`, con log de
+error del cuerpo de la respuesta cuando Retell rechaza la petición.
+
+**2. Los minutos se cobraban por mensaje, no por minuto**
+`agent/core.py` llamaba a `incrementar_minutos(clinic_id, 1)` al final de *cada* turno de
+conversación, en todos los canales. Una llamada de voz de 20 intercambios consumía 20
+"minutos"; 100 mensajes de chat web agotaban el trial entero. Los planes se venden en
+minutos de llamada, así que el contador no medía nada real.
+Nuevo modelo:
+- El consumo de minutos se calcula en `POST /retell/webhook` (evento `call_ended`) a
+  partir de la duración real de la llamada (`duration_ms`), con redondeo hacia arriba y
+  mínimo de 1 minuto — igual que factura la telefonía.
+- Chat web y WhatsApp siguen validando el plan (`check_plan_active`) pero **no consumen
+  minutos**. Es además mejor argumento de venta: "X minutos de llamada, chat y WhatsApp
+  ilimitados".
+- Idempotencia propia por `call_id` para que `call_analyzed` no vuelva a cobrar.
+- Archivos: `agent/core.py`, `billing.py` (`minutos_de_llamada`), `routers/retell.py`.
+
+**3. El contador de minutos no se reiniciaba nunca**
+La columna `billing_period_start` existía desde la migración 003 pero nada la usaba.
+`minutos_usados_mes` solo se ponía a 0 en el alta de suscripción, así que cualquier
+clínica quedaba bloqueada al agotar los minutos del primer mes y no se recuperaba jamás.
+Corregido por dos vías:
+- `invoice.paid` / `invoice.payment_succeeded` en el webhook de Stripe → reset del
+  contador y nuevo `billing_period_start` (`routers/stripe_billing.py`).
+- Job `reset_periodos` cada 6h como red de seguridad, para clínicas en trial (sin Stripe)
+  y para webhooks que no llegaron (`jobs/scheduler.py`).
+
+**4. Un número de teléfono podía acabar apuntando al agente de otra clínica**
+`canales._get_retell_agent_id()` caía al agente global (`settings.retell_agent_id`) cuando
+la clínica no tenía uno propio — situación habitual por culpa del fallo nº 1. Ese agente
+lleva el `clinic_id` de otra clínica en su metadata. Ahora la función crea el agente de la
+clínica bajo demanda y **nunca** cae al global; si no puede crearlo, la asignación del
+número falla con un 502 explícito en vez de guardar un canal que suena pero no contesta.
+
+**5. Suite de tests podrida — 17 fallos + 7 errores**
+- `starlette` no estaba pinado y el entorno resolvía la 1.0.1, incompatible con
+  `fastapi==0.115.5` (`APIRouter.__init__` peta al importar). Pinado a `0.41.3`.
+- `test_billing.py` llamaba a `check_plan_active` de forma síncrona desde el fix async
+  de mayo. Reescrito contra `_check_plan_active_sync` + un test del wrapper async.
+- `test_auth_gcal.py` mandaba un UUID crudo como `state`; el callback pasó a exigir un
+  state firmado con HMAC + cookie de nonce. Tests actualizados y añadido uno nuevo que
+  verifica que un state robado sin cookie se rechaza.
+- Añadido `pytest.ini` con `asyncio_mode = auto`.
+- **Resultado: 43/43 en verde.**
+
+### Otros arreglos
+
+- `dashboard/app/panel/calendario/CalendarioCliente.tsx`: `onClick={syncGcal}` pasaba el
+  evento del ratón como argumento `silent`, que al ser truthy silenciaba el feedback del
+  sync manual. Además era error de compilación de TypeScript.
+- `dashboard/app/login/AutoLogin.tsx`: el formulario oculto dejaba una pantalla en blanco
+  durante el redirect a Google. Añadido spinner + botón de fallback manual.
+- `registro.py` devuelve `agente_voz_ok` / `agente_voz_error` para que el onboarding pueda
+  avisar en vez de fallar en silencio.
+- `RETELL_VOICE_ID` configurable por env (antes hardcodeado a `11labs-Adrian`).
+
+### Verificado y correcto (no tocado)
+
+- Aislamiento multi-tenant del dashboard: todas las rutas `/api/clinicas/[id]/*` pasan por
+  `requireAccess()` + `enforceClinicScope()`. Las que no lo hacen no lo necesitan
+  (`/api/billing/*` usa el `clinic_id` de la sesión, nunca el del body).
+- Validación de firma de webhooks: Meta (`X-Hub-Signature-256`), Retell (HMAC + ventana de
+  5 min), Stripe. Deduplicación vía tabla `webhook_events`.
+- OAuth de Google Calendar con state firmado y nonce en cookie httponly.
+- Claim atómico de jobs en el scheduler (evita doble ejecución con varias instancias).
+- Compilación del backend y typecheck del dashboard limpios.
+
+### Bloqueantes que quedan para lanzar el MVP (no son bugs, son configuración/scope)
+
+1. **Número español**: sigue configurado el +48 polaco de pruebas. Comprar +34 en Telnyx
+   (fijo, no móvil), subir DNI + factura con dirección española, nueva SIP Connection con
+   localization Spain, importar en Retell.
+2. **Stripe**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y los tres `STRIPE_PRICE_*` no
+   están en Railway. Sin ellos `/billing/checkout` devuelve 503 y no se puede cobrar.
+   Registrar también el endpoint del webhook en el dashboard de Stripe incluyendo el evento
+   `invoice.paid` (nuevo).
+3. **Widget de chat web inexistente**: `/widget/[clinicId]` es una tarjeta con botones de
+   WhatsApp y teléfono, no un chat. El endpoint `POST /chat` funciona pero no hay nada
+   embebible que lo consuma ni snippet en el panel. Es la pieza más rentable para venta
+   puerta a puerta: se instala en la web del cliente en 2 minutos y se demuestra en el acto.
+4. **WhatsApp en producción**: el Embedded Signup está implementado y la app en modo Live,
+   pero falta completar el alta con un número real y verificarlo end-to-end.
+5. **Reprovisionar agentes de las clínicas ya existentes**: tras el fix nº 1, correr
+   `POST /admin/clinicas/{id}/retell/agent` para cada clínica dada de alta hasta hoy.
 
 ---
 

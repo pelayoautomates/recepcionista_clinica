@@ -1,35 +1,6 @@
 "use client";
 import { useState } from "react";
-
-const PLANES = [
-  {
-    id: "starter",
-    nombre: "Starter",
-    precio: 99,
-    minutos: 300,
-    descripcion: "Para clínicas que quieren empezar",
-    features: ["300 min de llamadas IA/mes", "Agente de voz + webchat", "Google Calendar", "Panel de citas y leads"],
-    highlight: true,
-  },
-  {
-    id: "pro",
-    nombre: "Pro",
-    precio: 179,
-    minutos: 750,
-    descripcion: "Para clínicas en crecimiento",
-    features: ["750 min de llamadas IA/mes", "Todo lo de Starter", "WhatsApp integrado", "Soporte prioritario"],
-    highlight: false,
-  },
-  {
-    id: "growth",
-    nombre: "Growth",
-    precio: 299,
-    minutos: 1800,
-    descripcion: "Para grupos de clínicas",
-    features: ["1.800 min de llamadas IA/mes", "Todo lo de Pro", "Múltiples sedes", "Account manager dedicado"],
-    highlight: false,
-  },
-];
+import { PLANS } from "@/lib/marketing-content";
 
 export default function SuscripcionClient() {
   const [loading, setLoading] = useState<string | null>(null);
@@ -64,28 +35,30 @@ export default function SuscripcionClient() {
         gap: 16,
         marginBottom: 24,
       }}>
-        {PLANES.map(p => (
+        {PLANS.map(p => {
+          const highlight = p.id === "pro";
+          return (
           <div key={p.id} style={{
-            background: p.highlight
+            background: highlight
               ? "linear-gradient(135deg, #eff6ff, #eef2ff)"
               : "white",
-            border: p.highlight ? "2px solid #2563eb" : "1px solid #e5e7eb",
+            border: highlight ? "2px solid #2563eb" : "1px solid #e5e7eb",
             borderRadius: 14,
             padding: "24px 20px",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
               <div>
-                <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 16, color: p.highlight ? "#1e40af" : "#111827" }}>
-                  {p.highlight && <span style={{
+                <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 16, color: highlight ? "#1e40af" : "#111827" }}>
+                  {highlight && <span style={{
                     fontSize: 10, fontWeight: 700, background: "#2563eb", color: "white",
                     padding: "2px 7px", borderRadius: 20, marginRight: 6, verticalAlign: "middle",
                   }}>POPULAR</span>}
-                  {p.nombre}
+                  {p.name}
                 </p>
-                <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>{p.descripcion}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>{p.subtitle}</p>
               </div>
               <div style={{ textAlign: "right" }}>
-                <p style={{ margin: "0 0 2px", fontWeight: 800, fontSize: 24, color: "#111827" }}>{p.precio}€</p>
+                <p style={{ margin: "0 0 2px", fontWeight: 800, fontSize: 24, color: "#111827" }}>{p.monthly}€</p>
                 <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>/mes</p>
               </div>
             </div>
@@ -97,18 +70,19 @@ export default function SuscripcionClient() {
               disabled={!!loading}
               style={{
                 width: "100%", padding: "11px 16px", borderRadius: 8, border: "none",
-                background: p.highlight
+                background: highlight
                   ? "linear-gradient(135deg, #2563eb, #4f46e5)"
                   : "#f3f4f6",
-                color: p.highlight ? "white" : "#374151",
+                color: highlight ? "white" : "#374151",
                 fontWeight: 600, fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "inherit", opacity: loading === p.id ? 0.7 : 1,
               }}
             >
-              {loading === p.id ? "Redirigiendo..." : `Contratar ${p.nombre}`}
+              {loading === p.id ? "Redirigiendo..." : `Contratar ${p.name}`}
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
       {error && (
         <p style={{ textAlign: "center", color: "#dc2626", fontSize: 13 }}>{error}</p>

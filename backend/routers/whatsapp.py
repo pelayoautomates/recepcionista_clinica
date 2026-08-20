@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from agent.core import run_agent
 from config import settings
 from tools.pacientes import buscar_paciente
-from webhook_dedupe import mark_webhook_event_once
+from webhook_dedupe import mark_webhook_event_once, release_webhook_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -74,6 +74,8 @@ async def verify_webhook_meta(
     hub_verify_token: str = Query(alias="hub.verify_token"),
     hub_challenge: str = Query(alias="hub.challenge"),
 ):
+    if settings.is_production and not settings.meta_verify_token:
+        raise HTTPException(status_code=503, detail="Meta webhook no configurado")
     if hub_mode == "subscribe" and hub_verify_token == settings.meta_verify_token:
         return int(hub_challenge)
     raise HTTPException(status_code=403, detail="Token de verificación inválido")
@@ -83,6 +85,8 @@ async def verify_webhook_meta(
 async def receive_message_meta(request: Request):
     raw_body = await request.body()
 
+    if settings.is_production and not settings.meta_app_secret:
+        raise HTTPException(status_code=503, detail="Firma Meta no configurada")
     if settings.meta_app_secret:
         signature = request.headers.get("x-hub-signature-256", "")
         expected = "sha256=" + hmac.new(
@@ -92,6 +96,7 @@ async def receive_message_meta(request: Request):
             raise HTTPException(status_code=403, detail="Invalid signature")
 
     body: dict[str, Any] = json.loads(raw_body)
+    msg_key = ""
     try:
         entry = body.get("entry", [{}])[0]
         value = entry.get("changes", [{}])[0].get("value", {})
@@ -109,8 +114,7 @@ async def receive_message_meta(request: Request):
 
         result = await _get_meta_clinic(phone_number_id)
         if not result:
-            logger.warning("Meta WA: phone_number_id %s no asociado a clínica", phone_number_id)
-            return {"status": "ok"}
+            raise RuntimeError(f"phone_number_id {phone_number_id} no asociado a clínica")
         clinic_id, access_token = result
 
         text = await _extract_text_meta(message, access_token)
@@ -122,7 +126,13 @@ async def receive_message_meta(request: Request):
             lambda to, reply: _send_meta(to, reply, phone_number_id, access_token),
         )
     except Exception as e:
-        logger.error("Error procesando mensaje Meta WA: %s", e)
+        if msg_key:
+            try:
+                release_webhook_event("meta_whatsapp", msg_key)
+            except Exception:
+                logger.exception("No se pudo liberar el mensaje Meta fallido")
+        logger.exception("Error procesando mensaje Meta WA: %s", e)
+        raise HTTPException(status_code=503, detail="Error temporal procesando WhatsApp") from e
     return {"status": "ok"}
 
 
@@ -187,12 +197,13 @@ async def _transcribe_meta_audio(audio_id: str, access_token: str) -> str:
 
 
 async def _send_meta(to: str, text: str, phone_number_id: str, access_token: str) -> None:
-    async with httpx.AsyncClient() as client:
-        await client.post(
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.post(
             f"https://graph.facebook.com/{settings.meta_graph_version}/{phone_number_id}/messages",
             json={"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}},
             headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
         )
+        response.raise_for_status()
 
 
 # ── Twilio WhatsApp ───────────────────────────────────────────────────────────
@@ -252,8 +263,7 @@ async def receive_message_twilio(request: Request):
         import twilio_wa
         clinic_row = await twilio_wa.get_clinic_by_twilio_number(to_number)
         if not clinic_row:
-            logger.warning("Twilio WA: número %s no asociado a clínica", to_number)
-            return {"status": "ok"}
+            raise RuntimeError(f"número Twilio {to_number} no asociado a clínica")
 
         clinic_id = clinic_row["id"]
 
@@ -262,10 +272,13 @@ async def receive_message_twilio(request: Request):
             lambda to, reply: twilio_wa.send_message(to, reply),
         )
     except Exception as e:
-        logger.error("Error procesando mensaje Twilio WA: %s", e)
+        try:
+            release_webhook_event("twilio_whatsapp", twilio_key)
+        except Exception:
+            logger.exception("No se pudo liberar el mensaje Twilio fallido")
+        logger.exception("Error procesando mensaje Twilio WA: %s", e)
+        raise HTTPException(status_code=503, detail="Error temporal procesando WhatsApp") from e
 
     # Twilio espera respuesta TwiML vacía si no queremos respuesta inmediata
     from fastapi.responses import Response
     return Response(content="<Response/>", media_type="application/xml")
-
-

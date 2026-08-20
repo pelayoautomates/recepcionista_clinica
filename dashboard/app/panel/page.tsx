@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { adminFetch } from "@/lib/api";
 
-const PUBLIC_BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
 const CANAL_LABEL: Record<string, string> = {
   chat_web: "Web", whatsapp: "WhatsApp", voz: "Llamada",
 };
@@ -115,7 +113,7 @@ export default async function PanelPage() {
   const convsHoy = todasConvs.slice(0, 6);
 
   const tieneCalendario = !!clinica.google_tokens_enc;
-  const googleAuthUrl = `${PUBLIC_BACKEND}/auth/google/${clinic_id}`;
+  const googleAuthUrl = `/api/google-calendar/start?clinic_id=${encodeURIComponent(clinic_id)}`;
   const esperando: number = metricas.conversaciones_esperando_humano ?? 0;
 
   return (

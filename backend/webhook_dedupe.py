@@ -26,6 +26,17 @@ def mark_webhook_event_once(provider: str, event_key: str, payload_text: str | N
     if not provider_norm or not key_norm:
         return True
 
+
+def release_webhook_event(provider: str, event_key: str) -> None:
+    """Libera un claim fallido para que el proveedor pueda reintentarlo."""
+    provider_norm = (provider or "").strip().lower()
+    key_norm = _normalize_key(event_key)
+    if not provider_norm or not key_norm:
+        return
+    get_supabase().table("webhook_events").delete().eq(
+        "provider", provider_norm
+    ).eq("event_key", key_norm).execute()
+
     payload_sha = hashlib.sha256(payload_text.encode("utf-8")).hexdigest() if payload_text else None
     db = get_supabase()
     try:

@@ -6,16 +6,24 @@ from database.client import get_supabase
 logger = logging.getLogger(__name__)
 
 
-async def programar_seguimiento(paciente_id: str, fecha_iso: str, motivo: str) -> dict:
+async def programar_seguimiento(clinic_id: str, paciente_id: str, fecha_iso: str, motivo: str) -> dict:
     """
     Programa un job de seguimiento para un paciente.
     fecha_iso: ISO 8601 de cuándo ejecutar el seguimiento
     """
+    from config import settings
+    if not settings.marketing_sms_enabled:
+        return {"ok": False, "error": "seguimiento_comercial_no_habilitado"}
+
     db = get_supabase()
 
-    # Obtener clinic_id del paciente
-    paciente = db.table("pacientes").select("clinic_id").eq("id", paciente_id).single().execute()
-    clinic_id = paciente.data["clinic_id"]
+    paciente = db.table("pacientes").select(
+        "id, sms_marketing_consent_at, sms_opted_out_at"
+    ).eq("id", paciente_id).eq("clinic_id", clinic_id).single().execute()
+    if not paciente.data:
+        return {"ok": False, "error": "paciente_no_encontrado"}
+    if not paciente.data.get("sms_marketing_consent_at") or paciente.data.get("sms_opted_out_at"):
+        return {"ok": False, "error": "sin_consentimiento_sms"}
 
     fecha = datetime.fromisoformat(fecha_iso)
     if fecha.tzinfo is None:
@@ -40,16 +48,16 @@ async def programar_seguimiento(paciente_id: str, fecha_iso: str, motivo: str) -
 
 
 async def agregar_a_lista_espera(
+    clinic_id: str,
     paciente_id: str,
     servicio_nombre: str,
     notas: str = "",
 ) -> dict:
     """Añade al paciente a la lista de espera cuando no hay disponibilidad."""
     db = get_supabase()
-    paciente = db.table("pacientes").select("clinic_id").eq("id", paciente_id).single().execute()
+    paciente = db.table("pacientes").select("id").eq("id", paciente_id).eq("clinic_id", clinic_id).single().execute()
     if not paciente.data:
         return {"ok": False, "error": "paciente_no_encontrado"}
-    clinic_id = paciente.data["clinic_id"]
     result = db.table("lista_espera").insert({
         "clinic_id": clinic_id,
         "paciente_id": paciente_id,
@@ -61,12 +69,12 @@ async def agregar_a_lista_espera(
     return {"ok": True, "entrada_id": result.data[0]["id"]}
 
 
-async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
+async def escalar_a_humano(clinic_id: str, paciente_id: str, motivo: str, resumen: str) -> dict:
     """
     Escala la conversación activa a un humano:
     1. Cambia estado de la conversación a 'esperando_humano'
     2. Cambia estado del lead a 'requiere_humano'
-    3. (Placeholder) Notificación a la clínica
+    3. Intenta notificar a la clínica y devuelve evidencia de entrega
     """
     db = get_supabase()
 
@@ -74,6 +82,7 @@ async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
     conv_result = db.table("conversaciones") \
         .select("id, clinic_id") \
         .eq("paciente_id", paciente_id) \
+        .eq("clinic_id", clinic_id) \
         .eq("estado", "activa") \
         .order("created_at", desc=True) \
         .limit(1) \
@@ -81,15 +90,12 @@ async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
 
     if conv_result.data:
         conv_id = conv_result.data[0]["id"]
-        clinic_id = conv_result.data[0]["clinic_id"]
         db.table("conversaciones").update({
             "estado": "esperando_humano",
-        }).eq("id", conv_id).execute()
+        }).eq("id", conv_id).eq("clinic_id", clinic_id).execute()
     else:
         conv_id = None
-        clinic_id = None
-
-    db.table("pacientes").update({"estado_lead": "requiere_humano"}).eq("id", paciente_id).execute()
+    db.table("pacientes").update({"estado_lead": "requiere_humano"}).eq("id", paciente_id).eq("clinic_id", clinic_id).execute()
 
     logger.warning(
         "HANDOFF A HUMANO — Paciente %s | Clínica %s | Motivo: %s",
@@ -118,10 +124,15 @@ async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
         "resumen": resumen,
     }
 
+    notification_delivered = False
     if webhook_url:
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                await client.post(webhook_url, json=payload)
+            from outbound import validate_public_http_url
+            validate_public_http_url(webhook_url, https_only=settings.is_production)
+            async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
+                response = await client.post(webhook_url, json=payload)
+                response.raise_for_status()
+            notification_delivered = True
             logger.info("Notificación escalada enviada a %s", webhook_url)
         except Exception as e:
             logger.error("Error enviando notificación de escalada a %s: %s", webhook_url, e)
@@ -130,6 +141,8 @@ async def escalar_a_humano(paciente_id: str, motivo: str, resumen: str) -> dict:
 
     return {
         "estado": "esperando_humano",
+        "registrado_en_panel": conv_id is not None,
+        "notificacion_enviada": notification_delivered,
         "conversacion_id": conv_id,
         "motivo": motivo,
         "resumen": resumen,

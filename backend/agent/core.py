@@ -58,9 +58,9 @@ async def _dispatch_tool(
                 args["origen"] = _CANAL_ORIGEN.get(canal, "ia_chat")
             result = await crear_cita(clinic_id, **args)
         elif tool_name == "mover_cita":
-            result = await mover_cita(**args)
+            result = await mover_cita(clinic_id, **args)
         elif tool_name == "cancelar_cita":
-            result = await cancelar_cita(**args)
+            result = await cancelar_cita(clinic_id, **args)
         elif tool_name == "buscar_citas_paciente":
             result = await buscar_citas_paciente(clinic_id, **args)
         elif tool_name == "buscar_paciente":
@@ -70,11 +70,11 @@ async def _dispatch_tool(
         elif tool_name == "actualizar_estado_lead":
             result = await actualizar_estado_lead(clinic_id, **args)
         elif tool_name == "programar_seguimiento":
-            result = await programar_seguimiento(**args)
+            result = await programar_seguimiento(clinic_id, **args)
         elif tool_name == "agregar_a_lista_espera":
-            result = await agregar_a_lista_espera(**args)
+            result = await agregar_a_lista_espera(clinic_id, **args)
         elif tool_name == "escalar_a_humano":
-            result = await escalar_a_humano(**args)
+            result = await escalar_a_humano(clinic_id, **args)
         else:
             result = {"error": f"Tool desconocida: {tool_name}"}
 
@@ -92,6 +92,7 @@ async def run_agent(
     canal: str = "chat_web",
     paciente_id: str | None = None,
     skip_billing: bool = False,
+    is_test: bool = False,
 ) -> tuple[str, str]:
     """
     Ejecuta el agente para un mensaje entrante.
@@ -134,7 +135,11 @@ async def run_agent(
 
     # Si la conversación está en mano humana no hace falta cargar nada más
     if conversacion.get("estado") == "esperando_humano":
-        return "Un miembro del equipo de la clínica se pondrá en contacto contigo en breve.", conversacion_id
+        return (
+            "Tu solicitud ha quedado marcada para revisión por el equipo. "
+            "Si es urgente o necesitas confirmación inmediata, llama directamente a la clínica.",
+            conversacion_id,
+        )
 
     historial = conversacion.get("mensajes") or []
 
@@ -149,7 +154,10 @@ async def run_agent(
         db.table("conversaciones").update({"paciente_id": paciente_id_resuelto}).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
 
     # Cargar solo los campos que el agente necesita (no tokens cifrados ni datos de billing)
-    _CLINICA_FIELDS = "nombre, agente_nombre, tono, telefono, horarios, servicios, routing_mode, prompt_personalizado"
+    _CLINICA_FIELDS = (
+        "nombre, agente_nombre, tono, telefono, horarios, servicios, routing_mode, "
+        "prompt_personalizado, especialidad"
+    )
     clinica_res = db.table("clinicas").select(_CLINICA_FIELDS).eq("id", clinic_id).single().execute()
     clinica = clinica_res.data
     if not clinica:
@@ -157,7 +165,7 @@ async def run_agent(
 
     # routing_mode: si es "fuera_horario" y estamos dentro del horario → no atender
     routing_mode = clinica.get("routing_mode", "siempre")
-    if routing_mode == "fuera_horario" and canal != "test":
+    if routing_mode == "fuera_horario" and not is_test:
         if _dentro_horario(clinica.get("horarios") or {}):
             telefono_clinica = clinica.get("telefono", "la clínica")
             return (
@@ -249,8 +257,8 @@ async def run_agent(
         "paciente_id": paciente_id_resuelto,
     }).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
 
-    if not skip_billing:
-        from billing import incrementar_minutos
-        await incrementar_minutos(clinic_id, 1)
+    # Los minutos del plan son minutos de LLAMADA. No se cobra por turno de
+    # conversación: la voz se contabiliza en /retell/webhook (call_ended) con la
+    # duración real, y chat/WhatsApp no consumen minutos (solo verifican el plan).
 
     return respuesta, conversacion_id

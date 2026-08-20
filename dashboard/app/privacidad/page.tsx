@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Política de privacidad y protección de datos de Atiende360.",
 };
 
-const LAST_UPDATED = "20 de mayo de 2026";
+const LAST_UPDATED = "20 de agosto de 2026";
 const CONTROLLER_NAME = "Atiende360";
 const CONTROLLER_EMAIL = "equipo@atiende360.com";
 const CONTACT_EMAIL = "equipo@atiende360.com";
@@ -64,7 +64,7 @@ export default function PrivacidadPage() {
               <ul>
                 <li>Nombre y dirección de correo electrónico (recogidos mediante Google OAuth)</li>
                 <li>Nombre de la clínica, especialidad, URL web y teléfono de contacto</li>
-                <li>Credenciales OAuth de Google Calendar (tokens cifrados con AES-256)</li>
+                <li>Credenciales OAuth de Google Calendar (tokens protegidos mediante cifrado autenticado Fernet)</li>
                 <li>Datos de facturación y suscripción (gestionados por Stripe)</li>
                 <li>Registros de uso de la plataforma (métricas, logs de actividad)</li>
               </ul>
@@ -117,7 +117,8 @@ export default function PrivacidadPage() {
           <Section title="4. Procesadores y transferencias internacionales">
             <p>
               Para prestar el servicio, Atiende360 utiliza los siguientes subencargados del tratamiento,
-              con quienes hemos suscrito los contratos de encargo de tratamiento exigidos por el RGPD:
+              que pueden intervenir segun los canales e integraciones activados. Las condiciones,
+              region efectiva y garantias aplicables deben constar en el acuerdo de tratamiento de cada cliente:
             </p>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
               <thead>
@@ -129,14 +130,14 @@ export default function PrivacidadPage() {
               </thead>
               <tbody>
                 <Tr cols={["Supabase (PostgreSQL)", "Base de datos principal", "UE (Frankfurt)"]} />
-                <Tr cols={["OpenAI", "Procesamiento de lenguaje natural (GPT-4o, Whisper)", "EE.UU. — DPA firmado, cláusulas contractuales tipo"]} />
-                <Tr cols={["Google LLC", "Google Calendar API, Google OAuth", "EE.UU. — Privacy Shield / DPA"]} />
-                <Tr cols={["Stripe", "Procesamiento de pagos y facturación", "EE.UU. — DPA firmado"]} />
-                <Tr cols={["Railway (infraestructura)", "Hosting del servidor de aplicaciones", "EE.UU. — DPA firmado"]} />
-                <Tr cols={["Vercel", "Hosting del panel web", "EE.UU. — DPA firmado"]} />
-                <Tr cols={["Retell AI", "Procesamiento de llamadas de voz con IA", "EE.UU. — DPA firmado"]} />
-                <Tr cols={["Meta Platforms (WhatsApp Cloud API)", "Envío y recepción de mensajes WhatsApp (Embedded Signup)", "EE.UU. — DPA firmado, cláusulas contractuales tipo"]} />
-                <Tr cols={["Telnyx", "Proveedor de numeración telefónica (SIP)", "EE.UU. — DPA firmado"]} />
+                <Tr cols={["OpenAI", "Procesamiento de lenguaje natural y voz", "Region y garantia segun configuracion contractual"]} />
+                <Tr cols={["Google LLC", "Google Calendar API y Google OAuth", "Region y garantia segun servicio contratado"]} />
+                <Tr cols={["Stripe", "Procesamiento de pagos y facturacion", "Region y garantia segun servicio contratado"]} />
+                <Tr cols={["Railway", "Hosting del servidor de aplicaciones", "Region efectiva del proyecto"]} />
+                <Tr cols={["Vercel", "Hosting del panel web", "Region y garantia segun servicio contratado"]} />
+                <Tr cols={["Retell AI", "Procesamiento de llamadas de voz con IA", "Region y garantia segun configuracion contractual"]} />
+                <Tr cols={["Meta Platforms", "Envio y recepcion de mensajes WhatsApp", "Region y garantia segun servicio contratado"]} />
+                <Tr cols={["Telnyx", "Numeracion telefonica y SIP", "Region y garantia segun servicio contratado"]} />
               </tbody>
             </table>
             <p style={{ marginTop: 12 }}>
@@ -150,7 +151,7 @@ export default function PrivacidadPage() {
             <ul>
               <li><strong>Datos de cuenta:</strong> mientras la cuenta esté activa + 5 años tras la cancelación (obligaciones mercantiles y fiscales)</li>
               <li><strong>Datos de conversaciones y citas:</strong> 2 años desde la última interacción, salvo instrucción contraria de la clínica</li>
-              <li><strong>Datos de facturación:</strong> 7 años (obligación fiscal, art. 30 CCom)</li>
+              <li><strong>Datos de facturación y documentación mercantil:</strong> durante los plazos legales aplicables; con carácter general, 6 años para documentación mercantil (art. 30 CCom)</li>
               <li><strong>Tokens de Google Calendar:</strong> hasta que el usuario revoque el acceso desde su cuenta de Google o desde el panel</li>
               <li><strong>Logs de seguridad:</strong> 12 meses</li>
             </ul>
@@ -172,8 +173,9 @@ export default function PrivacidadPage() {
             </ul>
             <p>
               Para ejercer cualquiera de estos derechos, envíe un correo a <strong>{CONTROLLER_EMAIL}</strong>
-              indicando el derecho que desea ejercer y adjuntando una copia de su documento de identidad.
-              Responderemos en el plazo máximo de <strong>30 días</strong>.
+              indicando el derecho que desea ejercer. Solo solicitaremos información adicional para verificar
+              la identidad cuando existan dudas razonables, y siempre de forma proporcional.
+              Responderemos en el plazo de <strong>un mes</strong>, ampliable en los supuestos previstos por el RGPD.
             </p>
             <p>
               Si considera que el tratamiento de sus datos no es conforme al RGPD, tiene derecho a presentar
@@ -188,7 +190,7 @@ export default function PrivacidadPage() {
               apropiado al riesgo, incluyendo:
             </p>
             <ul>
-              <li>Cifrado AES-256 de tokens OAuth en reposo</li>
+              <li>Cifrado autenticado de tokens OAuth en reposo mediante Fernet</li>
               <li>Comunicaciones cifradas mediante TLS 1.2+ en tránsito</li>
               <li>Acceso a datos restringido mediante claves de API y Row-Level Security (RLS) en base de datos</li>
               <li>Autenticación exclusivamente mediante Google OAuth (sin contraseñas almacenadas)</li>
@@ -197,24 +199,28 @@ export default function PrivacidadPage() {
             </ul>
             <p>
               En caso de violación de seguridad que suponga un riesgo para sus derechos y libertades,
-              le notificaremos en el plazo máximo de 72 horas conforme al artículo 33 del RGPD.
+              se gestionara conforme al procedimiento de incidentes aplicable. Cuando proceda, el responsable
+              notificara a la autoridad de control en el plazo previsto por el articulo 33 del RGPD y se
+              comunicara a los afectados sin dilacion indebida en los supuestos del articulo 34.
             </p>
           </Section>
 
           <Section title="8. Cookies">
             <p>
-              Atiende360 utiliza exclusivamente cookies técnicas estrictamente necesarias para el
-              funcionamiento del servicio (gestión de sesión de usuario). No utilizamos cookies de
-              seguimiento, publicidad ni analítica de terceros.
+              Atiende360 utiliza cookies técnicas necesarias para la sesión y la seguridad. Con tu
+              consentimiento separado, podemos activar Meta Pixel y Conversions API para medir si una
+              campaña genera una solicitud de demo. Esta medición puede incluir identificadores técnicos,
+              página de origen y un hash irreversible del correo enviado en el formulario. Puedes rechazarla
+              y seguir usando la web, o cambiar la preferencia eliminando las cookies y datos locales del sitio.
             </p>
           </Section>
 
           <Section title="9. Menores de edad">
             <p>
               El servicio está dirigido exclusivamente a profesionales y entidades del sector sanitario.
-              No recopilamos intencionadamente datos de menores de 14 años. Si detectamos que hemos
-              recopilado datos de un menor sin el consentimiento de sus tutores legales, procederemos
-              a eliminarlos inmediatamente.
+              El tratamiento de datos de pacientes menores depende de los servicios de la clínica y de sus
+              instrucciones como responsable. Cuando una clínica atienda a menores, deberá configurar el flujo
+              aplicable al tutor o representante y limitar los datos a los estrictamente necesarios.
             </p>
           </Section>
 

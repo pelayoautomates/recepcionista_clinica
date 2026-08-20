@@ -59,7 +59,6 @@ export default function Image() {
           </div>
           <div style={{ display: "flex", gap: 14, fontSize: 26, color: "#3f4f6f" }}>
             <span>Telefono</span>
-            <span>Webchat</span>
             <span>WhatsApp</span>
             <span>Google Calendar</span>
           </div>

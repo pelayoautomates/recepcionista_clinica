@@ -111,6 +111,30 @@ def _parse_oauth_state(state_token: str, expected_nonce: str | None) -> dict:
     return payload
 
 
+def _parse_start_access(access_token: str, clinic_id: str) -> None:
+    """Autoriza el inicio OAuth emitido por el BFF autenticado del dashboard."""
+    if not settings.admin_api_key:
+        if settings.is_production:
+            raise HTTPException(status_code=503, detail="OAuth start no configurado")
+        return
+    try:
+        encoded_payload, signature = access_token.split(".", 1)
+        payload_bytes = _b64url_decode(encoded_payload)
+        expected = hmac.new(
+            settings.admin_api_key.encode("utf-8"), payload_bytes, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            raise ValueError("signature")
+        payload = json.loads(payload_bytes.decode("utf-8"))
+        if str(payload.get("clinic_id")) != clinic_id:
+            raise ValueError("clinic")
+        expires_at = int(payload.get("exp", 0))
+        if expires_at < int(time.time()) or expires_at > int(time.time()) + 10 * 60:
+            raise ValueError("expiry")
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail="Inicio OAuth no autorizado") from exc
+
+
 @router.get("/google/callback")
 async def google_auth_callback(request: Request):
     """Callback OAuth2 de Google. Acepta tanto code+state como error."""
@@ -160,8 +184,9 @@ async def google_auth_callback(request: Request):
 
 
 @router.get("/google/{clinic_id}")
-async def google_auth_start(clinic_id: UUID):
+async def google_auth_start(clinic_id: UUID, access: str = ""):
     """Inicia el flujo OAuth2 con Google Calendar para una clínica."""
+    _parse_start_access(access, str(clinic_id))
     try:
         nonce = secrets.token_urlsafe(24)
         state_token = _build_oauth_state(str(clinic_id), nonce)

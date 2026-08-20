@@ -1,25 +1,24 @@
 # Atiende360
 
-> Atiende360 es un SaaS de recepcionista IA para clínicas privadas. Atiende llamadas, WhatsApp y webchat, gestiona citas, registra leads y escala a humano cuando hace falta.
+> Atiende360 es un SaaS de recepcionista IA para clínicas privadas. Atiende llamadas y WhatsApp cuando están activados, gestiona citas, registra leads y escala a humano cuando hace falta.
 
 ## Descripción del producto
 
 Atiende360 es un software SaaS orientado a clínicas privadas en España: clínicas dentales, estéticas, fisioterapia, rehabilitación, psicología y otros centros sanitarios privados.
 
-El agente de IA (llamado Valeria) opera 24/7 en tres canales simultáneos:
+El agente de IA (llamado Valeria) opera en los canales que cada clínica haya activado y probado:
 - **Voz**: atiende llamadas entrantes, responde preguntas sobre servicios y disponibilidad, propone citas libres y las registra en Google Calendar o en el calendario interno.
 - **WhatsApp**: recibe mensajes de texto y audio, responde dudas, gestiona citas y hace seguimiento de leads.
-- **Webchat**: widget embebible en la web de la clínica para conversación en tiempo real.
 
 El agente nunca diagnostica ni sustituye criterio clínico. Cuando detecta consultas sensibles, urgencias o peticiones fuera de sus reglas, deriva la conversación a un humano del equipo de la clínica.
 
 ## Casos de uso principales
 
 - Atender llamadas y mensajes fuera del horario de recepción.
-- Reducir no-shows mediante recordatorios automáticos (SMS 24h y 2h antes) con confirmación activa.
-- Capturar y clasificar leads de primera consulta con seguimiento automático.
+- Reducir no-shows mediante recordatorios automáticos por SMS 24h y 1h antes.
+- Capturar y clasificar leads de primera consulta para seguimiento humano.
 - Gestionar cambios y cancelaciones de cita sin carga para recepción.
-- Activar lista de espera automáticamente cuando hay cancelaciones.
+- Mantener una lista de espera operativa para el equipo.
 
 ## Para quién es
 

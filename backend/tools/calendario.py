@@ -51,7 +51,8 @@ def _slots_en_rango(inicio: datetime, fin: datetime, duracion_total: int, interv
 
 def _get_clinic(db, clinic_id: str) -> dict:
     r = db.table("clinicas").select(
-        "id, nombre, horarios, reglas_reserva, google_tokens_enc"
+        "id, nombre, horarios, reglas_reserva, google_tokens_enc, notif_webhook, "
+        "meta_phone_number_id, meta_access_token"
     ).eq("id", clinic_id).single().execute()
     return r.data or {}
 
@@ -403,37 +404,48 @@ async def create_appointment_validated(
     # Vincular conversación → cita
     if conversacion_id:
         try:
-            db.table("conversaciones").update({"cita_id": cita_id}).eq("id", conversacion_id).execute()
+            db.table("conversaciones").update({"cita_id": cita_id}).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
         except Exception as exc:
             logger.warning("No se pudo vincular conversación %s a cita %s: %s", conversacion_id, cita_id, exc)
 
     # Actualizar estado lead
-    db.table("pacientes").update({"estado_lead": "cita_agendada"}).eq("id", paciente_id).execute()
+    db.table("pacientes").update({"estado_lead": "cita_agendada"}).eq("id", paciente_id).eq("clinic_id", clinic_id).execute()
 
     # Google Calendar
     event_id = None
-    try:
-        event_id = gcal.crear_evento(
-            clinic_id=UUID(clinic_id),
-            titulo=f"{servicio_nombre} — {nombre_paciente}",
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            descripcion=f"Cita con {prof_nombre}. Agendada por Recepcionista IA.",
-        )
-        if event_id:
-            db.table("citas").update({"google_event_id": event_id}).eq("id", cita_id).execute()
-    except Exception as exc:
-        logger.warning("GCal sync failed for cita %s: %s", cita_id, exc)
-        db.table("citas").update({"estado": "sync_failed"}).eq("id", cita_id).execute()
+    gcal_sync_error = None
+    if clinic.get("google_tokens_enc"):
+        try:
+            event_id = gcal.crear_evento(
+                clinic_id=UUID(clinic_id),
+                titulo=f"{servicio_nombre} — {nombre_paciente}",
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                descripcion=f"Cita con {prof_nombre}. Agendada por Recepcionista IA.",
+            )
+            if not event_id:
+                raise RuntimeError("Google Calendar no devolvió event_id")
+            db.table("citas").update({"google_event_id": event_id}).eq("id", cita_id).eq("clinic_id", clinic_id).execute()
+        except Exception as exc:
+            gcal_sync_error = "La cita se guardó, pero Google Calendar no confirmó la sincronización"
+            logger.warning("GCal sync failed for cita %s: %s", cita_id, exc)
+            db.table("citas").update({"estado": "sync_failed"}).eq("id", cita_id).eq("clinic_id", clinic_id).execute()
 
     logger.info("Cita %s creada — profesional=%s servicio=%s", cita_id, prof_nombre, servicio_nombre)
     await _notificar_clinica_nueva_cita(clinic, servicio_nombre, prof_nombre, fecha_inicio, nombre_paciente, origen)
 
     # Confirmación al paciente por WhatsApp (si tiene teléfono y WhatsApp configurado)
     try:
-        pac = db.table("pacientes").select("telefono").eq("id", paciente_id).single().execute()
+        pac = db.table("pacientes").select("telefono").eq("id", paciente_id).eq("clinic_id", clinic_id).single().execute()
         telefono_pac = pac.data.get("telefono") if pac.data else None
         if telefono_pac:
+            access_token = None
+            if clinic.get("meta_access_token"):
+                from cryptography.fernet import Fernet
+                from config import settings
+                access_token = Fernet(settings.fernet_key.encode()).decrypt(
+                    clinic["meta_access_token"].encode()
+                ).decode()
             await wa.confirmacion_cita(
                 to=telefono_pac,
                 nombre_paciente=nombre_paciente,
@@ -442,7 +454,7 @@ async def create_appointment_validated(
                 profesional=prof_nombre,
                 fecha_texto=fecha_inicio.strftime("%d/%m/%Y a las %H:%M"),
                 clinic_whatsapp_number=clinic.get("meta_phone_number_id"),
-                access_token=clinic.get("meta_access_token"),
+                access_token=access_token,
             )
     except Exception as exc:
         logger.warning("Confirmación WA paciente fallida para cita %s: %s", cita_id, exc)
@@ -464,7 +476,8 @@ async def create_appointment_validated(
     )
 
     return {
-        "ok": True,
+        "ok": gcal_sync_error is None,
+        "error": gcal_sync_error,
         "cita_id": cita_id,
         "google_event_id": event_id,
         "fecha_inicio": fecha_inicio.strftime("%d/%m/%Y %H:%M"),
@@ -500,11 +513,14 @@ async def _notificar_clinica_nueva_cita(
 
         webhook_url = clinic.get("notif_webhook") or settings.notify_webhook_url
         if webhook_url:
-            async with _httpx.AsyncClient(timeout=5) as client:
-                await client.post(
+            from outbound import validate_public_http_url
+            validate_public_http_url(webhook_url, https_only=settings.is_production)
+            async with _httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
+                response = await client.post(
                     webhook_url,
                     json={"text": texto, "username": "Atiende360", "tipo": "nueva_cita"},
                 )
+                response.raise_for_status()
     except Exception as exc:
         logger.warning("Notificación clínica fallida: %s", exc)
 
@@ -579,10 +595,10 @@ async def crear_cita(
     )
 
 
-async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
+async def mover_cita(clinic_id: str, cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
     """Mueve una cita a nueva fecha validando disponibilidad."""
     db = get_supabase()
-    result = db.table("citas").select("*").eq("id", cita_id).single().execute()
+    result = db.table("citas").select("*").eq("id", cita_id).eq("clinic_id", clinic_id).single().execute()
     cita = result.data
     if not cita:
         return {"error": f"Cita {cita_id} no encontrada"}
@@ -597,8 +613,6 @@ async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
     nueva_fecha_fin = nueva_fecha_inicio + duracion
 
     profesional_id = cita.get("profesional_id")
-    clinic_id = cita["clinic_id"]
-
     # Validar conflictos en nuevo slot
     if profesional_id:
         if _bloques_activos(db, clinic_id, nueva_fecha_inicio, nueva_fecha_fin, profesional_id):
@@ -627,7 +641,7 @@ async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
         "fecha_inicio": nueva_fecha_inicio.isoformat(),
         "fecha_fin": nueva_fecha_fin.isoformat(),
         "estado": "confirmada",
-    }).eq("id", cita_id).execute()
+    }).eq("id", cita_id).eq("clinic_id", clinic_id).execute()
 
     # Cancelar jobs de recordatorio anteriores — el scheduler creará nuevos con la fecha correcta
     db.table("jobs").update({"estado": "cancelado"}).in_(
@@ -652,10 +666,10 @@ async def mover_cita(cita_id: str, nueva_fecha_inicio_iso: str) -> dict:
     }
 
 
-async def cancelar_cita(cita_id: str) -> dict:
+async def cancelar_cita(clinic_id: str, cita_id: str) -> dict:
     """Cancela una cita en Supabase y Google Calendar."""
     db = get_supabase()
-    result = db.table("citas").select("*").eq("id", cita_id).single().execute()
+    result = db.table("citas").select("*").eq("id", cita_id).eq("clinic_id", clinic_id).single().execute()
     cita = result.data
     if not cita:
         return {"error": f"Cita {cita_id} no encontrada"}
@@ -666,7 +680,7 @@ async def cancelar_cita(cita_id: str) -> dict:
         except Exception as exc:
             logger.warning("GCal cancel failed: %s", exc)
 
-    db.table("citas").update({"estado": "cancelada"}).eq("id", cita_id).execute()
+    db.table("citas").update({"estado": "cancelada"}).eq("id", cita_id).eq("clinic_id", clinic_id).execute()
 
     # Cancelar jobs de recordatorio pendientes
     db.table("jobs").update({"estado": "cancelado"}).in_(

@@ -18,9 +18,8 @@ export default async function CalendarioPage() {
   const clinicaRes = await adminFetch(`/admin/clinicas/${rol.clinic_id}`, { noStore: true });
   const clinica = clinicaRes.ok ? await clinicaRes.json() : {};
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
   const tieneCalendario = !!clinica.google_tokens_enc;
-  const googleAuthUrl = `${backendUrl}/auth/google/${rol.clinic_id}`;
+  const googleAuthUrl = `/api/google-calendar/start?clinic_id=${encodeURIComponent(rol.clinic_id)}`;
 
   return (
     <CalendarioCliente

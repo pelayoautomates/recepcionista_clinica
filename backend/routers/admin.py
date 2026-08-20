@@ -175,7 +175,43 @@ async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
     mensajes = conv_data.get("mensajes") or []
     canal = conv_data.get("canal", "")
     paciente_id = conv_data.get("paciente_id")
-    mensaje = body.get("mensaje", "")
+    mensaje = str(body.get("mensaje", "")).strip()
+    if not mensaje or len(mensaje) > 4000:
+        raise HTTPException(status_code=400, detail="Mensaje vacío o demasiado largo")
+
+    # Entregar primero; solo registrar y reabrir cuando el proveedor confirma.
+    if canal == "voz":
+        raise HTTPException(status_code=409, detail="Una llamada finalizada no admite respuesta directa")
+    if canal == "whatsapp":
+        paciente = db.table("pacientes").select("telefono").eq("id", paciente_id).eq("clinic_id", str(clinic_id)).single().execute()
+        telefono = (paciente.data or {}).get("telefono")
+        if not telefono:
+            raise HTTPException(status_code=409, detail="El paciente no tiene teléfono de WhatsApp")
+
+        clinica = db.table("clinicas").select(
+            "meta_phone_number_id, meta_access_token"
+        ).eq("id", str(clinic_id)).single().execute().data or {}
+        token = None
+        if clinica.get("meta_access_token"):
+            try:
+                from cryptography.fernet import Fernet
+                from config import settings
+                token = Fernet(settings.fernet_key.encode()).decrypt(
+                    clinica["meta_access_token"].encode()
+                ).decode()
+            except Exception as exc:
+                logger.error("No se pudo descifrar el token Meta de %s: %s", clinic_id, exc)
+                raise HTTPException(status_code=502, detail="Credencial de WhatsApp inválida") from exc
+
+        import whatsapp as wa
+        sent = await wa.send_text(
+            telefono,
+            mensaje,
+            clinic_whatsapp_number=clinica.get("meta_phone_number_id"),
+            access_token=token,
+        )
+        if not sent:
+            raise HTTPException(status_code=502, detail="WhatsApp no confirmó la entrega del mensaje")
 
     mensajes.append({
         "role": "assistant",
@@ -189,17 +225,6 @@ async def responder_manualmente(clinic_id: UUID, conv_id: UUID, body: dict):
         "estado": "activa",
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", str(conv_id)).eq("clinic_id", str(clinic_id)).execute()
-
-    # Enviar mensaje por el canal correspondiente
-    if canal == "whatsapp" and paciente_id and mensaje:
-        try:
-            paciente = db.table("pacientes").select("telefono").eq("id", paciente_id).eq("clinic_id", str(clinic_id)).single().execute()
-            telefono = (paciente.data or {}).get("telefono")
-            if telefono:
-                import twilio_wa
-                await twilio_wa.send_message(telefono, mensaje)
-        except Exception as e:
-            logger.warning("No se pudo enviar respuesta humana por WhatsApp: %s", e)
 
     result = db.table("conversaciones") \
         .select("*") \
@@ -1249,14 +1274,14 @@ class TestChatBody(BaseModel):
 async def test_chat(clinic_id: UUID, body: TestChatBody):
     """Test the agent for a clinic without billing checks. Admin only."""
     from agent.core import run_agent
-    conv_id = body.conversacion_id or f"test_{clinic_id}"
     respuesta, conversacion_id = await run_agent(
         clinic_id=str(clinic_id),
-        conversacion_id=conv_id,
+        conversacion_id=body.conversacion_id,
         user_message=body.mensaje,
-        canal="test",
+        canal="chat_web",
         paciente_id=None,
         skip_billing=True,
+        is_test=True,
     )
     return {"respuesta": respuesta, "conversacion_id": conversacion_id}
 
@@ -1277,5 +1302,4 @@ async def test_sms(body: TestSmsBody):
     if not ok:
         raise HTTPException(status_code=502, detail="SMS no enviado — revisa los logs de Railway")
     return {"ok": True, "to": body.telefono, "from": settings.telnyx_sms_number}
-
 

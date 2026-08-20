@@ -1,8 +1,6 @@
 import io
-import ipaddress
 import logging
 import re
-import socket
 from urllib.parse import urljoin, urlparse
 from uuid import UUID
 
@@ -13,6 +11,7 @@ from openai import AsyncOpenAI
 from config import settings
 from database.client import get_supabase
 from security import require_admin_key
+from outbound import validate_public_http_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_admin_key)])
@@ -21,15 +20,6 @@ MAX_CHARS = 40_000  # límite para no enviar demasiado texto al LLM
 MAX_PAGES = 20      # máximo de páginas a rastrear por sitio
 CHARS_PER_PAGE = 6_000  # límite de texto por página individual
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB por archivo
-
-
-def _is_private_host(hostname: str) -> bool:
-    """Devuelve True si el hostname resuelve a una IP privada/reservada (protección SSRF)."""
-    try:
-        ip = ipaddress.ip_address(socket.gethostbyname(hostname))
-        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-    except Exception:
-        return True  # si no resuelve, bloquear por precaución
 
 
 # ─── Endpoint principal ───────────────────────────────────────────────────────
@@ -81,7 +71,16 @@ async def guardar_configuracion(clinic_id: UUID, data: dict):
     if "servicios" in data:
         campos["servicios"] = data["servicios"]
     if "notif_webhook" in data:
-        campos["notif_webhook"] = data["notif_webhook"]
+        webhook = (data["notif_webhook"] or "").strip()
+        if webhook:
+            try:
+                campos["notif_webhook"] = validate_public_http_url(
+                    webhook, https_only=settings.is_production
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        else:
+            campos["notif_webhook"] = None
     if "routing_mode" in data:
         allowed = {"siempre", "fuera_horario", "si_no_contestan"}
         if data["routing_mode"] not in allowed:
@@ -149,8 +148,7 @@ async def _crawl_site(start_url: str) -> str:
 
     if parsed_start.scheme not in ("http", "https"):
         raise ValueError(f"Esquema no permitido: {parsed_start.scheme}")
-    if _is_private_host(base_domain):
-        raise ValueError(f"URL apunta a una dirección privada/reservada: {base_domain}")
+    validate_public_http_url(start_url, https_only=settings.is_production)
 
     visited: set[str] = set()
     queue: list[str] = [start_url]
@@ -159,7 +157,7 @@ async def _crawl_site(start_url: str) -> str:
 
     headers = {"User-Agent": "Mozilla/5.0 (compatible; Atiende360Bot/1.0; +https://atiende360.com)"}
 
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
         while queue and len(visited) < MAX_PAGES and total_chars < MAX_CHARS:
             url = queue.pop(0)
             if url in visited:
@@ -167,7 +165,17 @@ async def _crawl_site(start_url: str) -> str:
             visited.add(url)
 
             try:
+                validate_public_http_url(url, https_only=settings.is_production)
                 r = await client.get(url, headers=headers)
+                if r.is_redirect:
+                    redirect = urljoin(url, r.headers.get("location", ""))
+                    parsed_redirect = urlparse(redirect)
+                    if parsed_redirect.netloc != base_domain:
+                        raise ValueError("Redireccion fuera del dominio bloqueada")
+                    validate_public_http_url(redirect, https_only=settings.is_production)
+                    if redirect not in visited and redirect not in queue:
+                        queue.insert(0, redirect)
+                    continue
                 r.raise_for_status()
                 content_type = r.headers.get("content-type", "")
                 if "text/html" not in content_type:

@@ -142,7 +142,7 @@ export default function GuidedTour({ clinicId, clinicName, isNewUser, gcalConnec
       const prompt = `Eres la recepcionista virtual de ${clinicName}. Responde siempre en espanol.\n\nINFORMACION VERIFICADA DE LA CLINICA:\n${doc}\n\nINSTRUCCIONES:\n- Usa un tono cercano pero profesional.\n- Si el paciente quiere agendar una cita, usa las herramientas para consultar disponibilidad y crear la cita.\n- Si no sabes algo con certeza, dilo claramente y ofrece derivar a un humano.\n- Nunca inventes precios, horarios ni servicios que no esten en la informacion proporcionada.\n- Cuando detectes interes real en agendar, pide nombre, telefono, servicio y fecha preferida.`;
 
       // Save to backend
-      await fetch(`/api/clinicas/${clinicId}/configuracion/guardar`, {
+      const saveResponse = await fetch(`/api/clinicas/${clinicId}/configuracion/guardar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -152,6 +152,10 @@ export default function GuidedTour({ clinicId, clinicName, isNewUser, gcalConnec
           routing_mode: "siempre",
         }),
       });
+      if (!saveResponse.ok) {
+        const detail = await saveResponse.json().catch(() => ({}));
+        throw new Error(detail.detail || "No se pudo guardar la configuración");
+      }
 
       setUrlScraped(true);
       localStorage.setItem(KEY, JSON.stringify({ step: "url", urlScraped: true }));
@@ -163,12 +167,15 @@ export default function GuidedTour({ clinicId, clinicName, isNewUser, gcalConnec
   }
 
   async function complete() {
-    setDone(true);
-    localStorage.setItem(KEY, "done");
     try {
-      await fetch(`/api/clinicas/${clinicId}/onboarding-ok`, { method: "POST" });
-    } catch { /* non-critical */ }
-    router.push("/panel");
+      const response = await fetch(`/api/clinicas/${clinicId}/onboarding-ok`, { method: "POST" });
+      if (!response.ok) throw new Error("No se pudo confirmar el onboarding");
+      setDone(true);
+      localStorage.setItem(KEY, "done");
+      router.push("/panel");
+    } catch (error: any) {
+      setUrlError(error.message || "No se pudo finalizar. Inténtalo de nuevo.");
+    }
   }
 
   if (!ready || done) return null;
@@ -352,16 +359,16 @@ export default function GuidedTour({ clinicId, clinicName, isNewUser, gcalConnec
       {step === "done" && (
         <CenteredModal progress={progress}>
           <div style={{ fontSize: 52, marginBottom: 12 }}>🚀</div>
-          <h2 style={modalTitle}>¡Todo listo!</h2>
+          <h2 style={modalTitle}>Configuración inicial guardada</h2>
           <p style={modalBody}>
-            Tu recepcionista está configurada. Puedes probarla ahora desde{" "}
-            <strong>Configuración → Probar agente</strong> o esperar a que lleguen llamadas reales.
+            Antes de recibir llamadas reales, prueba el flujo desde{" "}
+            <strong>Configuración → Probar agente</strong> y activa cada canal con su diagnóstico.
           </p>
           <div style={{ background: "#f9fafb", borderRadius: 12, padding: "16px", marginBottom: 24, textAlign: "left" }}>
             {[
               "Clínica creada",
-              "Agente entrenado con tu información",
-              "Configuración de agenda revisada",
+              urlScraped ? "Información de la clínica importada" : "Importación pendiente de revisión",
+              gcalConnected ? "Google Calendar conectado" : "Agenda pendiente de conectar o configurar",
             ].map(text => (
               <div key={text} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
                 <span style={{
@@ -435,10 +442,6 @@ function GCalTooltip({ rect, progress, clinicId, gcalConnected, onNext }: {
     ? { position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", ...arrowDown }
     : { position: "absolute", top: -10, left: "50%", transform: "translateX(-50%)", ...arrowUp };
 
-  const backendUrl = typeof window !== "undefined"
-    ? (window as any).__ENV__?.NEXT_PUBLIC_BACKEND_URL || ""
-    : "";
-
   return (
     <div style={{
       position: "fixed", zIndex: 9999,
@@ -475,7 +478,7 @@ function GCalTooltip({ rect, progress, clinicId, gcalConnected, onNext }: {
           </p>
           <div style={{ display: "flex", gap: 8 }}>
             <a
-              href={`${backendUrl}/auth/google/${clinicId}`}
+              href={`/api/google-calendar/start?clinic_id=${encodeURIComponent(clinicId)}`}
               style={{
                 flex: 2, ...primaryBtn,
                 textDecoration: "none", display: "inline-flex",

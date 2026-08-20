@@ -1,6 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 
 const NAV_MAIN = [
@@ -187,7 +188,14 @@ export default function PanelSidebar({ clinicName, pendientesHumano = 0 }: Props
       >
         {/* Brand */}
         <div style={{ padding: "24px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <img src="/logo-largo.png" alt="Atiende 360" style={{ height: 32, width: "auto", objectFit: "contain" }} />
+          <Image
+            src="/logo-largo.png"
+            alt="Atiende360"
+            width={160}
+            height={32}
+            priority
+            style={{ height: 32, width: "auto", objectFit: "contain" }}
+          />
           <button
             className="sidebar-mobile-toggle"
             onClick={() => setMobileOpen(false)}

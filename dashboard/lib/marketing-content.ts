@@ -2,18 +2,10 @@ export type PricingPlan = {
   id: "starter" | "pro" | "growth";
   name: string;
   monthly: number;
-  annual: number;
   subtitle: string;
   badge?: string;
   cta: string;
   features: string[];
-};
-
-export type AddOn = {
-  name: string;
-  price: string;
-  description: string;
-  badge?: string;
 };
 
 export type CompareRow = {
@@ -33,7 +25,7 @@ export const NAV_ITEMS = [
 ];
 
 export const HERO_TRUST_POINTS = [
-  "Recepcionista IA 24/7 para clinicas privadas",
+  "Cobertura según el desvío configurado",
   "Agenda citas y registra leads",
   "Derivacion humana en casos sensibles",
   "Setup guiado sin permanencia",
@@ -65,12 +57,12 @@ export const PROCESS_STEPS = [
 
 export const FEATURE_BENEFITS = [
   {
-    title: "Atencion telefonica 24/7",
+    title: "Atención telefónica cuando nadie llega",
     text: "Responde llamadas cuando recepcion esta ocupada o la clinica esta cerrada, captura el motivo y propone el siguiente paso.",
   },
   {
-    title: "Webchat con contexto de la clinica",
-    text: "Contesta preguntas frecuentes sobre servicios, horarios y disponibilidad con informacion configurada para tu centro.",
+    title: "Desvío por no respuesta",
+    text: "Tu recepción atiende primero y la IA entra solo cuando nadie llega, manteniendo el número habitual de la clínica.",
   },
   {
     title: "WhatsApp para seguimiento",
@@ -110,7 +102,7 @@ export const WHO_IS_FOR = [
 export const ANSWER_BLOCKS = [
   {
     q: "Que es Atiende360?",
-    a: "Atiende360 es un SaaS de recepcionista IA para clinicas privadas. Atiende llamadas, WhatsApp y webchat, registra leads, ayuda a agendar citas y avisa al equipo cuando una conversacion requiere intervencion humana.",
+    a: "Atiende360 es un SaaS de recepcionista IA para clínicas privadas. Recupera llamadas no atendidas, registra leads, ayuda a agendar citas y marca para revisión las conversaciones que requieren intervención humana.",
   },
   {
     q: "Para quien es Atiende360?",
@@ -197,7 +189,7 @@ export const TRUST_BLOCKS = [
 export const LANDING_FAQS = [
   {
     q: "Que es Atiende360?",
-    a: "Atiende360 es un software de recepcionista IA para clinicas privadas. Atiende llamadas, WhatsApp y webchat, registra leads, agenda citas y deriva a humano cuando hace falta.",
+    a: "Atiende360 es un software de recepcionista IA para clínicas privadas. Recupera llamadas no atendidas, registra leads, agenda citas y deriva a humano cuando hace falta.",
   },
   {
     q: "Cuanto tiempo puede ahorrar a una clinica?",
@@ -262,7 +254,7 @@ export const LANDING_FAQS = [
 ];
 
 export const HUMAN_VS_AI_ROWS = [
-  { feature: "Disponibilidad", human: "Limitada a turnos y descanso", ai: "Disponible 24/7 segun canales activos" },
+  { feature: "Disponibilidad", human: "Limitada a turnos y descanso", ai: "Según horario y desvío configurados" },
   { feature: "Picos de demanda", human: "Colas, llamadas perdidas o espera", ai: "Cubre contactos simultaneos segun capacidad contratada" },
   { feature: "Seguimiento de leads", human: "Manual y facil de olvidar", ai: "Registro y clasificacion en panel" },
   { feature: "Gestion de agenda", human: "Manual o dispersa entre herramientas", ai: "Reglas de cita y calendario centralizado" },
@@ -275,23 +267,23 @@ export const HUMAN_VS_AI_ROWS = [
 export const PRICING_FAQS = [
   {
     q: "Que incluye exactamente la prueba?",
-    a: "Incluye configuracion inicial, acceso al panel y validacion de flujo con una clinica o sede.",
+    a: "El piloto empieza cuando el primer canal esta preparado. Incluye configuracion asistida, acceso al panel y pruebas de los flujos acordados antes de recibir contactos reales.",
   },
   {
     q: "Que pasa si supero los minutos incluidos?",
-    a: "Puedes ampliar con packs de minutos o pasar a un plan superior.",
+    a: "Te avisamos antes de llegar al limite y acordamos si conviene ampliar capacidad o cambiar de plan. No se aplican extras sin informar.",
   },
   {
     q: "El precio cambia si activo WhatsApp?",
-    a: "WhatsApp se ofrece como add-on para activarlo solo cuando de verdad te aporte valor.",
+    a: "WhatsApp esta en activacion asistida. Su disponibilidad y costes de uso se confirman en la propuesta antes de conectarlo.",
   },
   {
     q: "Hay permanencia minima?",
     a: "No. Puedes cancelar cuando quieras.",
   },
   {
-    q: "Puedo tener varias sedes?",
-    a: "Si. Growth incluye 2 sedes y puedes anadir sedes adicionales.",
+    q: "Puedo empezar con varias sedes?",
+    a: "Ahora activamos una sede por cuenta para asegurar que agenda, desvio y derivaciones funcionan bien. Los despliegues multisede se valoran como proyecto asistido.",
   },
 ];
 
@@ -300,14 +292,12 @@ export const PLANS: PricingPlan[] = [
     id: "starter",
     name: "Starter",
     monthly: 99,
-    annual: 79,
     subtitle: "Para una clinica que quiere validar conversion sin complejidad.",
     cta: "Probar Starter",
     features: [
       "1 negocio o sede",
       "300 minutos de llamadas IA al mes",
       "Agente de voz",
-      "Webchat",
       "Calendario interno",
       "Google Calendar opcional",
       "Panel de conversaciones y citas",
@@ -319,17 +309,14 @@ export const PLANS: PricingPlan[] = [
     id: "pro",
     name: "Pro",
     monthly: 179,
-    annual: 149,
     subtitle: "Para clinicas con mayor carga de recepcion y mas leads diarios.",
     badge: "Mas popular",
     cta: "Probar Pro",
     features: [
       "Todo lo de Starter",
       "750 minutos de llamadas IA al mes",
-      "Hasta 3 usuarios del panel",
-      "Resumenes automaticos semanales",
       "Seguimiento de leads mejorado",
-      "Mejor personalizacion de tono",
+      "Personalizacion asistida de reglas y tono",
       "Soporte email y WhatsApp",
     ],
   },
@@ -337,78 +324,26 @@ export const PLANS: PricingPlan[] = [
     id: "growth",
     name: "Growth",
     monthly: 299,
-    annual: 249,
-    subtitle: "Para volumen alto o varias sedes con operativa mas exigente.",
+    subtitle: "Para una clinica con volumen alto y operativa mas exigente.",
     cta: "Probar Growth",
     features: [
       "Todo lo de Pro",
       "1.800 minutos de llamadas IA al mes",
-      "2 sedes incluidas",
-      "Hasta 5 usuarios del panel",
-      "1 numero dedicado incluido",
-      "Resumenes automaticos diarios",
       "Soporte prioritario",
       "Revision asistida inicial",
     ],
   },
 ];
 
-export const ADDONS: AddOn[] = [
-  {
-    name: "Numero dedicado",
-    price: "15 EUR/mes",
-    description: "Numero exclusivo para que Atiende360 atienda llamadas de tu clinica.",
-  },
-  {
-    name: "Sede adicional",
-    price: "79 EUR/mes",
-    description: "Anade una sede con su propia agenda, reglas y seguimiento.",
-  },
-  {
-    name: "WhatsApp beta",
-    price: "49 EUR/mes + uso",
-    description: "Canal adicional para conversaciones, recordatorios y seguimiento.",
-    badge: "Beta",
-  },
-  {
-    name: "Pack 250 minutos extra",
-    price: "39 EUR",
-    description: "Amplia capacidad de llamadas en meses con mayor demanda.",
-  },
-  {
-    name: "Pack 500 minutos extra",
-    price: "69 EUR",
-    description: "Mejor coste por minuto para clinicas con volumen creciente.",
-  },
-  {
-    name: "Pack 1000 minutos extra",
-    price: "129 EUR",
-    description: "Pensado para campañas, estacionalidad o picos de demanda.",
-  },
-  {
-    name: "Setup asistido",
-    price: "99 EUR pago unico",
-    description: "Te acompanamos en configuracion inicial y reglas de atencion.",
-  },
-  {
-    name: "Integraciones personalizadas",
-    price: "Desde 199 EUR",
-    description: "Conectamos sistemas adicionales segun necesidades de tu clinica.",
-  },
-];
-
 export const COMPARISON_ROWS: CompareRow[] = [
   { feature: "Precio mensual", starter: "99 EUR/mes", pro: "179 EUR/mes", growth: "299 EUR/mes" },
-  { feature: "Precio anual", starter: "79 EUR/mes", pro: "149 EUR/mes", growth: "249 EUR/mes" },
-  { feature: "Negocios o sedes incluidas", starter: "1", pro: "1", growth: "2" },
+  { feature: "Clinicas o sedes", starter: "1", pro: "1", growth: "1" },
   { feature: "Minutos incluidos", starter: "300 min", pro: "750 min", growth: "1.800 min" },
-  { feature: "Usuarios del panel", starter: "1", pro: "3", growth: "5" },
   { feature: "Agente de voz", starter: "Si", pro: "Si", growth: "Si" },
-  { feature: "Webchat", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Calendario interno", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Google Calendar opcional", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Alertas a humano", starter: "Si", pro: "Si", growth: "Si" },
-  { feature: "Resumenes automaticos", starter: "Basico", pro: "Semanales", growth: "Diarios" },
+  { feature: "WhatsApp", starter: "Activacion asistida", pro: "Activacion asistida", growth: "Activacion asistida" },
   { feature: "Soporte", starter: "Email", pro: "Email + WhatsApp", growth: "Prioritario" },
 ];
 
@@ -417,7 +352,7 @@ export const ENTITY_TERMS = [
   "software de recepcion medica",
   "automatizacion de llamadas para clinicas",
   "agenda de citas con IA",
-  "webchat sanitario",
+  "recepcionista virtual sanitaria",
   "WhatsApp para clinicas",
   "clasificacion de leads sanitarios",
   "derivacion humana en consultas sensibles",
@@ -464,10 +399,6 @@ export const INTEGRATION_BLOCKS = [
   {
     title: "Telefono IA",
     text: "Atiende llamadas entrantes y recoge motivo, datos y disponibilidad cuando el canal de voz esta activo.",
-  },
-  {
-    title: "Webchat",
-    text: "Inserta una experiencia de chat para responder preguntas y captar contactos desde la web de la clinica.",
   },
   {
     title: "WhatsApp",

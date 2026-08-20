@@ -16,7 +16,12 @@ build/
 # Node
 node_modules/
 .next/
+.next-stale-*/
+.next.stale-*/
 out/
+
+# Supabase CLI local link/cache
+supabase/.temp/
 
 # Editor
 .vscode/

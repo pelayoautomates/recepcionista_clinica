@@ -21,6 +21,14 @@
   color: var(--mk-ink);
   font-family: var(--marketing-font-body), system-ui, sans-serif;
   min-height: 100vh;
+  overflow-x: clip;
+}
+
+.root,
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
 }
 
 .container {
@@ -3396,6 +3404,12 @@
   .finalActionRow .btnPrimary,
   .finalActionRow .btnGhostLight {
     width: 100%;
+  }
+
+  .heroConversionCta .btnPrimary,
+  .heroConversionCta .btnSecondary {
+    flex: none;
+    min-height: 52px;
   }
 
   .proofGrid {

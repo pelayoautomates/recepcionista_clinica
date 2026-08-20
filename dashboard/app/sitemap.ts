@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const publicPages = [
     { path: "/", changeFrequency: "weekly" as const, priority: 1 },
     { path: "/demo", changeFrequency: "weekly" as const, priority: 0.9 },
+    { path: "/piloto-clinicas-esteticas", changeFrequency: "weekly" as const, priority: 0.95 },
     { path: "/pricing", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/blog", changeFrequency: "weekly" as const, priority: 0.85 },
     { path: "/seguridad", changeFrequency: "monthly" as const, priority: 0.7 },

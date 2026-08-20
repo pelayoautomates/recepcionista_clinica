@@ -217,8 +217,8 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "programar_seguimiento",
             "description": (
-                "Programa un recordatorio para hacer seguimiento a un paciente que no ha agendado. "
-                "Úsala cuando un paciente muestre interés pero no confirme cita."
+                "Programa un seguimiento comercial solo si el sistema confirma que existe consentimiento SMS. "
+                "Nunca prometas el envío si la herramienta devuelve un error de consentimiento o desactivación."
             ),
             "parameters": {
                 "type": "object",
@@ -260,7 +260,8 @@ TOOL_DEFINITIONS = [
                 "el paciente tiene urgencia médica, dolor fuerte, sangrado, está enfadado, "
                 "pide hablar con una persona, hace preguntas médicas complejas, "
                 "el servicio no existe en el catálogo, no hay disponibilidad disponible, "
-                "la cita requiere aprobación o el precio no está claro."
+                "la cita requiere aprobación o el precio no está claro. Lee siempre "
+                "notificacion_enviada: si es false, no prometas que el equipo ya fue avisado."
             ),
             "parameters": {
                 "type": "object",

@@ -5,7 +5,7 @@ const MODES = [
   {
     key: "siempre",
     label: "Siempre activo",
-    desc: "El agente contesta todas las llamadas entrantes, 24/7. El paciente nunca oye el tono ocupado.",
+    desc: "El agente atiende las llamadas entrantes mientras el canal de voz esté correctamente activado.",
     icon: "📞",
     managed: false,
   },
@@ -30,12 +30,10 @@ type Mode = "siempre" | "fuera_horario" | "si_no_contestan";
 interface Props {
   clinicId: string;
   initialMode: Mode;
-  initialEmail: string;
 }
 
-export default function RoutingConfig({ clinicId, initialMode, initialEmail }: Props) {
+export default function RoutingConfig({ clinicId, initialMode }: Props) {
   const [mode, setMode] = useState<Mode>(initialMode || "siempre");
-  const [email, setEmail] = useState(initialEmail || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +46,7 @@ export default function RoutingConfig({ clinicId, initialMode, initialEmail }: P
       const res = await fetch(`/api/clinicas/${clinicId}/configuracion/guardar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ routing_mode: mode, notification_email: email || null }),
+        body: JSON.stringify({ routing_mode: mode }),
       });
       if (!res.ok) throw new Error("Error al guardar");
       setSaved(true);
@@ -133,34 +131,10 @@ export default function RoutingConfig({ clinicId, initialMode, initialEmail }: P
           fontSize: 13, color: "#92400e", lineHeight: 1.6,
         }}>
           <strong>Requiere configuración en la central telefónica.</strong>{" "}
-          Una vez que guardes este modo, nos pondremos en contacto para aplicar los cambios en Telnyx.
-          El prompt del agente ya se actualizará inmediatamente para adaptarse a este contexto.
+          Guardar registra tu preferencia, pero el modo no se considera operativo hasta que nuestro equipo
+          confirme por escrito que el desvío se ha aplicado y probado en Telnyx.
         </div>
       )}
-
-      {/* Notification email */}
-      <div style={{ marginBottom: 24 }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
-            Email de notificaciones
-          </span>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="recepcion@tuclinica.com"
-            style={{
-              padding: "10px 14px", border: "1px solid #d1d5db",
-              borderRadius: 8, fontSize: 14, color: "#111827",
-              background: "white", outline: "none", width: "100%",
-              boxSizing: "border-box",
-            }}
-          />
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>
-            Recibirás un email cuando el agente escale una conversación a humano o agende una cita.
-          </span>
-        </label>
-      </div>
 
       {/* Save */}
       {error && (

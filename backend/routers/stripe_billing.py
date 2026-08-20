@@ -5,6 +5,7 @@ Endpoints de billing con Stripe.
   POST /billing/webhook   → maneja eventos de Stripe (suscripciones, pagos)
 """
 import logging
+from datetime import datetime, timezone
 
 import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -14,6 +15,7 @@ from billing import MINUTOS_POR_PLAN
 from config import settings
 from database.client import get_supabase
 from security import require_admin_key
+from webhook_dedupe import mark_webhook_event_once
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,9 +58,34 @@ async def create_checkout(body: CheckoutRequest, _: None = Depends(require_admin
         raise HTTPException(status_code=503, detail=f"Precio Stripe no configurado para {body.plan}")
 
     db = get_supabase()
-    clinica = db.table("clinicas").select("nombre, stripe_customer_id, plan").eq("id", body.clinic_id).single().execute().data
+    clinica = db.table("clinicas").select(
+        "nombre, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, plan"
+    ).eq("id", body.clinic_id).single().execute().data
 
     customer_id = clinica.get("stripe_customer_id") or None
+
+    # Un upgrade no debe crear una segunda suscripción para el mismo cliente.
+    subscription_id = clinica.get("stripe_subscription_id")
+    if subscription_id and clinica.get("stripe_subscription_status") in ("active", "trialing"):
+        subscription = s.Subscription.retrieve(subscription_id)
+        items = subscription.get("items", {}).get("data", [])
+        if not items:
+            raise HTTPException(status_code=502, detail="La suscripción no tiene una línea actualizable")
+        s.Subscription.modify(
+            subscription_id,
+            items=[{"id": items[0]["id"], "price": price_id}],
+            proration_behavior="create_prorations",
+            metadata={"clinic_id": body.clinic_id, "plan": body.plan},
+            idempotency_key=f"upgrade:{body.clinic_id}:{body.plan}:{datetime.now(timezone.utc):%Y%m%d%H}",
+        )
+        db.table("clinicas").update({
+            "plan": body.plan,
+            "minutos_incluidos": MINUTOS_POR_PLAN.get(body.plan, 300),
+        }).eq("id", body.clinic_id).execute()
+        return {
+            "url": f"{settings.dashboard_url}/panel/facturacion?billing=updated&plan={body.plan}",
+            "updated": True,
+        }
 
     # Crear o reusar customer
     if not customer_id and body.email:
@@ -83,7 +110,10 @@ async def create_checkout(body: CheckoutRequest, _: None = Depends(require_admin
     elif body.email:
         session_params["customer_email"] = body.email
 
-    session = s.checkout.Session.create(**session_params)
+    session = s.checkout.Session.create(
+        **session_params,
+        idempotency_key=f"checkout:{body.clinic_id}:{body.plan}:{datetime.now(timezone.utc):%Y%m%d%H}",
+    )
     return {"url": session.url}
 
 
@@ -121,23 +151,52 @@ async def stripe_webhook(
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Firma de webhook inválida")
 
+    event_id = event.get("id")
+    if event_id and not mark_webhook_event_once("stripe", event_id, payload.decode("utf-8", errors="replace")):
+        return {"received": True, "duplicate": True}
+
     etype = event["type"]
     data = event["data"]["object"]
     logger.info("Stripe webhook: %s", etype)
-
-    if etype == "checkout.session.completed":
-        _handle_checkout_completed(data)
-
-    elif etype in ("customer.subscription.updated", "customer.subscription.created"):
-        _handle_subscription_updated(data)
-
-    elif etype == "customer.subscription.deleted":
-        _handle_subscription_deleted(data)
-
-    elif etype == "invoice.payment_failed":
-        _handle_payment_failed(data)
+    try:
+        if etype == "checkout.session.completed":
+            _handle_checkout_completed(data)
+        elif etype in ("customer.subscription.updated", "customer.subscription.created"):
+            _handle_subscription_updated(data)
+        elif etype == "customer.subscription.deleted":
+            _handle_subscription_deleted(data)
+        elif etype == "invoice.paid":
+            _handle_invoice_paid(data)
+        elif etype == "invoice.payment_failed":
+            _handle_payment_failed(data)
+    except Exception:
+        # Permite que Stripe reintente si el procesamiento falló después de reclamar el evento.
+        if event_id:
+            try:
+                get_supabase().table("webhook_events").delete().eq("provider", "stripe").eq("event_key", event_id).execute()
+            except Exception:
+                logger.exception("No se pudo liberar el evento Stripe fallido %s", event_id)
+        raise
 
     return {"received": True}
+
+
+def _handle_invoice_paid(invoice: dict):
+    """Renovación mensual cobrada → resetear el contador de minutos del mes."""
+    customer_id = invoice.get("customer")
+    if not customer_id:
+        return
+    db = get_supabase()
+    row = db.table("clinicas").select("id").eq("stripe_customer_id", customer_id).limit(1).execute()
+    if not row.data:
+        logger.warning("invoice.paid de customer %s sin clínica asociada", customer_id)
+        return
+    db.table("clinicas").update({
+        "minutos_usados_mes": 0,
+        "billing_period_start": datetime.now(timezone.utc).isoformat(),
+        "stripe_subscription_status": "active",
+    }).eq("id", row.data[0]["id"]).execute()
+    logger.info("Minutos reiniciados por renovación de customer %s", customer_id)
 
 
 def _handle_checkout_completed(session: dict):

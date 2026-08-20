@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import MarketingAnalytics from "@/components/MarketingAnalytics";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s | Atiende360",
   },
   description:
-    "Atiende360 es un software de recepcionista IA para clinicas privadas que atiende llamadas, WhatsApp y webchat, agenda citas y deriva a humano cuando hace falta.",
+    "Atiende360 es un software de recepcionista IA para clínicas privadas que recupera llamadas no atendidas, ayuda a agendar citas y deriva a humano cuando hace falta.",
   authors: [{ name: "Atiende360" }],
   creator: "Atiende360",
   publisher: "Atiende360",
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Atiende360 | Recepcionista IA para clinicas",
     description:
-      "Recepcionista IA 24/7 para clinicas: llamadas, WhatsApp, webchat, citas y escalado humano.",
+      "Recepcionista IA para clínicas: llamadas no atendidas, citas y escalado humano.",
     images: ["/opengraph-image"],
   },
 };
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         MozOsxFontSmoothing: "grayscale",
       }}>
         {children}
+        <MarketingAnalytics />
       </body>
     </html>
   );

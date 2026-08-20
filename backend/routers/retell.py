@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisco
 
 from agent.core import run_agent
 from config import settings
-from webhook_dedupe import mark_webhook_event_once
+from webhook_dedupe import mark_webhook_event_once, release_webhook_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -125,9 +125,11 @@ def _is_retell_ws_authorized(websocket: WebSocket) -> bool:
     global _warned_unprotected_ws
     secret = (settings.retell_ws_secret or "").strip()
     if not secret:
-        if settings.is_production and not _warned_unprotected_ws:
-            logger.warning("RETELL_WS_SECRET no configurado en producción: websocket Retell sin token dedicado")
-            _warned_unprotected_ws = True
+        if settings.is_production:
+            if not _warned_unprotected_ws:
+                logger.error("RETELL_WS_SECRET no configurado en producción: websocket Retell bloqueado")
+                _warned_unprotected_ws = True
+            return False
         return True
 
     query_token = (websocket.query_params.get("token") or "").strip()
@@ -383,6 +385,8 @@ async def retell_webhook(request: Request):
     raw_body = await request.body()
     raw_text = raw_body.decode("utf-8")
 
+    if settings.is_production and not settings.retell_api_key:
+        raise HTTPException(status_code=503, detail="Firma Retell no configurada")
     if settings.retell_api_key:
         signature = request.headers.get("x-retell-signature", "")
         if not _verify_retell_signature(raw_text, signature, settings.retell_api_key):
@@ -395,10 +399,57 @@ async def retell_webhook(request: Request):
     if not mark_webhook_event_once("retell", event_key, raw_text):
         return {"ok": True}
 
-    if event in ("call_ended", "call_analyzed", "transcript_updated"):
-        await _save_call_summary(call)
+    try:
+        if event == "call_ended":
+            await _cobrar_minutos_llamada(call)
+
+        if event in ("call_ended", "call_analyzed", "transcript_updated"):
+            await _save_call_summary(call)
+    except Exception as exc:
+        try:
+            release_webhook_event("retell", event_key)
+        except Exception:
+            logger.exception("No se pudo liberar el evento Retell fallido")
+        raise HTTPException(status_code=503, detail="Error temporal procesando llamada") from exc
 
     return {"ok": True}
+
+
+async def _cobrar_minutos_llamada(call: dict) -> None:
+    """
+    Descuenta del plan los minutos reales de la llamada.
+    Es el único punto donde se consumen minutos: el chat web y WhatsApp
+    verifican el plan pero no gastan minutos.
+    """
+    call_id = call.get("call_id")
+    clinic_id = _extract_clinic_id(call)
+    if not call_id or not clinic_id:
+        logger.warning("call_ended sin call_id/clinic_id — no se facturan minutos")
+        return
+
+    billing_key = f"minutos:{call_id}"
+    if not mark_webhook_event_once("retell_billing", billing_key):
+        return
+
+    try:
+        duracion_ms = call.get("duration_ms")
+        if duracion_ms is None:
+            inicio = call.get("start_timestamp")
+            fin = call.get("end_timestamp")
+            if inicio and fin:
+                duracion_ms = fin - inicio
+
+        from billing import incrementar_minutos, minutos_de_llamada
+
+        minutos = minutos_de_llamada(duracion_ms)
+        if minutos <= 0:
+            return
+
+        await incrementar_minutos(clinic_id, minutos)
+        logger.info("Facturados %s min a clínica %s (call %s)", minutos, clinic_id, call_id)
+    except Exception:
+        release_webhook_event("retell_billing", billing_key)
+        raise
 
 
 async def _save_call_summary(call: dict) -> None:

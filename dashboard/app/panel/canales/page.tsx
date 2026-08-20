@@ -22,7 +22,10 @@ export default async function CanalesPage() {
   return (
     <CanalesClient
       clinicId={clinic_id}
-      telefono={canales.telefono_ia || canales.telefono || null}
+      telefonoClinica={canales.telefono || null}
+      telefonoIa={canales.telefono_ia || null}
+      routingMode={canales.routing_mode || "si_no_contestan"}
+      desvioInicial={canales.desvio || null}
       twilioNumber={canales.twilio_whatsapp_number || null}
       twilioConfigured={canales.twilio_configured ?? false}
       smsActivo={canales.sms_activo ?? false}

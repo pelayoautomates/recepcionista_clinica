@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/landing",
   "/pricing",
   "/demo",
+  "/piloto-clinicas-esteticas",
   "/seguridad",
   "/integraciones",
   "/sobre-atiende360",
