@@ -8,17 +8,16 @@
 
 ## Qué es este producto
 
-Plataforma SaaS de recepción virtual para clínicas. Opera 24/7 atendiendo pacientes por **chat web**, **llamada telefónica** y **WhatsApp**. Los tres canales comparten el mismo agente de IA, la misma base de datos y el mismo contexto por paciente.
+Plataforma SaaS de recepción virtual para clínicas. Atiende mediante **llamada telefónica** y **WhatsApp** en los horarios y modos activados por cada clínica. Ambos canales comparten el mismo agente de IA, la misma base de datos y el mismo contexto por paciente. La web pública incluye una demo, pero el producto no ofrece todavía un webchat embebible.
 
 **Lo que hace:**
-- Atiende y responde pacientes por los tres canales 24/7
+- Atiende y responde pacientes por voz y WhatsApp cuando el canal está correctamente activado
 - Gestiona citas sobre Google Calendar real (crear, mover, cancelar)
 - Guarda cada contacto como lead con estado en Supabase
 - Transcribe audios de WhatsApp con Whisper
 - Envía recordatorios automáticos antes de citas (24h y 1h)
-- Hace seguimiento de leads fríos
+- Permite seguimiento comercial solo con consentimiento explícito; permanece desactivado por defecto
 - Escala a humano cuando detecta urgencia o complejidad
-- Genera resúmenes diarios por clínica
 
 **Lo que NO hace:**
 - No diagnostica ni recomienda medicamentos

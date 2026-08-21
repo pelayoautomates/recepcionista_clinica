@@ -69,7 +69,7 @@ const INTEGRACIONES = [
     badge: "Telefonía SIP",
     badgeColor: "#0f766e",
     description:
-      "Proveedor de numeración telefónica para el canal de voz IA. La clínica compra un número desde el panel y queda activo al instante. Mismo número para llamadas entrantes y SMS de recordatorio de citas.",
+      "Proveedor de numeración telefónica para el canal de voz IA. La activación se completa cuando el número, el SIP y el agente han superado una prueba de llamada. Puede usarse también para SMS transaccional.",
   },
   {
     Icon: SiStripe,
@@ -80,7 +80,7 @@ const INTEGRACIONES = [
     badge: "Pagos seguros",
     badgeColor: "#4f46e5",
     description:
-      "Gestión de suscripciones y facturación. Checkout seguro, cambio de plan, cancelación y webhooks de estado de pago. Los datos de tarjeta nunca tocan los servidores de Atiende360.",
+      "Infraestructura preparada para suscripciones y facturación cuando el cobro online esté habilitado. Durante el piloto, la contratación y activación se confirman de forma asistida.",
   },
   {
     Icon: SiMeta,
@@ -91,7 +91,7 @@ const INTEGRACIONES = [
     badge: "Meta for Developers",
     badgeColor: "#1d4ed8",
     description:
-      "Flujo oficial de Meta que permite a cada clínica conectar su propio número de WhatsApp Business sin tocar credenciales externas. Un clic en el panel, inicio de sesión con Facebook Business y listo.",
+      "Flujo oficial de Meta para conectar un número de WhatsApp Business. La activación solo se confirma cuando la cuenta, el número y la suscripción del webhook han sido verificados.",
   },
 ];
 

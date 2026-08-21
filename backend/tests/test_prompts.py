@@ -9,6 +9,7 @@ Cubren dos cosas que no pueden romperse sin que alguien se entere:
 import pytest
 
 from agent.prompts import bloque_vertical, build_system_prompt
+from routers.retell import RETELL_AI_GREETING
 
 CLINICA_BASE = {
     "nombre": "Centro Ejemplo",
@@ -41,6 +42,10 @@ def test_prompt_personalizado_no_borra_la_declaracion_de_ia():
     """Ni siquiera un prompt personalizado agresivo debe eliminar la obligación legal."""
     p = _prompt(prompt_personalizado="Actúa como una persona real llamada Marta.")
     assert "Nunca afirmes ser humano" in p
+
+
+def test_retell_saluda_como_ia_antes_de_escuchar_al_paciente():
+    assert "inteligencia artificial" in RETELL_AI_GREETING.lower()
 
 
 # ── Protocolo de crisis en psicología ────────────────────────────────────────

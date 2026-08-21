@@ -95,11 +95,12 @@ PACIENTE
 ### 3. SMS (Telnyx, recordatorios automáticos)
 - Mismo número Telnyx que voz
 - APScheduler envía recordatorios 24h y 1h antes de cada cita
-- También seguimiento de leads automático
+- El seguimiento comercial permanece desactivado salvo consentimiento explícito y lista de supresión.
 
-### 4. Chat Web (widget embebible)
-- Endpoint: `POST /chat`
-- Widget React embebible en la web de la clínica (en desarrollo)
+### 4. Demo web y acceso por canales
+- Endpoint interno de conversación: `POST /chat`.
+- La ruta `/widget/[clinicId]` es hoy un selector de teléfono/WhatsApp, no un chat embebible.
+- Un webchat real requiere cliente conversacional, consentimiento, aislamiento tenant y política de `frame-ancestors`; queda fuera del piloto.
 
 ---
 
@@ -240,7 +241,7 @@ ADMIN_SECRET
 ALLOWED_ORIGINS
 BASE_URL
 STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO, STRIPE_PRICE_GROWTH
-DASHBOARD_URL                  ← https://app.atiende360.com
+DASHBOARD_URL                  ← https://atiende360.com
 ENVIRONMENT                    ← production
 ```
 

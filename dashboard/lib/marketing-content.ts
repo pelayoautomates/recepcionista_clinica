@@ -317,7 +317,6 @@ export const PLANS: PricingPlan[] = [
       "750 minutos de llamadas IA al mes",
       "Seguimiento de leads mejorado",
       "Personalizacion asistida de reglas y tono",
-      "Soporte email y WhatsApp",
     ],
   },
   {
@@ -329,7 +328,6 @@ export const PLANS: PricingPlan[] = [
     features: [
       "Todo lo de Pro",
       "1.800 minutos de llamadas IA al mes",
-      "Soporte prioritario",
       "Revision asistida inicial",
     ],
   },

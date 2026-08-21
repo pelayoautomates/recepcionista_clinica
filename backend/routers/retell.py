@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 _warned_unprotected_ws = False
 
+RETELL_AI_GREETING = (
+    "Hola, soy Valeria, la asistente de inteligencia artificial de la clínica. "
+    "¿En qué puedo ayudarte?"
+)
+
 
 def _extract_clinic_id(call: dict, message: dict | None = None) -> str | None:
     candidates = [
@@ -229,7 +234,11 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
             }
         )
     )
-    await websocket.send_text(json.dumps(_retell_response(response_id=0, content="", content_complete=True)))
+    # Retell reproduce esta respuesta al abrir la llamada. La identificación como IA
+    # sucede antes de recoger el motivo de consulta del paciente.
+    await websocket.send_text(
+        json.dumps(_retell_response(response_id=0, content=RETELL_AI_GREETING, content_complete=True))
+    )
 
     try:
         while True:

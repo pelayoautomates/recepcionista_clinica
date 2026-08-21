@@ -521,7 +521,7 @@ export default function MarketingLanding() {
               <p className={styles.sectionKicker}>En acción</p>
               <h2 className={styles.sectionTitle}>Así habla con tus pacientes</h2>
               <p className={styles.sectionSubtitle}>
-                Natural, rápido y siempre disponible. Agenda citas sin que intervengas.
+                Conversaciones naturales dentro del horario y los canales que hayas activado. Tu equipo conserva el control.
               </p>
             </div>
             <div className={styles.mobileChatPreview}>

@@ -78,7 +78,7 @@ export default async function WidgetPage({ params }: { params: Promise<{ clinicI
             </svg>
           </div>
           <h2>{name}</h2>
-          <p>Nuestra recepcionista IA está disponible 24/7 para ayudarte a gestionar tu cita.</p>
+          <p>Elige uno de los canales activos de la clínica para consultar o gestionar tu cita.</p>
 
           {waNumber && (
             <a

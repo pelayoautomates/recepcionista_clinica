@@ -18,16 +18,15 @@ La estrategia recomendada es:
 5. Posponer dental hasta tener integracion real con gestores dominantes; no priorizar psicologia por su mayor riesgo operativo y de datos.
 6. No ampliar funcionalidades hasta probar con 5-10 clinicas que llamada perdida -> respuesta -> cita correcta -> valor medible funciona de extremo a extremo.
 
-## Estado de produccion observado
+## Estado de produccion verificado al cierre
 
-Bloqueantes externos detectados mediante comprobaciones de solo lectura:
+- Supabase esta restaurado, enlazado y con las migraciones 017-019 aplicadas.
+- Vercel y Railway ejecutan el snapshot auditado; `https://api.atiende360.com/health` responde con base de datos lista y scheduler activo.
+- La captacion publica se comprobo de extremo a extremo: HTTP 201, persistencia en Supabase y eliminacion posterior del lead sintetico.
+- Swagger/OpenAPI estan cerrados en produccion y las tablas internas comprobadas rechazan al rol anonimo.
+- El agente compartido de Retell esta configurado y el backend inicia la llamada identificandose expresamente como IA.
 
-- El backend publico responde `503/degraded` y no conecta con Supabase.
-- El hostname Supabase configurado no resuelve DNS.
-- `app.atiende360.com` no resuelve; `atiende360.com` si responde.
-- El despliegue observado no coincide completamente con el scheduler del repositorio.
-
-No incorporar pacientes reales hasta restaurar la base de datos, comprobar backups/PITR, aplicar migraciones, desplegar por SHA conocido y completar un smoke test de todos los canales.
+El producto admite demos y un piloto asistido, pero no debe considerarse un SaaS self-service completamente listo hasta cerrar los gates externos enumerados en P0: Stripe de produccion, Pixel/CAPI, documentacion legal y una llamada real con handoff probado.
 
 ## Posicionamiento recomendado
 
@@ -103,18 +102,18 @@ Metricas complementarias:
 
 ## Riesgos pendientes priorizados
 
-### Reauditoria de cierre (20-08-2026)
+### Reauditoria de cierre (21-08-2026)
 
 - Supabase restaurado y accesible. Se vinculo el CLI al proyecto de produccion, se ejecuto preflight sin duplicados ni solapes y se aplicaron 017, 018 y 019. El historial remoto coincide con el local.
 - `demo_requests` y las columnas de consentimiento SMS existen; `demo_requests` y `webhook_events` rechazan al rol anonimo con HTTP 401.
 - Se corrigieron scoping tenant de tools, SSRF, reintentos de webhooks, entrega WhatsApp, activacion fail-closed de canales, doble suscripcion Stripe, citas solapadas y falsos exitos de onboarding.
 - Se incorporaron consentimiento de analitica, Pixel/CAPI condicional, atribucion UTM saneada, landing del piloto estetico y CI de backend/dashboard.
 - QA responsive: los CTA principales miden 52 px en movil, no existe overflow horizontal y la landing del piloto es publica en middleware.
-- Continuan como gates externos: desplegar este snapshot, aportar identidad legal/DPA/EIPD, configurar Stripe de produccion y configurar Pixel/CAPI en el hosting del dashboard.
+- El snapshot auditado esta desplegado en Vercel y Railway. Continuan como gates externos: aportar identidad legal/DPA/EIPD, configurar Stripe de produccion, configurar Pixel/CAPI en el hosting del dashboard y ejecutar una llamada real con handoff sobre una clinica con numero de voz asignado.
 
 ### P0 — no go-live
 
-1. Desplegar el snapshot auditado y verificar DNS/smoke tests en los dominios publicos. Supabase y migraciones 017-019 ya estan resueltos; falta documentar una prueba periodica de restauracion.
+1. Documentar y ensayar periodicamente la restauracion de Supabase. El snapshot, DNS principal, smoke tests y migraciones 017-019 ya estan resueltos.
 2. Completar identidad legal, Aviso Legal, pedido B2B, DPA art. 28, TOMs, lista de subencargados, transferencias y EIPD.
 3. Verificar de forma determinista el aviso IA/privacidad antes del primer audio o texto en todos los canales de produccion.
 4. Completar el handoff humano con cola durable, dos destinatarios probados y fallback. El copy ya no promete contacto cuando no hay entrega confirmada.
@@ -192,7 +191,7 @@ Gates: 60% logra cita/lead cualificado en siete dias; 50% de pilotos pasa a pago
 
 ## Evidencia de validacion local
 
-- Backend: 69 tests pasados.
+- Backend: 70 tests pasados.
 - TypeScript: `npx tsc --noEmit` sin errores.
 - Dashboard: build de produccion completado, 54 rutas generadas.
 - Dependencias: `npm audit` con 0 vulnerabilidades.

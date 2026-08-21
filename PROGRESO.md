@@ -1,6 +1,20 @@
 # Progreso de Implementación
 
-Última actualización: 2026-07-27
+Última actualización: 2026-08-21
+
+---
+
+## Cierre de auditoria y despliegue (2026-08-21)
+
+- Supabase de produccion restaurado; migraciones 017, 018 y 019 aplicadas y verificadas.
+- Backend y dashboard desplegados por SHA conocido en Railway y Vercel.
+- Smoke de produccion correcto: API, base de datos, scheduler, endpoint de captacion y bloqueo de documentacion tecnica.
+- Captacion verificada de extremo a extremo con un lead sintetico, eliminado despues de la prueba.
+- Agente compartido de Retell configurado en Railway y Retell; el primer mensaje se identifica expresamente como IA.
+- Validacion local: 70 tests backend, build Next de 54 rutas y `npm audit` sin vulnerabilidades conocidas.
+- Gates externos antes de Meta Ads: Stripe de produccion, Pixel/CAPI y Test Events, identidad/DPA/EIPD/Aviso Legal y una llamada real con handoff usando un numero asignado.
+
+Estado comercial: apto para demos y piloto asistido. No declarar listo el SaaS self-service ni activar campanas pagadas hasta cerrar esos gates.
 
 ---
 
@@ -25,9 +39,9 @@ el agente. La personalidad, servicios y horarios se construyen en el servidor po
   `retell_agent_id` propio si la clínica lo tuviera guardado (altas antiguas).
 - Se conservan create/update agent para uso puntual desde `/admin/.../retell/agent`.
 
-**Pendiente manual:** configurar el `begin_message` del agente en el panel de Retell
-con la declaración de IA (ver más abajo), ya que con custom-LLM el saludo inicial lo
-emite Retell, no nuestro backend.
+**Resuelto:** el backend envia como primera respuesta del custom LLM un saludo fijo que
+declara expresamente que Valeria es una asistente de inteligencia artificial. El agente
+compartido tambien esta configurado en Retell y en `RETELL_AGENT_ID` de Railway.
 
 ### Desvío de llamadas en vez de compra de números
 
@@ -1215,12 +1229,11 @@ número falla con un 502 explícito en vez de guardar un canal que suena pero no
 
 ## Próximas acciones prioritarias
 
-1. **Retell: terminar configuración** — Webhook Settings en dashboard Retell + metadata clinic_id + RETELL_API_KEY en Railway
-2. **Fix Bug B1:** Verificar y corregir `GOOGLE_REDIRECT_URI` en Railway y Google Cloud Console
-3. **Implementar subpáginas del panel clínica:** `/panel/conversaciones`, `/panel/leads`, `/panel/citas`, `/panel/configuracion`
-4. **Implementar `/clinicas/nueva`:** Formulario de alta de clínica
-5. **Conectar número WhatsApp real:** Configurar Meta Business y probar end-to-end
-6. **Test de aceptación completo:** Chat → lead → cita en GCal real
+1. **Stripe produccion:** configurar secreto, webhook y price IDs; probar alta, upgrade, impago y cancelacion.
+2. **Meta Ads:** configurar Pixel/CAPI en Vercel y validar eventos en Test Events antes de invertir.
+3. **Legal:** completar identidad, Aviso Legal, DPA art. 28, TOMs, subencargados y EIPD.
+4. **Voz real:** asignar un numero a una clinica y probar llamada, agenda y handoff con dos destinatarios.
+5. **Operaciones:** implementar cola durable de handoff, exportacion/borrado/offboarding y soporte trazable.
 
 ---
 
