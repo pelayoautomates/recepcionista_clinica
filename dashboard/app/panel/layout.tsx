@@ -25,41 +25,53 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     if (expires < new Date()) redirect("/suscripcion");
   }
 
-  const [clinicaRes, metricasRes] = await Promise.all([
+  const [clinicaRes, metricasRes, preflightRes] = await Promise.all([
     adminFetch(`/admin/clinicas/${rol.clinic_id}`),
     adminFetch(`/admin/clinicas/${rol.clinic_id}/metricas`),
+    adminFetch(`/admin/clinicas/${rol.clinic_id}/preflight`, { noStore: true }),
   ]);
   const clinica = await clinicaRes.json();
   const metricas = await metricasRes.json().catch(() => ({}));
+  const preflight = await preflightRes.json().catch(() => null);
 
   // Días restantes de trial
   const trialDiasRestantes = rol.trial_expires_at && rol.plan === "trial"
     ? Math.ceil((new Date(rol.trial_expires_at).getTime() - Date.now()) / 86_400_000)
     : undefined;
 
-  // Checklist de onboarding
-  const checklistItems = [
-    { id: "clinica", label: "Clínica configurada", done: true },
-    {
-      id: "agente",
-      label: "Agente entrenado",
-      done: Boolean(clinica.prompt_personalizado),
-      href: "/panel/configuracion",
-    },
-    {
-      id: "calendario",
-      label: "Google Calendar conectado",
-      done: Boolean(clinica.google_tokens_enc),
-      href: "/panel/configuracion",
-    },
-    {
-      id: "telefono",
-      label: "Número de teléfono IA activo",
-      done: Boolean(clinica.telefono_ia),
-      href: "/panel/canales",
-    },
-  ];
-  const onboardingCompleto = checklistItems.every(i => i.done);
+  // Checklist de onboarding. Lo calcula el backend en /preflight para que el panel
+  // y el agente coincidan en qué significa "lista para atender": faltaban servicios
+  // reservables y profesionales con agenda, sin los cuales la IA no puede dar cita
+  // por mucho que el teléfono suene.
+  type PreflightCheck = { id: string; label: string; ok: boolean; href?: string };
+  const checklistItems =
+    preflight?.checks?.map((c: PreflightCheck) => ({
+      id: c.id,
+      label: c.label,
+      done: c.ok,
+      href: c.href,
+    })) ?? [
+      { id: "clinica", label: "Clínica configurada", done: true },
+      {
+        id: "agente",
+        label: "Agente entrenado",
+        done: Boolean(clinica.prompt_personalizado),
+        href: "/panel/configuracion",
+      },
+      {
+        id: "calendario",
+        label: "Google Calendar conectado",
+        done: Boolean(clinica.google_tokens_enc),
+        href: "/panel/configuracion",
+      },
+      {
+        id: "telefono",
+        label: "Número de teléfono IA activo",
+        done: Boolean(clinica.telefono_ia),
+        href: "/panel/canales",
+      },
+    ];
+  const onboardingCompleto = checklistItems.every((i: { done: boolean }) => i.done);
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f6f7f9" }}>

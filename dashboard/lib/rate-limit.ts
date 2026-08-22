@@ -6,6 +6,7 @@ type Bucket = {
 };
 
 const buckets = new Map<string, Bucket>();
+const MAX_BUCKETS = 5000;
 
 function nowMs() {
   return Date.now();
@@ -27,6 +28,16 @@ export function enforceRateLimit(
   const ip = getClientIp(req);
   const key = `${keyPrefix}:${ip}`;
   const now = nowMs();
+
+  // Sin purga el Map crece sin limite mientras viva la instancia: cada IP nueva
+  // deja una entrada muerta para siempre.
+  if (buckets.size > MAX_BUCKETS) {
+    for (const [k, bucket] of buckets) {
+      if (bucket.resetAt <= now) buckets.delete(k);
+    }
+    if (buckets.size > MAX_BUCKETS) buckets.clear();
+  }
+
   const current = buckets.get(key);
 
   if (!current || current.resetAt <= now) {

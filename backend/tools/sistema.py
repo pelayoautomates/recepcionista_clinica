@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from database.client import get_supabase
 
@@ -69,12 +69,119 @@ async def agregar_a_lista_espera(
     return {"ok": True, "entrada_id": result.data[0]["id"]}
 
 
+async def entregar_aviso_escalada(
+    clinic_id: str | None,
+    paciente_id: str | None,
+    conversacion_id: str | None,
+    motivo: str,
+    resumen: str,
+) -> tuple[bool, list[str]]:
+    """
+    Envía el aviso de escalada a todos los destinatarios configurados.
+
+    Son dos: el webhook propio de la clínica (`clinicas.notif_webhook`) y el
+    webhook global de la agencia (`NOTIFY_WEBHOOK_URL`). Antes se usaba uno *o*
+    el otro, así que durante un piloto la agencia no se enteraba de las escaladas
+    de sus clientes. Ahora se intentan los dos y basta con que uno confirme.
+
+    Devuelve (entregado_a_alguno, destinos_confirmados).
+    """
+    import httpx
+
+    from config import settings
+    from outbound import validate_public_http_url
+
+    db = get_supabase()
+
+    destinos: list[str] = []
+    if clinic_id:
+        try:
+            row = db.table("clinicas").select("notif_webhook").eq("id", clinic_id).single().execute()
+            propio = (row.data or {}).get("notif_webhook")
+            if propio:
+                destinos.append(propio)
+        except Exception as exc:
+            logger.warning("No se pudo leer notif_webhook de %s: %s", clinic_id, exc)
+
+    global_url = (settings.notify_webhook_url or "").strip()
+    if global_url and global_url not in destinos:
+        destinos.append(global_url)
+
+    if not destinos:
+        logger.warning("ESCALADA SIN DESTINATARIO — clínica %s no tiene notif_webhook", clinic_id)
+        return False, []
+
+    payload = {
+        "tipo": "escalada_humano",
+        "clinic_id": clinic_id,
+        "paciente_id": paciente_id,
+        "conversacion_id": conversacion_id,
+        "motivo": motivo,
+        "resumen": resumen,
+    }
+
+    entregados: list[str] = []
+    async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
+        for url in destinos:
+            try:
+                validate_public_http_url(url, https_only=settings.is_production)
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                entregados.append(url)
+            except Exception as e:
+                logger.error("Error enviando escalada a %s: %s", url, e)
+
+    if entregados:
+        logger.info("Escalada entregada a %d de %d destinos", len(entregados), len(destinos))
+    return bool(entregados), entregados
+
+
+def _encolar_reintento_escalada(
+    clinic_id: str,
+    paciente_id: str | None,
+    conversacion_id: str | None,
+    motivo: str,
+    resumen: str,
+) -> None:
+    """
+    Deja la escalada en la cola de jobs para que el scheduler la reintente.
+
+    Sin esto, un webhook caído perdía el aviso para siempre: el único rastro era
+    la conversación marcada en el panel, que nadie está mirando justo cuando
+    hace falta.
+    """
+    db = get_supabase()
+    ahora = datetime.now(timezone.utc)
+    referencia = conversacion_id or paciente_id or ahora.strftime("%Y%m%d%H%M%S")
+
+    try:
+        db.table("jobs").upsert(
+            {
+                "clinic_id": clinic_id,
+                "paciente_id": paciente_id,
+                "tipo": "escalada_humano",
+                "fecha_programada": (ahora + timedelta(minutes=2)).isoformat(),
+                "estado": "pendiente",
+                "idempotency_key": f"escalada_humano_{referencia}_{int(ahora.timestamp())}",
+                "payload": {
+                    "conversacion_id": conversacion_id,
+                    "motivo": motivo,
+                    "resumen": resumen,
+                },
+            },
+            on_conflict="idempotency_key",
+        ).execute()
+        logger.info("Escalada encolada para reintento — clínica %s", clinic_id)
+    except Exception as exc:
+        logger.error("No se pudo encolar el reintento de escalada: %s", exc)
+
+
 async def escalar_a_humano(clinic_id: str, paciente_id: str, motivo: str, resumen: str) -> dict:
     """
     Escala la conversación activa a un humano:
     1. Cambia estado de la conversación a 'esperando_humano'
     2. Cambia estado del lead a 'requiere_humano'
-    3. Intenta notificar a la clínica y devuelve evidencia de entrega
+    3. Avisa a la clínica y a la agencia; si nadie confirma, deja el aviso en cola
     """
     db = get_supabase()
 
@@ -102,47 +209,25 @@ async def escalar_a_humano(clinic_id: str, paciente_id: str, motivo: str, resume
         paciente_id, clinic_id, motivo
     )
 
-    # Notificación por webhook — primero webhook propio de la clínica, luego global
-    from config import settings
-    import httpx
+    notification_delivered, destinos = await entregar_aviso_escalada(
+        clinic_id=clinic_id,
+        paciente_id=paciente_id,
+        conversacion_id=conv_id,
+        motivo=motivo,
+        resumen=resumen,
+    )
 
-    webhook_url = None
-    if clinic_id:
-        try:
-            clinica_row = db.table("clinicas").select("notif_webhook").eq("id", clinic_id).single().execute()
-            webhook_url = (clinica_row.data or {}).get("notif_webhook") or None
-        except Exception:
-            pass
-    webhook_url = webhook_url or settings.notify_webhook_url
-
-    payload = {
-        "tipo": "escalada_humano",
-        "clinic_id": clinic_id,
-        "paciente_id": paciente_id,
-        "conversacion_id": conv_id,
-        "motivo": motivo,
-        "resumen": resumen,
-    }
-
-    notification_delivered = False
-    if webhook_url:
-        try:
-            from outbound import validate_public_http_url
-            validate_public_http_url(webhook_url, https_only=settings.is_production)
-            async with httpx.AsyncClient(timeout=5, follow_redirects=False) as client:
-                response = await client.post(webhook_url, json=payload)
-                response.raise_for_status()
-            notification_delivered = True
-            logger.info("Notificación escalada enviada a %s", webhook_url)
-        except Exception as e:
-            logger.error("Error enviando notificación de escalada a %s: %s", webhook_url, e)
-    else:
-        logger.warning("ESCALADA SIN NOTIFICACIÓN — clínica %s no tiene notif_webhook configurado", clinic_id)
+    reintento_encolado = False
+    if not notification_delivered:
+        _encolar_reintento_escalada(clinic_id, paciente_id, conv_id, motivo, resumen)
+        reintento_encolado = True
 
     return {
         "estado": "esperando_humano",
         "registrado_en_panel": conv_id is not None,
         "notificacion_enviada": notification_delivered,
+        "reintento_encolado": reintento_encolado,
+        "destinos_notificados": len(destinos),
         "conversacion_id": conv_id,
         "motivo": motivo,
         "resumen": resumen,

@@ -77,8 +77,18 @@ def _retell_response(response_id: int, content: str, content_complete: bool = Tr
     return r
 
 
-def _get_transfer_number(clinic_id: str, conversacion_id: str | None) -> str | None:
-    """Devuelve el telefono real de la clínica si la conversación está en esperando_humano."""
+def _get_transfer_number(
+    clinic_id: str,
+    conversacion_id: str | None,
+    telefono_cache: dict | None = None,
+) -> str | None:
+    """
+    Devuelve el telefono real de la clínica si la conversación está en esperando_humano.
+
+    `telefono_cache` guarda el teléfono durante la llamada: el número de la clínica
+    no cambia a mitad de conversación y esto ahorra una consulta por cada turno,
+    que en voz se nota directamente en la latencia de respuesta.
+    """
     if not conversacion_id:
         return None
     try:
@@ -87,8 +97,15 @@ def _get_transfer_number(clinic_id: str, conversacion_id: str | None) -> str | N
         conv = db.table("conversaciones").select("estado").eq("id", conversacion_id).single().execute()
         if not conv.data or conv.data.get("estado") != "esperando_humano":
             return None
-        clinic = db.table("clinicas").select("telefono").eq("id", clinic_id).single().execute()
-        telefono = clinic.data.get("telefono") if clinic.data else None
+
+        if telefono_cache is not None and "telefono" in telefono_cache:
+            telefono = telefono_cache["telefono"]
+        else:
+            clinic = db.table("clinicas").select("telefono").eq("id", clinic_id).single().execute()
+            telefono = clinic.data.get("telefono") if clinic.data else None
+            if telefono_cache is not None:
+                telefono_cache["telefono"] = telefono
+
         if not telefono:
             return None
         from telnyx_sms import to_e164
@@ -222,6 +239,7 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
     clinic_id = None
     conversacion_id = _conversation_id_from_call_id(call_id) if call_id else None
     last_validated_pair: tuple[str, str] | None = None
+    telefono_cache: dict = {}
 
     await websocket.send_text(
         json.dumps(
@@ -366,7 +384,9 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                     logger.error("Error in agent - call=%s: %s", call_id, e, exc_info=True)
                     respuesta = "Disculpa, ha ocurrido un problema. Puedes repetir lo que necesitas?"
 
-            transfer_number = _get_transfer_number(clinic_id, conversacion_id) if clinic_id else None
+            transfer_number = (
+                _get_transfer_number(clinic_id, conversacion_id, telefono_cache) if clinic_id else None
+            )
             await websocket.send_text(
                 json.dumps(
                     _retell_response(

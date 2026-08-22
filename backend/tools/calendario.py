@@ -11,6 +11,7 @@ find_available_slots() — función única que comprueba TODAS las restricciones
 create_appointment_validated() — crea cita con todas las validaciones en orden.
 """
 
+import asyncio
 import logging
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
@@ -60,7 +61,8 @@ def _get_clinic(db, clinic_id: str) -> dict:
 def _get_servicio(db, clinic_id: str, nombre_servicio: str) -> dict | None:
     """Busca servicio por nombre (case-insensitive) en tabla servicios."""
     r = db.table("servicios").select(
-        "id, nombre, duracion_min, buffer_antes_min, buffer_despues_min, reservable_ia, sala_id"
+        "id, nombre, duracion_min, buffer_antes_min, buffer_despues_min, reservable_ia, "
+        "requiere_revision, sala_id"
     ).eq("clinic_id", clinic_id).eq("activo", True).execute()
     for s in (r.data or []):
         if s["nombre"].lower() == nombre_servicio.lower():
@@ -92,17 +94,6 @@ def _get_profesionales_validos(db, clinic_id: str, servicio_id: str | None, prof
     return [p for p in profs if p["id"] in validos]
 
 
-def _disponibilidad_prof_dia(db, profesional_id: str, dia_semana: int) -> tuple[time, time] | None:
-    """Devuelve (hora_inicio, hora_fin) del profesional para ese día, o None si no trabaja."""
-    r = db.table("disponibilidad_profesional").select(
-        "hora_inicio, hora_fin, activo"
-    ).eq("profesional_id", profesional_id).eq("dia_semana", dia_semana).eq("activo", True).execute()
-    if not r.data:
-        return None
-    row = r.data[0]
-    return _parse_time(row["hora_inicio"]), _parse_time(row["hora_fin"])
-
-
 def _bloques_activos(db, clinic_id: str, fecha_inicio: datetime, fecha_fin: datetime, profesional_id: str | None) -> list[dict]:
     """Bloques de agenda que afectan el rango dado (toda la clínica o el profesional específico)."""
     query = db.table("bloques_agenda").select(
@@ -111,13 +102,17 @@ def _bloques_activos(db, clinic_id: str, fecha_inicio: datetime, fecha_fin: date
     result = query.execute().data or []
     filtrados = []
     for b in result:
-        # Bloque global (sin profesional asignado) → afecta a todos
-        if not b.get("profesional") and not b.get("profesional_id"):
+        if b.get("profesional_id"):
+            # Bloque de un profesional concreto
+            if profesional_id and b.get("profesional_id") == profesional_id:
+                filtrados.append(b)
+        else:
+            # Sin profesional_id: bloque global, o bien uno antiguo que solo
+            # guardaba el nombre en el campo TEXT `profesional`. Ese segundo caso
+            # se ignoraba por completo, así que un bloqueo heredado no impedía
+            # reservar encima. Se tratan como globales: perder un hueco es menos
+            # grave que agendar sobre una ausencia real.
             filtrados.append(b)
-        elif profesional_id and b.get("profesional_id") == profesional_id:
-            filtrados.append(b)
-        # Compatibilidad con campo TEXT antiguo
-        # (no lo filtramos aquí; al bot le importa que exista el bloque)
     return filtrados
 
 
@@ -149,8 +144,107 @@ def _gcal_ocupado(clinic_id: str, fecha_inicio: datetime, fecha_fin: datetime, c
         eventos = gcal.listar_eventos_rango(UUID(clinic_id), fecha_inicio, fecha_fin)
         return len(eventos) > 0
     except Exception as exc:
-        logger.warning("GCal check failed for clinic %s: %s", clinic_id, exc)
+        # Fallo en abierto a propósito: bloquear toda la agenda porque Google no
+        # responde sería peor durante una llamada en curso. Se registra como ERROR
+        # (no warning) porque implica que se puede reservar sobre un evento que
+        # existe en el calendario y nadie lo va a ver hasta que ocurra.
+        logger.error("GCal check failed for clinic %s — se asume libre: %s", clinic_id, exc)
         return False
+
+
+def _parse_dt(value) -> datetime | None:
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=TZ)
+
+
+def _solapa(inicio_a: datetime, fin_a: datetime, intervalos: list[tuple[datetime, datetime]]) -> bool:
+    return any(inicio_a < fin_b and fin_a > inicio_b for inicio_b, fin_b in intervalos)
+
+
+def _cargar_contexto_dia(
+    db,
+    clinic_id: str,
+    prof_ids: list[str],
+    dia_inicio: datetime,
+    dia_fin: datetime,
+    dia_semana: int,
+    clinic: dict,
+) -> dict:
+    """
+    Carga de una sola vez todo lo que restringe la agenda de un dia concreto.
+
+    Antes se consultaba la base de datos (y Google Calendar) una vez por cada slot
+    candidato y profesional: en una llamada de voz eso son decenas de round-trips
+    secuenciales antes de poder proponer un hueco. Aqui se hace una consulta por
+    tipo de restriccion y el resto se resuelve en memoria.
+    """
+    disponibilidad: dict[str, tuple[time, time]] = {}
+    citas_por_prof: dict[str, list[tuple[datetime, datetime]]] = {pid: [] for pid in prof_ids}
+    bloques_globales: list[tuple[datetime, datetime]] = []
+    bloques_por_prof: dict[str, list[tuple[datetime, datetime]]] = {pid: [] for pid in prof_ids}
+    gcal_ocupado: list[tuple[datetime, datetime]] = []
+
+    if prof_ids:
+        disp_rows = db.table("disponibilidad_profesional").select(
+            "profesional_id, hora_inicio, hora_fin"
+        ).in_("profesional_id", prof_ids).eq("dia_semana", dia_semana).eq("activo", True).execute().data or []
+        for row in disp_rows:
+            pid = row.get("profesional_id")
+            if pid and pid not in disponibilidad:
+                disponibilidad[pid] = (_parse_time(row["hora_inicio"]), _parse_time(row["hora_fin"]))
+
+        citas_rows = db.table("citas").select(
+            "profesional_id, fecha_inicio, fecha_fin"
+        ).eq("clinic_id", clinic_id).in_("profesional_id", prof_ids).not_.in_(
+            "estado", ["cancelada", "no_asistio"]
+        ).lt("fecha_inicio", dia_fin.isoformat()).gt("fecha_fin", dia_inicio.isoformat()).execute().data or []
+        for row in citas_rows:
+            inicio = _parse_dt(row.get("fecha_inicio"))
+            fin = _parse_dt(row.get("fecha_fin"))
+            pid = row.get("profesional_id")
+            if inicio and fin and pid in citas_por_prof:
+                citas_por_prof[pid].append((inicio, fin))
+
+    bloques_rows = db.table("bloques_agenda").select(
+        "fecha_inicio, fecha_fin, profesional, profesional_id"
+    ).eq("clinic_id", clinic_id).lt("fecha_inicio", dia_fin.isoformat()).gt(
+        "fecha_fin", dia_inicio.isoformat()
+    ).execute().data or []
+    for row in bloques_rows:
+        inicio = _parse_dt(row.get("fecha_inicio"))
+        fin = _parse_dt(row.get("fecha_fin"))
+        if not inicio or not fin:
+            continue
+        pid = row.get("profesional_id")
+        if pid:
+            bloques_por_prof.setdefault(pid, []).append((inicio, fin))
+        else:
+            # Incluye los bloques antiguos que solo tienen el nombre en `profesional`
+            # (ver _bloques_activos): se aplican a todos para no reservar encima.
+            bloques_globales.append((inicio, fin))
+
+    if clinic.get("google_tokens_enc"):
+        try:
+            for evento in gcal.listar_eventos_rango(UUID(clinic_id), dia_inicio, dia_fin):
+                start = evento.get("start") or {}
+                end = evento.get("end") or {}
+                inicio = _parse_dt(start.get("dateTime") or start.get("date"))
+                fin = _parse_dt(end.get("dateTime") or end.get("date"))
+                if inicio and fin:
+                    gcal_ocupado.append((inicio, fin))
+        except Exception as exc:
+            logger.error("GCal day fetch failed for clinic %s — se ofrecen huecos sin contrastar: %s", clinic_id, exc)
+
+    return {
+        "disponibilidad": disponibilidad,
+        "citas": citas_por_prof,
+        "bloques_globales": bloques_globales,
+        "bloques_prof": bloques_por_prof,
+        "gcal": gcal_ocupado,
+    }
 
 
 # ─── API pública ─────────────────────────────────────────────────────────────
@@ -167,7 +261,28 @@ async def find_available_slots(
     Devuelve slots disponibles para el servicio en la fecha indicada.
     Comprueba: reglas_reserva, horarios clínica, disponibilidad_profesional,
     bloques_agenda, citas existentes (con buffer), Google Calendar.
+
+    El trabajo real es síncrono (cliente de Supabase y API de Google), así que
+    se ejecuta en un hilo: dentro del event loop bloqueaba a todas las demás
+    conversaciones en curso mientras duraba la consulta.
     """
+    return await asyncio.to_thread(
+        _find_available_slots_sync,
+        clinic_id,
+        servicio_nombre,
+        fecha,
+        profesional_id_pref,
+        max_slots,
+    )
+
+
+def _find_available_slots_sync(
+    clinic_id: str,
+    servicio_nombre: str,
+    fecha: str,
+    profesional_id_pref: str | None = None,
+    max_slots: int = 8,
+) -> dict:
     db = get_supabase()
     clinic = _get_clinic(db, clinic_id)
     if not clinic:
@@ -197,7 +312,7 @@ async def find_available_slots(
             "error": f"Servicio '{servicio_nombre}' no encontrado. Deriva a humano para confirmar duración.",
             "slots_disponibles": [],
         }
-    if not servicio.get("reservable_ia", True):
+    if not servicio.get("reservable_ia", True) or servicio.get("requiere_revision"):
         return {
             "error": f"El servicio '{servicio_nombre}' requiere confirmación humana.",
             "slots_disponibles": [],
@@ -221,11 +336,17 @@ async def find_available_slots(
     slots_resultado = []
     ahora_mas_antelacion = hoy + timedelta(hours=antelacion_min_h)
 
+    dia_inicio = fecha_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    dia_fin = dia_inicio + timedelta(days=1)
+    ctx = _cargar_contexto_dia(
+        db, clinic_id, [p["id"] for p in profs], dia_inicio, dia_fin, dia_semana, clinic
+    )
+
     for prof in profs:
         pid = prof["id"]
 
         # Disponibilidad del profesional ese día
-        disp = _disponibilidad_prof_dia(db, pid, dia_semana)
+        disp = ctx["disponibilidad"].get(pid)
         if disp:
             inicio_trabajo, fin_trabajo = disp
         elif horario_dia:
@@ -233,6 +354,13 @@ async def find_available_slots(
             fin_trabajo = _parse_time(horario_dia["end"])
         else:
             continue  # ni prof ni clínica trabajan ese día
+
+        ocupado_prof = (
+            ctx["citas"].get(pid, [])
+            + ctx["bloques_prof"].get(pid, [])
+            + ctx["bloques_globales"]
+            + ctx["gcal"]
+        )
 
         rango_inicio = fecha_dt.replace(
             hour=inicio_trabajo.hour, minute=inicio_trabajo.minute, second=0, microsecond=0, tzinfo=TZ
@@ -252,16 +380,8 @@ async def find_available_slots(
             slot_fin_real = slot_inicio_real + timedelta(minutes=duracion)
             slot_fin_con_buffer = slot_fin_real + timedelta(minutes=buffer_despues)
 
-            # Bloques de agenda
-            if _bloques_activos(db, clinic_id, candidato, slot_fin_con_buffer, pid):
-                continue
-
-            # Citas existentes
-            if _citas_solapadas(db, clinic_id, pid, candidato, slot_fin_con_buffer):
-                continue
-
-            # Google Calendar
-            if _gcal_ocupado(clinic_id, candidato, slot_fin_con_buffer, clinic):
+            # Bloques, citas existentes y Google Calendar (precargados arriba)
+            if _solapa(candidato, slot_fin_con_buffer, ocupado_prof):
                 continue
 
             slots_resultado.append({
@@ -625,7 +745,26 @@ async def mover_cita(clinic_id: str, cita_id: str, nueva_fecha_inicio_iso: str) 
         if conflictos.data:
             return {"error": "Conflicto de horario en el nuevo slot. Propón otro."}
 
-    # Actualizar GCal
+    clinic = _get_clinic(db, clinic_id)
+
+    # La sala reservada tiene que seguir libre en el nuevo horario.
+    sala_id = cita.get("sala_id")
+    if sala_id:
+        ocupada = db.table("citas").select("id").eq("clinic_id", clinic_id).eq(
+            "sala_id", sala_id
+        ).not_.in_("estado", ["cancelada", "no_asistio"]).neq("id", cita_id).lt(
+            "fecha_inicio", nueva_fecha_fin.isoformat()
+        ).gt("fecha_fin", nueva_fecha_inicio.isoformat()).execute()
+        if ocupada.data:
+            return {"error": "La sala está ocupada en el nuevo horario. Propón otro slot."}
+
+    # Google Calendar puede tener eventos que la agenda interna no conoce.
+    if _gcal_ocupado(clinic_id, nueva_fecha_inicio, nueva_fecha_fin, clinic):
+        return {"error": "Google Calendar marca ese horario como ocupado. Propón otro slot."}
+
+    # Actualizar GCal. Si el calendario no confirma el movimiento se marca la cita
+    # como sync_failed en vez de dejar dos horarios distintos sin avisar a nadie.
+    gcal_sync_error = None
     if cita.get("google_event_id"):
         try:
             gcal.mover_evento(
@@ -635,12 +774,13 @@ async def mover_cita(clinic_id: str, cita_id: str, nueva_fecha_inicio_iso: str) 
                 nueva_fecha_fin=nueva_fecha_fin,
             )
         except Exception as exc:
-            logger.warning("GCal move failed: %s", exc)
+            gcal_sync_error = "La cita se movió, pero Google Calendar no confirmó el cambio"
+            logger.warning("GCal move failed for cita %s: %s", cita_id, exc)
 
     db.table("citas").update({
         "fecha_inicio": nueva_fecha_inicio.isoformat(),
         "fecha_fin": nueva_fecha_fin.isoformat(),
-        "estado": "confirmada",
+        "estado": "sync_failed" if gcal_sync_error else "confirmada",
     }).eq("id", cita_id).eq("clinic_id", clinic_id).execute()
 
     # Cancelar jobs de recordatorio anteriores — el scheduler creará nuevos con la fecha correcta
@@ -659,6 +799,8 @@ async def mover_cita(clinic_id: str, cita_id: str, nueva_fecha_inicio_iso: str) 
     )
 
     return {
+        "ok": gcal_sync_error is None,
+        "error": gcal_sync_error,
         "cita_id": cita_id,
         "nueva_fecha_inicio": nueva_fecha_inicio.strftime("%d/%m/%Y %H:%M"),
         "nueva_fecha_fin": nueva_fecha_fin.strftime("%H:%M"),

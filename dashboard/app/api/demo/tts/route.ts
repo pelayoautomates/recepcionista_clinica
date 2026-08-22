@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { text } = await req.json();
-  if (!text || typeof text !== "string" || text.length > 1000) {
+  if (!text || typeof text !== "string" || text.length > 600) {
     return NextResponse.json({ error: "Texto inválido" }, { status: 400 });
   }
 

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -31,6 +32,30 @@ def _dentro_horario(horarios: dict) -> bool:
         return h_ini <= ahora.time() <= h_fin
     except Exception:
         return False
+
+_CLINICA_FIELDS = (
+    "nombre, agente_nombre, tono, telefono, horarios, servicios, routing_mode, "
+    "prompt_personalizado, especialidad"
+)
+
+
+def _cargar_clinica(db, clinic_id: str) -> dict | None:
+    """Lectura síncrona de la clínica, pensada para ejecutarse en un hilo."""
+    res = db.table("clinicas").select(_CLINICA_FIELDS).eq("id", clinic_id).single().execute()
+    return res.data
+
+
+def _cargar_contexto_prompt(db, clinic_id: str) -> tuple[list, list]:
+    """Servicios activos y base de conocimiento, en una sola ida al hilo."""
+    servicios = db.table("servicios").select(
+        "nombre, duracion_min, precio, categoria, reservable_ia, activo"
+    ).eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute().data or []
+
+    conocimiento = db.table("conocimientos").select("titulo, contenido, tipo") \
+        .eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute().data or []
+
+    return servicios, conocimiento
+
 
 # Dispatcher: mapea nombre de tool → función async
 async def _dispatch_tool(
@@ -154,12 +179,7 @@ async def run_agent(
         db.table("conversaciones").update({"paciente_id": paciente_id_resuelto}).eq("id", conversacion_id).eq("clinic_id", clinic_id).execute()
 
     # Cargar solo los campos que el agente necesita (no tokens cifrados ni datos de billing)
-    _CLINICA_FIELDS = (
-        "nombre, agente_nombre, tono, telefono, horarios, servicios, routing_mode, "
-        "prompt_personalizado, especialidad"
-    )
-    clinica_res = db.table("clinicas").select(_CLINICA_FIELDS).eq("id", clinic_id).single().execute()
-    clinica = clinica_res.data
+    clinica = await asyncio.to_thread(_cargar_clinica, db, clinic_id)
     if not clinica:
         raise ValueError(f"Clinica {clinic_id} no encontrada")
 
@@ -174,14 +194,9 @@ async def run_agent(
                 conversacion_id,
             )
 
-    servicios_res = db.table("servicios").select(
-        "nombre, duracion_min, precio, categoria, reservable_ia, activo"
-    ).eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
-    servicios_tabla = servicios_res.data or []
-
-    conocimiento_res = db.table("conocimientos").select("titulo, contenido, tipo") \
-        .eq("clinic_id", clinic_id).eq("activo", True).order("orden").execute()
-    conocimiento = conocimiento_res.data or []
+    servicios_tabla, conocimiento = await asyncio.to_thread(
+        _cargar_contexto_prompt, db, clinic_id
+    )
 
     # Construir messages para OpenAI (solo role+content, sin campos extra como timestamp)
     system_prompt = build_system_prompt(clinica, servicios_tabla=servicios_tabla, conocimiento=conocimiento)

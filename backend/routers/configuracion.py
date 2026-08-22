@@ -86,8 +86,12 @@ async def guardar_configuracion(clinic_id: UUID, data: dict):
         if data["routing_mode"] not in allowed:
             raise HTTPException(status_code=400, detail=f"routing_mode debe ser uno de: {allowed}")
         campos["routing_mode"] = data["routing_mode"]
-    if "notification_email" in data:
-        campos["notification_email"] = data["notification_email"] or None
+    # `notif_email` es la columna canónica (migración 003). La 012 creó una
+    # duplicada `notification_email` en la que este endpoint escribía mientras el
+    # panel leía la otra: el email configurado no lo usaba nadie. La 020 la borra.
+    if "notification_email" in data or "notif_email" in data:
+        valor = data.get("notif_email", data.get("notification_email"))
+        campos["notif_email"] = (str(valor).strip() or None) if valor else None
     if not campos:
         raise HTTPException(status_code=400, detail="No hay datos para guardar")
     result = db.table("clinicas").update(campos).eq("id", str(clinic_id)).execute()

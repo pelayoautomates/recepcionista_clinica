@@ -37,12 +37,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Falta message" }, { status: 400 });
   }
 
+  // La demo es publica: sin tope de caracteres cualquiera puede convertirla en
+  // un proxy de OpenAI a nuestra cuenta enviando prompts enormes.
+  const MAX_MESSAGE_CHARS = 1000;
+  const MAX_HISTORY_CHARS = 800;
+  if (message.length > MAX_MESSAGE_CHARS) {
+    return NextResponse.json({ error: "Mensaje demasiado largo" }, { status: 413 });
+  }
+
   try {
     const historyMessages: ChatMessage[] = [];
     if (Array.isArray(history) && history.length > 0) {
       for (const msg of history.slice(-8)) {
         if (msg.role === "user" || msg.role === "assistant") {
-          historyMessages.push({ role: msg.role, content: String(msg.content) });
+          historyMessages.push({
+            role: msg.role,
+            content: String(msg.content).slice(0, MAX_HISTORY_CHARS),
+          });
         }
       }
     }

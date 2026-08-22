@@ -4,6 +4,136 @@
 
 ---
 
+## Segunda opinión de código sobre la auditoría de Codex (2026-08-21)
+
+Revisión independiente del código buscando lo que la auditoría integral no cubrió.
+Detalle completo en `AUDITORIA_SEGUNDA_OPINION_2026-08-21.md`.
+
+### Crítico corregido: ningún webhook entrante se procesaba
+
+En `cb5120a` la función `release_webhook_event()` se insertó dentro del cuerpo de
+`mark_webhook_event_once()`, partiéndola. La función devolvía `None` para cualquier
+evento real, así que **todos** los callers lo trataban como duplicado y devolvían 200
+sin procesar: voz de Retell, minutos facturados, WhatsApp de Meta, WhatsApp de Twilio y
+todos los eventos de Stripe. Sin errores, sin logs, sin tests rojos.
+
+Restaurado el contrato original y añadido `tests/test_webhook_dedupe.py` (8 tests).
+**Es el primer despliegue que hay que hacer.**
+
+### Resto de correcciones
+
+- `requiere_revision` no se leía en `_get_servicio()`: la IA reservaba sola los servicios
+  que la clínica había marcado para revisión humana. Corregido y aplicado también a
+  `find_available_slots()`. Tests en `tests/test_agenda_reglas.py`.
+- `find_available_slots()` consultaba BD y Google Calendar **por cada slot candidato**
+  (50-100 round-trips secuenciales por pregunta). Nuevo `_cargar_contexto_dia()`: una
+  consulta por tipo de restricción y solapes resueltos en memoria.
+- Los recordatorios de cita solo intentaban SMS por Telnyx; sin `TELNYX_SMS_NUMBER` el
+  job fallaba 3 veces y el paciente no recibía nada. Añadido fallback a WhatsApp con las
+  credenciales Meta de la clínica.
+- `mover_cita()` no validaba sala ni Google Calendar, y si el calendario no confirmaba
+  el movimiento dejaba dos horarios distintos marcados como `confirmada`. Ahora valida
+  ambos y marca `sync_failed` si GCal no confirma.
+- `get_credentials()` de Google Calendar construía `Credentials` sin `expiry`, así que
+  `creds.expired` era siempre `False` y el token nunca se refrescaba por adelantado ni
+  se persistía renovado.
+- `/api/demo/chat` sin tope de caracteres: proxy gratuito de OpenAI a cargo de la
+  agencia. Topes de 1.000 (mensaje), 800 (historial) y 600 (TTS).
+- `lib/rate-limit.ts` no purgaba nunca su `Map`. Purga a partir de 5.000 buckets.
+- Eliminado `routers/vapi.py`: endpoint sin firma ni auth que llama a `run_agent()`,
+  muerto desde la migración a Retell.
+- `tsconfig.tsbuildinfo` sacado del control de versiones.
+
+### Verificado correcto a mano
+
+Aislamiento multi-tenant de las 43 rutas del BFF, `ClinicaUpdate` como lista blanca sin
+campos de plan, firmas Meta/Retell/Stripe/Twilio, OAuth GCal con state firmado, la
+validación SSRF y la constraint `citas_profesional_no_overlap`.
+
+### Segunda tanda: preparación para pilotos
+
+- **Handoff durable** (era el P0-4 de Codex). El aviso de escalada se intentaba una sola
+  vez, en línea, contra un solo destino. Ahora avisa a la clínica **y** a la agencia, y
+  si nadie confirma deja un job `escalada_humano` que el scheduler reintenta con backoff
+  y queda visible como `fallido` en `/admin/clinicas/{id}/jobs`.
+- **Leader lock del scheduler** (`try_acquire_scheduler_lock`, migración 020):
+  `_sync_all_gcal` y `_reset_periodos_facturacion` ya no se duplican por réplica. Falla
+  en abierto si la RPC no está desplegada.
+- **Preflight de clínica** — nuevo `GET /admin/clinicas/{id}/preflight`. El checklist del
+  panel no comprobaba servicios reservables ni profesionales con agenda, que son
+  justo lo que impide agendar por mucho que suene el teléfono. Ahora el checklist se
+  alimenta del backend y panel y agente coinciden en qué es "lista para atender".
+- **Tests de integración por canal** — se entra por HTTP con firma real por cada canal
+  (Retell, Meta, Stripe). Verificados reintroduciendo el bug del dedupe: 16 fallos.
+- **Búsqueda de huecos y contexto del agente fuera del event loop** (`asyncio.to_thread`).
+- **Bloques de agenda heredados** (campo TEXT `profesional` sin `profesional_id`) ya no
+  se ignoran: se tratan como globales.
+- **Columna de email consolidada**: la 020 hace backfill de `notification_email` a
+  `notif_email` y borra la duplicada.
+- **Google Calendar caído** se registra como ERROR (sigue fallando en abierto a propósito).
+
+### Contraste con producción (acceso Supabase)
+
+El CLI ya estaba autenticado (token de `supabase login` en el Credential Manager de
+Windows). Se aplicó la **migración 020** y se verificó. Hallazgos:
+
+- **Producción está vacía y ninguna clínica puede agendar.** Las 2 clínicas
+  ("Clinica Prueba" 19/05, "Clínica Noguer" 25/05) tienen **0 servicios, 0
+  profesionales, 0 días de horario, sin número de voz y sin prompt** — pero
+  `onboarding_ok = true` en ambas. El panel daba por terminado un onboarding que no
+  permite atender nada. Es justo lo que corrige el preflight nuevo.
+- **Las 11 citas no las creó el agente**: 8 importadas de Google Calendar y 3 manuales.
+  Cero de `ia_chat` / `ia_whatsapp` / `ia_llamada`. Con `conversaciones = 0` y
+  `webhook_events = 1`, por los canales de entrada no ha pasado nada real.
+- **Los 8 jobs "ejecutados" no enviaron nada** (corregido). Las citas no tienen paciente,
+  y `_enviar_recordatorio_sms` hacía `return` en silencio → el job se marcaba éxito.
+  Nueva excepción `JobOmitido`: queda `cancelado` con el motivo, sin fingir entrega ni
+  quemar reintentos.
+- **0 bloques de agenda heredados** → el arreglo conservador de `_bloques_activos` es un
+  no-op en la práctica, sin riesgo de sobre-bloquear.
+- **`notification_email` tenía 0 filas con dato** → el `DROP COLUMN` de la 020 no perdió
+  nada (verificado antes de aplicar).
+- Esquema íntegro: 19 tablas, migraciones 001-019 aplicadas, constraint
+  `citas_profesional_no_overlap` presente.
+- **Advisors: 6 avisos, ningún error.** Cuatro arreglados en la 020 (`search_path` en los
+  triggers de `updated_at`, política `clinica_usuarios_select_own` con
+  `(SELECT auth.uid())`). Quedan dos asumidos: `btree_gist` en `public` (moverlo exigiría
+  tirar la constraint anti-doble-reserva) y `get_auth_clinic_id()` ejecutable por
+  `authenticated` (necesario para las políticas RLS; solo expone el `clinic_id` propio).
+- **Pendiente en el dashboard**: activar "Leaked Password Protection" (Auth → Policies).
+  Un clic, no se puede por SQL.
+
+### Antes del primer piloto real
+
+Dar de alta la clínica con **servicios y profesionales de verdad**, horario, número de
+voz y webhook de aviso. Sin eso el agente no da ni una cita. Comprobarlo con
+`GET /admin/clinicas/{id}/preflight` → `puede_agendar: true`.
+
+### Cómo desplegar
+
+El código es seguro de desplegar antes de la migración (el lock falla en abierto, el
+encolado va en try/except). Orden recomendado:
+
+1. ~~Aplicar `020_pilot_readiness.sql`~~ — **ya aplicada y verificada en producción**.
+2. Desplegar backend (Railway) y comprobar `/health`.
+3. Desplegar dashboard (Vercel).
+4. Llamada de prueba: confirmar que la conversación aparece y que los minutos bajan.
+   Es exactamente lo que estaba roto.
+5. `GET /admin/clinicas/{id}/preflight` de cada clínica piloto → `puede_agendar: true`.
+
+### Sigue pendiente (fuera del código)
+
+- Gates externos de Codex: Stripe de producción, Pixel/CAPI, identidad legal/DPA/EIPD y
+  una llamada real con handoff probado end to end.
+- No hay envío de email en el backend: `notif_email` se guarda pero el único canal de
+  aviso real es el webhook.
+- Las cinco pruebas obligatorias por clínica (FAQ, reserva, cambio, cancelación,
+  urgencia/handoff): el preflight valida configuración, no comportamiento.
+
+Validación: **119 tests backend**, `tsc --noEmit` limpio, build Next completo.
+
+---
+
 ## Cierre de auditoria y despliegue (2026-08-21)
 
 - Supabase de produccion restaurado; migraciones 017, 018 y 019 aplicadas y verificadas.

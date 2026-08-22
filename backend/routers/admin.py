@@ -1212,6 +1212,120 @@ async def disparar_seguimiento(clinic_id: UUID, lead_id: UUID):
 
 # ── Retell agent management ───────────────────────────────────────────────────
 
+@router.get("/clinicas/{clinic_id}/preflight")
+async def preflight_clinica(clinic_id: UUID):
+    """
+    Comprueba si la clínica puede realmente atender y agendar.
+
+    El checklist de onboarding solo miraba prompt, calendario y número. Faltaban
+    las dos cosas que hacen que el agente no pueda dar una cita por mucho que el
+    teléfono suene: sin servicios reservables `_get_servicio` no encuentra nada,
+    y sin profesionales que acepten reservas IA no hay a quién asignar el hueco.
+    En una demo delante del cliente eso se traduce en "deriva a humano" para todo.
+    """
+    db = get_supabase()
+    cid = str(clinic_id)
+
+    clinica = db.table("clinicas").select(
+        "nombre, horarios, prompt_personalizado, google_tokens_enc, telefono, "
+        "telefono_ia, meta_phone_number_id, notif_webhook, routing_mode"
+    ).eq("id", cid).single().execute().data
+    if not clinica:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada")
+
+    servicios = db.table("servicios").select("id, reservable_ia, requiere_revision") \
+        .eq("clinic_id", cid).eq("activo", True).execute().data or []
+    servicios_reservables = [
+        s for s in servicios if s.get("reservable_ia", True) and not s.get("requiere_revision")
+    ]
+
+    profesionales = db.table("profesionales").select("id") \
+        .eq("clinic_id", cid).eq("activo", True).eq("acepta_reservas_ia", True).execute().data or []
+    prof_ids = [p["id"] for p in profesionales]
+
+    disponibilidad = []
+    if prof_ids:
+        disponibilidad = db.table("disponibilidad_profesional").select("profesional_id") \
+            .in_("profesional_id", prof_ids).eq("activo", True).execute().data or []
+
+    horarios = clinica.get("horarios") or {}
+    horarios_ok = isinstance(horarios, dict) and any(
+        isinstance(h, dict) and h.get("start") and h.get("end") for h in horarios.values()
+    )
+
+    # Un profesional puede heredar el horario de la clínica si no tiene el suyo.
+    agenda_ok = bool(prof_ids) and (bool(disponibilidad) or horarios_ok)
+
+    checks = [
+        {
+            "id": "servicios",
+            "label": "Servicios que la IA puede reservar",
+            "ok": bool(servicios_reservables),
+            "href": "/panel/agenda",
+            "bloqueante": True,
+            "detalle": f"{len(servicios_reservables)} de {len(servicios)} servicios activos",
+        },
+        {
+            "id": "profesionales",
+            "label": "Profesionales con agenda disponible",
+            "ok": agenda_ok,
+            "href": "/panel/agenda",
+            "bloqueante": True,
+            "detalle": f"{len(prof_ids)} aceptan reservas IA",
+        },
+        {
+            "id": "horarios",
+            "label": "Horario de la clínica definido",
+            "ok": horarios_ok,
+            "href": "/panel/configuracion",
+            "bloqueante": True,
+        },
+        {
+            "id": "canal",
+            "label": "Al menos un canal activo (voz o WhatsApp)",
+            "ok": bool(clinica.get("telefono_ia") or clinica.get("meta_phone_number_id")),
+            "href": "/panel/canales",
+            "bloqueante": True,
+        },
+        {
+            "id": "agente",
+            "label": "Agente entrenado con la info de la clínica",
+            "ok": bool(clinica.get("prompt_personalizado")),
+            "href": "/panel/configuracion",
+            "bloqueante": False,
+        },
+        {
+            "id": "calendario",
+            "label": "Google Calendar conectado",
+            "ok": bool(clinica.get("google_tokens_enc")),
+            "href": "/panel/configuracion",
+            "bloqueante": False,
+        },
+        {
+            "id": "avisos",
+            "label": "Aviso configurado para escaladas a humano",
+            "ok": bool(clinica.get("notif_webhook")),
+            "href": "/panel/configuracion",
+            "bloqueante": False,
+        },
+        {
+            "id": "transfer",
+            "label": "Teléfono de la clínica para pasar llamadas",
+            "ok": bool(clinica.get("telefono")),
+            "href": "/panel/canales",
+            "bloqueante": False,
+        },
+    ]
+
+    bloqueantes = [c for c in checks if c["bloqueante"] and not c["ok"]]
+    return {
+        "clinica": clinica.get("nombre"),
+        "puede_agendar": not bloqueantes,
+        "bloqueantes": [c["id"] for c in bloqueantes],
+        "checks": checks,
+    }
+
+
 @router.post("/clinicas/{clinic_id}/retell/agent")
 async def provision_retell_agent(clinic_id: UUID):
     """Creates or returns the Retell agent for a clinic. Internal use only."""
