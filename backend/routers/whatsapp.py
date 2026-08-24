@@ -282,3 +282,91 @@ async def receive_message_twilio(request: Request):
     # Twilio espera respuesta TwiML vacía si no queremos respuesta inmediata
     from fastapi.responses import Response
     return Response(content="<Response/>", media_type="application/xml")
+
+
+# ── YCloud (BSP con Coexistence) ──────────────────────────────────────────────
+
+async def _get_ycloud_clinic(numero_negocio: str) -> tuple[str, str] | None:
+    """
+    Devuelve (clinic_id, numero_e164) a partir del número al que escribió el
+    paciente. Es lo único que enruta el mensaje a su clínica, así que se compara
+    normalizado: YCloud manda E.164 sin '+' y el panel puede guardarlo con él.
+    """
+    if not numero_negocio:
+        return None
+
+    import ycloud
+    from database.client import get_supabase
+
+    normalizado = ycloud.to_e164(numero_negocio)
+    db = get_supabase()
+    res = db.table("clinicas").select("id, ycloud_phone_number").eq(
+        "whatsapp_bsp", "ycloud"
+    ).not_.is_("ycloud_phone_number", "null").execute()
+
+    for fila in res.data or []:
+        if ycloud.to_e164(fila.get("ycloud_phone_number") or "") == normalizado:
+            return fila["id"], normalizado
+    return None
+
+
+@router.post("/ycloud")
+async def receive_message_ycloud(request: Request):
+    """
+    Webhook entrante de YCloud.
+
+    Mismo tratamiento que el de Meta: se valida la firma, se descarta la
+    reentrega y se pasa al agente compartido. Lo único que cambia es el
+    transporte; la conversación, la agenda y la facturación son las mismas.
+    """
+    import ycloud
+
+    raw_body = await request.body()
+
+    if not ycloud.verify_signature(raw_body, request.headers.get("ycloud-signature", "")):
+        raise HTTPException(status_code=403, detail="Firma YCloud inválida")
+
+    try:
+        body: dict[str, Any] = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Cuerpo no es JSON")
+
+    mensaje = ycloud.extraer_mensaje(body)
+    if not mensaje:
+        # Estados de entrega, plantillas aprobadas… no son errores.
+        return {"status": "ok"}
+
+    msg_key = mensaje["id"]
+    if msg_key and not mark_webhook_event_once("ycloud_whatsapp", msg_key, raw_body.decode("utf-8", errors="ignore")):
+        return {"status": "ok"}
+
+    try:
+        destino = await _get_ycloud_clinic(mensaje["para"])
+        if not destino:
+            raise RuntimeError(f"número YCloud {mensaje['para']} no asociado a clínica")
+        clinic_id, numero_clinica = destino
+
+        texto = mensaje["texto"]
+        if not texto:
+            # Audio, imagen o documento: todavía no se procesan por este canal.
+            await ycloud.send_text(
+                numero_clinica,
+                mensaje["de"],
+                "Por ahora solo puedo leer mensajes de texto. ¿Me lo escribes?",
+            )
+            return {"status": "ok"}
+
+        await _process_wa_message(
+            clinic_id, mensaje["de"], texto,
+            lambda to, reply: ycloud.send_text(numero_clinica, to, reply),
+        )
+    except Exception as e:
+        if msg_key:
+            try:
+                release_webhook_event("ycloud_whatsapp", msg_key)
+            except Exception:
+                logger.exception("No se pudo liberar el mensaje YCloud fallido")
+        logger.exception("Error procesando mensaje YCloud: %s", e)
+        raise HTTPException(status_code=503, detail="Error temporal procesando WhatsApp") from e
+
+    return {"status": "ok"}

@@ -117,8 +117,8 @@ export default function PrivacidadPage() {
           <Section title="4. Procesadores y transferencias internacionales">
             <p>
               Para prestar el servicio, Atiende360 utiliza los siguientes subencargados del tratamiento,
-              que pueden intervenir segun los canales e integraciones activados. Las condiciones,
-              region efectiva y garantias aplicables deben constar en el acuerdo de tratamiento de cada cliente:
+              que pueden intervenir según los canales e integraciones activados. Las condiciones,
+              region efectiva y garantías aplicables deben constar en el acuerdo de tratamiento de cada cliente:
             </p>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
               <thead>
@@ -130,14 +130,14 @@ export default function PrivacidadPage() {
               </thead>
               <tbody>
                 <Tr cols={["Supabase (PostgreSQL)", "Base de datos principal", "UE (Frankfurt)"]} />
-                <Tr cols={["OpenAI", "Procesamiento de lenguaje natural y voz", "Region y garantia segun configuracion contractual"]} />
-                <Tr cols={["Google LLC", "Google Calendar API y Google OAuth", "Region y garantia segun servicio contratado"]} />
-                <Tr cols={["Stripe", "Procesamiento de pagos y facturacion", "Region y garantia segun servicio contratado"]} />
+                <Tr cols={["OpenAI", "Procesamiento de lenguaje natural y voz", "Region y garantía según configuración contractual"]} />
+                <Tr cols={["Google LLC", "Google Calendar API y Google OAuth", "Region y garantía según servicio contratado"]} />
+                <Tr cols={["Stripe", "Procesamiento de pagos y facturación", "Region y garantía según servicio contratado"]} />
                 <Tr cols={["Railway", "Hosting del servidor de aplicaciones", "Region efectiva del proyecto"]} />
-                <Tr cols={["Vercel", "Hosting del panel web", "Region y garantia segun servicio contratado"]} />
-                <Tr cols={["Retell AI", "Procesamiento de llamadas de voz con IA", "Region y garantia segun configuracion contractual"]} />
-                <Tr cols={["Meta Platforms", "Envio y recepcion de mensajes WhatsApp", "Region y garantia segun servicio contratado"]} />
-                <Tr cols={["Telnyx", "Numeracion telefonica y SIP", "Region y garantia segun servicio contratado"]} />
+                <Tr cols={["Vercel", "Hosting del panel web", "Region y garantía según servicio contratado"]} />
+                <Tr cols={["Retell AI", "Procesamiento de llamadas de voz con IA", "Region y garantía según configuración contractual"]} />
+                <Tr cols={["Meta Platforms", "Envio y recepción de mensajes WhatsApp", "Region y garantía según servicio contratado"]} />
+                <Tr cols={["Telnyx", "Numeración telefónica y SIP", "Region y garantía según servicio contratado"]} />
               </tbody>
             </table>
             <p style={{ marginTop: 12 }}>
@@ -201,7 +201,7 @@ export default function PrivacidadPage() {
               En caso de violación de seguridad que suponga un riesgo para sus derechos y libertades,
               se gestionara conforme al procedimiento de incidentes aplicable. Cuando proceda, el responsable
               notificara a la autoridad de control en el plazo previsto por el articulo 33 del RGPD y se
-              comunicara a los afectados sin dilacion indebida en los supuestos del articulo 34.
+              comunicara a los afectados sin dilación indebida en los supuestos del articulo 34.
             </p>
           </Section>
 

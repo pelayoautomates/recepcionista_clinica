@@ -7,14 +7,15 @@ import { GENERIC_COMPARISON } from "@/lib/marketing-content";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Atiende360 vs chatbot generico para clinicas",
+  title: "Atiende360 vs chatbot genérico para clínicas",
   description:
-    "Comparativa entre una recepcionista IA especializada para clinicas y un chatbot generico: agenda, leads, escalado humano y trazabilidad.",
+    "Comparativa entre una recepcionista IA especializada para clínicas y un chatbot genérico: agenda, leads, escalado humano y trazabilidad.",
   alternates: { canonical: "/comparativa/chatbot-generico" },
   openGraph: {
-    title: "Atiende360 vs chatbot generico",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
+    title: "Atiende360 vs chatbot genérico",
     description:
-      "Por que una clinica necesita recepcion IA con agenda, canales y derivacion humana, no solo respuestas automaticas.",
+      "Por que una clínica necesita recepción IA con agenda, canales y derivación humana, no solo respuestas automáticas.",
     url: "/comparativa/chatbot-generico",
     type: "article",
   },
@@ -25,8 +26,8 @@ const jsonLd = {
   "@type": "WebPage",
   "@id": `${siteUrl}/comparativa/chatbot-generico#webpage`,
   url: `${siteUrl}/comparativa/chatbot-generico`,
-  name: "Atiende360 vs chatbot generico para clinicas",
-  about: ["recepcionista IA", "chatbot para clinicas", "software de agenda", "automatizacion de recepcion"],
+  name: "Atiende360 vs chatbot genérico para clínicas",
+  about: ["recepcionista IA", "chatbot para clínicas", "software de agenda", "automatización de recepción"],
   breadcrumb: {
     "@type": "BreadcrumbList",
     itemListElement: [
@@ -45,10 +46,10 @@ export default function ComparativaChatbotPage() {
           <div className={styles.container}>
             <div className={styles.pageHeroInner}>
               <p className={styles.sectionKicker}>Comparativa</p>
-              <h1>Atiende360 frente a un chatbot generico para clinicas</h1>
+              <h1>Atiende360 frente a un chatbot genérico para clínicas</h1>
               <p>
-                Un chatbot puede contestar preguntas. Una recepcionista IA para clinicas debe trabajar con agenda,
-                leads, canales, trazabilidad y criterios de derivacion humana.
+                Un chatbot puede contestar preguntas. Una recepcionista IA para clínicas debe trabajar con agenda,
+                leads, canales, trazabilidad y criterios de derivación humana.
               </p>
             </div>
           </div>
@@ -78,11 +79,11 @@ export default function ComparativaChatbotPage() {
             </div>
 
             <div className={styles.limitBox}>
-              <h2>Cuando basta un chatbot generico</h2>
+              <h2>Cuando basta un chatbot genérico</h2>
               <ul>
                 <li>Si solo quieres responder preguntas frecuentes sencillas.</li>
                 <li>Si no necesitas agenda, leads, llamadas ni seguimiento.</li>
-                <li>Si tu equipo puede revisar manualmente cada conversacion.</li>
+                <li>Si tu equipo puede revisar manualmente cada conversación.</li>
               </ul>
             </div>
 

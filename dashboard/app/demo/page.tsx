@@ -7,14 +7,15 @@ import styles from "@/components/marketing/MarketingStyles.module.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Pedir demo de recepcionista IA para clinicas",
+  title: "Pedir demo de recepcionista IA para clínicas",
   description:
-    "Solicita una demo guiada de Atiende360 para revisar llamadas, WhatsApp, agenda y derivacion humana en tu clinica.",
+    "Solicita una demo guiada de Atiende360 para revisar llamadas, WhatsApp, agenda y derivación humana en tu clínica.",
   alternates: { canonical: "/demo" },
   openGraph: {
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
     title: "Pedir demo de Atiende360",
     description:
-      "Demo guiada de recepcionista IA para clinicas privadas: canales, agenda, leads y criterios de escalado.",
+      "Demo guiada de recepcionista IA para clínicas privadas: canales, agenda, leads y criterios de escalado.",
     url: "/demo",
     type: "website",
   },
@@ -26,7 +27,7 @@ const jsonLd = {
   "@id": `${siteUrl}/demo#contact`,
   url: `${siteUrl}/demo`,
   name: "Pedir demo de Atiende360",
-  description: "Pagina para solicitar una demo guiada de Atiende360.",
+  description: "Página para solicitar una demo guiada de Atiende360.",
   mainEntity: {
     "@type": "SoftwareApplication",
     "@id": `${siteUrl}/#software`,
@@ -49,10 +50,10 @@ export default function DemoPage() {
           <div className={styles.container}>
             <div className={styles.pageHeroInner}>
               <p className={styles.sectionKicker}>Demo guiada</p>
-              <h1>Pide una demo de recepcionista IA para tu clinica</h1>
+              <h1>Pide una demo de recepcionista IA para tu clínica</h1>
               <p>
                 Revisamos tus canales, horarios, agenda y tipo de pacientes para ver si Atiende360 encaja antes de
-                activar nada en produccion.
+                activar nada en producción.
               </p>
               <div className={styles.heroCtaRowCenter}>
                 <Link href="/#demo" className={styles.btnSecondary} prefetch={false}>Probar demo interactiva</Link>
@@ -70,13 +71,13 @@ export default function DemoPage() {
                 <h2 className={styles.sectionTitle}>Una demo util debe usar reglas reales</h2>
                 <p className={styles.sectionSubtitle}>
                   No se trata de ver una IA generica contestando. La demo debe validar si el flujo puede responder,
-                  registrar leads, proponer citas y derivar a humano segun tu operativa.
+                  registrar leads, proponer citas y derivar a humano según tu operativa.
                 </p>
                 <div className={styles.checkList}>
-                  <p>Servicios principales y duracion aproximada.</p>
+                  <p>Servicios principales y duración aproximada.</p>
                   <p>Horarios, profesionales y disponibilidad.</p>
                   <p>Canales actuales: teléfono, WhatsApp o calendario.</p>
-                  <p>Preguntas frecuentes que recibe recepcion.</p>
+                  <p>Preguntas frecuentes que recibe recepción.</p>
                   <p>Criterios para no responder y pasar a humano.</p>
                 </div>
               </div>

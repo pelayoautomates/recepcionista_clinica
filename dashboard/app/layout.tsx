@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import MarketingAnalytics from "@/components/MarketingAnalytics";
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "Atiende360",
   title: {
-    default: "Atiende360 | Recepcionista IA para clinicas",
+    default: "Atiende360 | Recepcionista IA para clínicas",
     template: "%s | Atiende360",
   },
   description:
@@ -23,6 +23,25 @@ export const metadata: Metadata = {
   creator: "Atiende360",
   publisher: "Atiende360",
   category: "Software sanitario",
+  keywords: [
+    "recepcionista IA",
+    "recepcionista virtual para clínicas",
+    "software de recepción para clínicas",
+    "agente de voz para clínicas",
+    "llamadas no atendidas clínica",
+    "agenda de citas con IA",
+    "WhatsApp para clínicas",
+    "atención al paciente automatizada",
+  ],
+  alternates: {
+    canonical: "/",
+    languages: {
+      "es-ES": "/",
+      "x-default": "/",
+    },
+  },
+  manifest: "/manifest.webmanifest",
+  formatDetection: { telephone: false, address: false, email: false },
   robots: {
     index: true,
     follow: true,
@@ -43,17 +62,25 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Atiende360, recepcionista IA para clinicas privadas",
+        alt: "Atiende360, recepcionista IA para clínicas privadas",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Atiende360 | Recepcionista IA para clinicas",
+    title: "Atiende360 | Recepcionista IA para clínicas",
     description:
       "Recepcionista IA para clínicas: llamadas no atendidas, citas y escalado humano.",
     images: ["/opengraph-image"],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "light",
+  themeColor: "#0f4bd9",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

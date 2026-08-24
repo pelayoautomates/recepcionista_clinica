@@ -16,7 +16,7 @@ export type CompareRow = {
 };
 
 export const NAV_ITEMS = [
-  { href: "/#como-funciona", label: "Como funciona" },
+  { href: "/#como-funciona", label: "Cómo funciona" },
   { href: "/#funcionalidades", label: "Funciones" },
   { href: "/seguridad", label: "Seguridad" },
   { href: "/integraciones", label: "Integraciones" },
@@ -27,23 +27,23 @@ export const NAV_ITEMS = [
 export const HERO_TRUST_POINTS = [
   "Cobertura según el desvío configurado",
   "Agenda citas y registra leads",
-  "Derivacion humana en casos sensibles",
+  "Derivación humana en casos sensibles",
   "Setup guiado sin permanencia",
 ];
 
 export const PAIN_POINTS = [
-  "Llamadas perdidas en horas punta cuando recepcion esta saturada.",
-  "Pacientes que escriben fuera de horario y no reciben respuesta hasta el dia siguiente.",
-  "Leads que preguntan, nadie hace seguimiento y acaban reservando en otra clinica.",
+  "Llamadas perdidas en horas punta cuando recepción está saturada.",
+  "Pacientes que escriben fuera de horario y no reciben respuesta hasta el día siguiente.",
+  "Leads que preguntan, nadie hace seguimiento y acaban reservando en otra clínica.",
   "Tiempo administrativo repetido en las mismas preguntas de precio, horarios y disponibilidad.",
   "Citas movidas o canceladas sin trazabilidad clara entre llamadas, chat y agenda.",
-  "Falta de visibilidad real sobre cuantas oportunidades se pierden cada semana.",
+  "Falta de visibilidad real sobre cuántas oportunidades se pierden cada semana.",
 ];
 
 export const PROCESS_STEPS = [
   {
-    title: "Conectas tu clinica",
-    text: "Compartes web, servicios, horarios y reglas basicas de agenda en una configuracion guiada.",
+    title: "Conectas tu clínica",
+    text: "Compartes web, servicios, horarios y reglas básicas de agenda en una configuración guiada.",
   },
   {
     title: "Atiende360 aprende tu operativa",
@@ -51,14 +51,14 @@ export const PROCESS_STEPS = [
   },
   {
     title: "Atiende, agenda y avisa",
-    text: "Empieza a responder pacientes, registrar leads y avisar a recepcion cuando toca intervenir.",
+    text: "Empieza a responder pacientes, registrar leads y avisar a recepción cuando toca intervenir.",
   },
 ];
 
 export const FEATURE_BENEFITS = [
   {
     title: "Atención telefónica cuando nadie llega",
-    text: "Responde llamadas cuando recepcion esta ocupada o la clinica esta cerrada, captura el motivo y propone el siguiente paso.",
+    text: "Responde llamadas cuando recepción está ocupada o la clínica está cerrada, captura el motivo y propone el siguiente paso.",
   },
   {
     title: "Desvío por no respuesta",
@@ -69,52 +69,52 @@ export const FEATURE_BENEFITS = [
     text: "Permite continuar conversaciones, resolver dudas operativas y recuperar leads que no reservaron en el primer contacto.",
   },
   {
-    title: "Gestion de citas",
-    text: "Crea, mueve o cancela citas segun reglas de disponibilidad y deja trazabilidad para el equipo.",
+    title: "Gestión de citas",
+    text: "Crea, mueve o cancela citas según reglas de disponibilidad y deja trazabilidad para el equipo.",
   },
   {
     title: "Google Calendar o calendario interno",
-    text: "Sincroniza con Google Calendar o trabaja con calendario interno si tu clinica aun no usa una agenda externa.",
+    text: "Sincroniza con Google Calendar o trabaja con calendario interno si tu clínica aún no usa una agenda externa.",
   },
   {
-    title: "Clasificacion de leads",
+    title: "Clasificación de leads",
     text: "Identifica contactos listos para reservar, dudas pendientes y conversaciones que requieren seguimiento humano.",
   },
   {
     title: "Escalado a humano",
-    text: "Deriva consultas clinicas sensibles, incidencias o peticiones fuera de reglas para que el equipo mantenga el control.",
+    text: "Deriva consultas clínicas sensibles, incidencias o peticiones fuera de reglas para que el equipo mantenga el control.",
   },
   {
     title: "Panel operativo",
-    text: "Centraliza conversaciones, leads, citas y calendario para revisar la recepcion digital desde un unico lugar.",
+    text: "Centraliza conversaciones, leads, citas y calendario para revisar la recepción digital desde un único lugar.",
   },
 ];
 
 export const WHO_IS_FOR = [
-  "Clinicas dentales con alto volumen de primeras consultas y llamadas perdidas.",
-  "Clinicas esteticas que necesitan responder rapido antes de que el lead compare alternativas.",
-  "Fisioterapeutas y centros de rehabilitacion con recepcion saturada por cambios de cita.",
-  "Centros sanitarios pequeños o medianos que quieren atender mas sin ampliar plantilla desde el primer dia.",
-  "Clinicas que reciben contactos fuera de horario y necesitan convertirlos en citas trazables.",
+  "Clínicas dentales con alto volumen de primeras consultas y llamadas perdidas.",
+  "Clínicas estéticas que necesitan responder rápido antes de que el lead compare alternativas.",
+  "Fisioterapeutas y centros de rehabilitación con recepción saturada por cambios de cita.",
+  "Centros sanitarios pequeños o medianos que quieren atender más sin ampliar plantilla desde el primer día.",
+  "Clínicas que reciben contactos fuera de horario y necesitan convertirlos en citas trazables.",
   "Equipos que quieren centralizar conversaciones, leads y calendario en un solo panel operativo.",
 ];
 
 export const ANSWER_BLOCKS = [
   {
-    q: "Que es Atiende360?",
+    q: "¿Qué es Atiende360?",
     a: "Atiende360 es un SaaS de recepcionista IA para clínicas privadas. Recupera llamadas no atendidas, registra leads, ayuda a agendar citas y marca para revisión las conversaciones que requieren intervención humana.",
   },
   {
-    q: "Para quien es Atiende360?",
-    a: "Esta pensado para clinicas dentales, esteticas, fisioterapia, rehabilitacion y otros centros sanitarios privados que pierden oportunidades por no responder a tiempo o por tener recepcion saturada.",
+    q: "¿Para quién es Atiende360?",
+    a: "Esta pensado para clínicas dentales, estéticas, fisioterapia, rehabilitación y otros centros sanitarios privados que pierden oportunidades por no responder a tiempo o por tener recepción saturada.",
   },
   {
-    q: "Que problema resuelve?",
-    a: "Reduce llamadas sin contestar, respuestas tardias, seguimientos manuales y descoordinacion entre mensajes, leads y agenda. El objetivo es convertir mas contactos en citas sin cargar mas al equipo.",
+    q: "¿Qué problema resuelve?",
+    a: "Reduce llamadas sin contestar, respuestas tardias, seguimientos manuales y descoordinación entre mensajes, leads y agenda. El objetivo es convertir más contactos en citas sin cargar mas al equipo.",
   },
   {
-    q: "Como funciona?",
-    a: "La clinica configura servicios, horarios, reglas de agenda, canales y criterios de escalado. A partir de ahi, el agente responde, clasifica el contacto, propone citas disponibles y deja todo registrado en el panel.",
+    q: "¿Cómo funciona?",
+    a: "La clínica configura servicios, horarios, reglas de agenda, canales y criterios de escalado. A partir de ahí, el agente responde, clasifica el contacto, propone citas disponibles y deja todo registrado en el panel.",
   },
 ];
 
@@ -124,53 +124,53 @@ export const USE_CASES = [
     text: "El paciente llama por la tarde o en fin de semana. Atiende360 recoge motivo, datos de contacto y disponibilidad para no perder la oportunidad.",
   },
   {
-    title: "Primera consulta con alta intencion",
+    title: "Primera consulta con alta intención",
     text: "Un lead pregunta por un tratamiento. El agente responde dudas operativas, propone cita y registra el estado para seguimiento.",
   },
   {
-    title: "Recepcion saturada",
+    title: "Recepción saturada",
     text: "Cuando entran varias llamadas o chats a la vez, la IA cubre preguntas repetitivas y deriva solo lo que necesita criterio humano.",
   },
   {
     title: "Cambios y cancelaciones",
-    text: "El paciente necesita mover una cita. El sistema consulta disponibilidad y actualiza la agenda segun reglas definidas.",
+    text: "El paciente necesita mover una cita. El sistema consulta disponibilidad y actualiza la agenda según reglas definidas.",
   },
   {
     title: "Seguimiento por WhatsApp",
-    text: "Si el paciente no reserva en el primer contacto, el equipo puede continuar la conversacion desde el canal mas usado.",
+    text: "Si el paciente no reserva en el primer contacto, el equipo puede continuar la conversación desde el canal mas usado.",
   },
   {
-    title: "Control diario de conversion",
-    text: "Direccion o recepcion revisa conversaciones, leads y citas desde un panel para detectar cuellos de botella.",
+    title: "Control diario de conversión",
+    text: "Dirección o recepción revisa conversaciones, leads y citas desde un panel para detectar cuellos de botella.",
   },
 ];
 
 export const DIFFERENTIATORS = [
   {
-    title: "Diseñado para clinicas, no para soporte generico",
-    text: "La configuracion gira alrededor de servicios, profesionales, horarios, reglas de agenda, derivacion humana y trazabilidad de pacientes potenciales.",
+    title: "Diseñado para clínicas, no para soporte generico",
+    text: "La configuración gira alrededor de servicios, profesionales, horarios, reglas de agenda, derivación humana y trazabilidad de pacientes potenciales.",
   },
   {
-    title: "Conversion antes que automatizacion decorativa",
-    text: "El flujo prioriza cerrar o recuperar citas: responde rapido, captura datos, clasifica intencion y deja tareas claras para el equipo.",
+    title: "Conversión antes que automatización decorativa",
+    text: "El flujo prioriza cerrar o recuperar citas: responde rápido, captura datos, clasifica intención y deja tareas claras para el equipo.",
   },
   {
     title: "Control humano en conversaciones sensibles",
-    text: "Atiende360 no debe resolver dudas clinicas delicadas ni sustituir criterio profesional. Cuando detecta riesgo o ambiguedad, deriva.",
+    text: "Atiende360 no debe resolver dudas clínicas delicadas ni sustituir criterio profesional. Cuando detecta riesgo o ambiguedad, deriva.",
   },
 ];
 
 export const LIMITATIONS = [
-  "No sustituye diagnostico medico ni criterio clinico profesional.",
-  "Necesita reglas de agenda, servicios y disponibilidad bien configurados para reservar con precision.",
-  "Las integraciones externas dependen del plan, del canal y de la viabilidad tecnica de cada sistema.",
-  "WhatsApp puede requerir activacion adicional y costes de uso segun configuracion.",
+  "No sustituye diagnostico médico ni criterio clínico profesional.",
+  "Necesita reglas de agenda, servicios y disponibilidad bien configurados para reservar con precisión.",
+  "Las integraciones externas dependen del plan, del canal y de la viabilidad técnica de cada sistema.",
+  "WhatsApp puede requerir activación adicional y costes de uso según configuración.",
 ];
 
 export const TRUST_BLOCKS = [
   {
     title: "Tu equipo mantiene el control",
-    text: "Atiende360 no sustituye criterio clinico. Deriva a humano cuando detecta riesgo o duda sensible.",
+    text: "Atiende360 no sustituye criterio clínico. Deriva a humano cuando detecta riesgo o duda sensible.",
   },
   {
     title: "Historial y trazabilidad completa",
@@ -178,87 +178,87 @@ export const TRUST_BLOCKS = [
   },
   {
     title: "Privacidad con enfoque responsable",
-    text: "Disenado para operar con buenas practicas de acceso, segregacion y control de datos.",
+    text: "Disenado para operar con buenas prácticas de acceso, segregación y control de datos.",
   },
   {
     title: "No reemplaza personas, elimina carga repetitiva",
-    text: "Tu recepcionista dedica mas tiempo a pacientes de alto valor y menos a tareas mecanicas.",
+    text: "Tu recepcionista dedica más tiempo a pacientes de alto valor y menos a tareas mecanicas.",
   },
 ];
 
 export const LANDING_FAQS = [
   {
-    q: "Que es Atiende360?",
+    q: "¿Qué es Atiende360?",
     a: "Atiende360 es un software de recepcionista IA para clínicas privadas. Recupera llamadas no atendidas, registra leads, agenda citas y deriva a humano cuando hace falta.",
   },
   {
-    q: "Cuanto tiempo puede ahorrar a una clinica?",
+    q: "¿Cuánto tiempo puede ahorrar a una clínica?",
     a: "Depende del volumen de llamadas, chats y cambios de cita. La calculadora de la landing permite estimar el impacto de oportunidades no atendidas antes de activar un plan.",
   },
   {
-    q: "Que necesita una clinica para empezar?",
-    a: "Necesita definir servicios, horarios, reglas de cita, datos basicos de contacto y canales que quiere activar. El setup guiado suele tardar entre 3 y 7 dias.",
+    q: "¿Qué necesita una clínica para empezar?",
+    a: "Necesita definir servicios, horarios, reglas de cita, datos básicos de contacto y canales que quiere activar. El setup guiado suele tardar entre 3 y 7 días.",
   },
   {
-    q: "Es seguro usar una IA para recepcion sanitaria?",
-    a: "Atiende360 esta pensado para tareas operativas de recepcion, no para diagnostico. Aplica escalado humano en consultas sensibles y trabaja con enfoque de minimizacion y control de acceso.",
+    q: "¿Es seguro usar una IA para recepción sanitaria?",
+    a: "Atiende360 está pensado para tareas operativas de recepción, no para diagnostico. Aplica escalado humano en consultas sensibles y trabaja con enfoque de minimización y control de acceso.",
   },
   {
-    q: "La IA puede agendar citas directamente?",
-    a: "Si. Atiende360 puede crear, mover y cancelar citas segun tus reglas operativas y disponibilidad.",
+    q: "¿La IA puede agendar citas directamente?",
+    a: "Si. Atiende360 puede crear, mover y cancelar citas según tus reglas operativas y disponibilidad.",
   },
   {
-    q: "Se conecta con Google Calendar?",
+    q: "¿Se conecta con Google Calendar?",
     a: "Si. Puedes conectarlo para sincronizar agenda en tiempo real.",
   },
   {
-    q: "Que pasa si no uso Google Calendar?",
+    q: "¿Qué pasa si no uso Google Calendar?",
     a: "No pasa nada. Puedes operar con el calendario interno de Atiende360.",
   },
   {
-    q: "Puede atender llamadas y WhatsApp?",
-    a: "La atencion de voz esta incluida por planes y WhatsApp se activa como add-on opcional.",
+    q: "¿Puede atender llamadas y WhatsApp?",
+    a: "La atención de voz esta incluida por planes y WhatsApp se activa como add-on opcional.",
   },
   {
-    q: "Que ocurre si el paciente pregunta algo delicado?",
-    a: "El agente escala a una persona del equipo. No debe resolver consultas clinicas sensibles por su cuenta.",
+    q: "¿Qué ocurre si el paciente pregunta algo delicado?",
+    a: "El agente escala a una persona del equipo. No debe resolver consultas clínicas sensibles por su cuenta.",
   },
   {
-    q: "Cuanto tarda la configuracion inicial?",
-    a: "Normalmente entre 3 y 7 dias, segun volumen de servicios y canales que quieras activar.",
+    q: "¿Cuánto tarda la configuración inicial?",
+    a: "Normalmente entre 3 y 7 días, según volumen de servicios y canales que quieras activar.",
   },
   {
-    q: "Que diferencia hay frente a un chatbot generico?",
-    a: "Un chatbot generico suele responder preguntas. Atiende360 esta orientado a recepcion clinica: llamadas, agenda, leads, calendario, derivacion humana y panel operativo.",
+    q: "¿Qué diferencia hay frente a un chatbot genérico?",
+    a: "Un chatbot genérico suele responder preguntas. Atiende360 está orientado a recepción clínica: llamadas, agenda, leads, calendario, derivación humana y panel operativo.",
   },
   {
-    q: "Se integra con herramientas externas?",
-    a: "Incluye Google Calendar opcional y puede trabajar con calendario interno. Otras integraciones se valoran segun necesidades de la clinica y plan contratado.",
+    q: "¿Se integra con herramientas externas?",
+    a: "Incluye Google Calendar opcional y puede trabajar con calendario interno. Otras integraciones se valoran según necesidades de la clínica y plan contratado.",
   },
   {
-    q: "La IA sustituye a mi recepcionista?",
+    q: "¿La IA sustituye a mi recepcionista?",
     a: "No. Le quita carga repetitiva para que se concentre en pacientes y tareas de mayor impacto.",
   },
   {
-    q: "Como se limita la demo publica?",
-    a: "La demo de voz aplica limite de duracion por sesion para mantener calidad y disponibilidad.",
+    q: "¿Cómo se limita la demo pública?",
+    a: "La demo de voz aplica límite de duración por sesión para mantener calidad y disponibilidad.",
   },
   {
-    q: "Puedo revisar conversaciones y leads?",
+    q: "¿Puedo revisar conversaciones y leads?",
     a: "Si. El panel centraliza conversaciones, leads y citas para que el equipo tenga trazabilidad completa.",
   },
   {
-    q: "Como tratais la privacidad de datos?",
-    a: "Trabajamos con enfoque de minimizacion, control de acceso y buenas practicas operativas.",
+    q: "¿Cómo tratáis la privacidad de datos?",
+    a: "Trabajamos con enfoque de minimización, control de acceso y buenas prácticas operativas.",
   },
 ];
 
 export const HUMAN_VS_AI_ROWS = [
   { feature: "Disponibilidad", human: "Limitada a turnos y descanso", ai: "Según horario y desvío configurados" },
-  { feature: "Picos de demanda", human: "Colas, llamadas perdidas o espera", ai: "Cubre contactos simultaneos segun capacidad contratada" },
-  { feature: "Seguimiento de leads", human: "Manual y facil de olvidar", ai: "Registro y clasificacion en panel" },
-  { feature: "Gestion de agenda", human: "Manual o dispersa entre herramientas", ai: "Reglas de cita y calendario centralizado" },
-  { feature: "Escalado sensible", human: "Depende de criterio del momento", ai: "Derivacion configurada a humano" },
+  { feature: "Picos de demanda", human: "Colas, llamadas perdidas o espera", ai: "Cubre contactos simultaneos según capacidad contratada" },
+  { feature: "Seguimiento de leads", human: "Manual y fácil de olvidar", ai: "Registro y clasificación en panel" },
+  { feature: "Gestión de agenda", human: "Manual o dispersa entre herramientas", ai: "Reglas de cita y calendario centralizado" },
+  { feature: "Escalado sensible", human: "Depende de criterio del momento", ai: "Derivación configurada a humano" },
   { feature: "Trazabilidad", human: "Notas, llamadas y mensajes separados", ai: "Conversaciones, leads y citas en un mismo panel" },
   { feature: "Coste operativo", human: "Coste fijo de personal y cobertura", ai: "Planes SaaS desde 99 EUR/mes" },
   { feature: "Mejor uso del equipo", human: "Mucho tiempo en preguntas repetidas", ai: "Mas tiempo para pacientes y casos complejos" },
@@ -266,24 +266,24 @@ export const HUMAN_VS_AI_ROWS = [
 
 export const PRICING_FAQS = [
   {
-    q: "Que incluye exactamente la prueba?",
-    a: "El piloto empieza cuando el primer canal esta preparado. Incluye configuracion asistida, acceso al panel y pruebas de los flujos acordados antes de recibir contactos reales.",
+    q: "¿Qué incluye exactamente la prueba?",
+    a: "El piloto empieza cuando el primer canal está preparado. Incluye configuración asistida, acceso al panel y pruebas de los flujos acordados antes de recibir contactos reales.",
   },
   {
-    q: "Que pasa si supero los minutos incluidos?",
-    a: "Te avisamos antes de llegar al limite y acordamos si conviene ampliar capacidad o cambiar de plan. No se aplican extras sin informar.",
+    q: "¿Qué pasa si supero los minutos incluidos?",
+    a: "Te avisamos antes de llegar al límite y acordamos si conviene ampliar capacidad o cambiar de plan. No se aplican extras sin informar.",
   },
   {
-    q: "El precio cambia si activo WhatsApp?",
-    a: "WhatsApp esta en activacion asistida. Su disponibilidad y costes de uso se confirman en la propuesta antes de conectarlo.",
+    q: "¿El precio cambia si activo WhatsApp?",
+    a: "WhatsApp esta en activación asistida. Su disponibilidad y costes de uso se confirman en la propuesta antes de conectarlo.",
   },
   {
-    q: "Hay permanencia minima?",
+    q: "¿Hay permanencia mínima?",
     a: "No. Puedes cancelar cuando quieras.",
   },
   {
-    q: "Puedo empezar con varias sedes?",
-    a: "Ahora activamos una sede por cuenta para asegurar que agenda, desvio y derivaciones funcionan bien. Los despliegues multisede se valoran como proyecto asistido.",
+    q: "¿Puedo empezar con varias sedes?",
+    a: "Ahora activamos una sede por cuenta para asegurar que agenda, desvío y derivaciones funcionan bien. Los despliegues multisede se valoran como proyecto asistido.",
   },
 ];
 
@@ -292,7 +292,7 @@ export const PLANS: PricingPlan[] = [
     id: "starter",
     name: "Starter",
     monthly: 99,
-    subtitle: "Para una clinica que quiere validar conversion sin complejidad.",
+    subtitle: "Para una clínica que quiere validar conversión sin complejidad.",
     cta: "Probar Starter",
     features: [
       "1 negocio o sede",
@@ -301,7 +301,7 @@ export const PLANS: PricingPlan[] = [
       "Calendario interno",
       "Google Calendar opcional",
       "Panel de conversaciones y citas",
-      "Clasificacion basica de leads",
+      "Clasificación básica de leads",
       "Alertas a humano",
     ],
   },
@@ -309,67 +309,67 @@ export const PLANS: PricingPlan[] = [
     id: "pro",
     name: "Pro",
     monthly: 179,
-    subtitle: "Para clinicas con mayor carga de recepcion y mas leads diarios.",
+    subtitle: "Para clínicas con mayor carga de recepción y mas leads diarios.",
     badge: "Mas popular",
     cta: "Probar Pro",
     features: [
       "Todo lo de Starter",
       "750 minutos de llamadas IA al mes",
       "Seguimiento de leads mejorado",
-      "Personalizacion asistida de reglas y tono",
+      "Personalización asistida de reglas y tono",
     ],
   },
   {
     id: "growth",
     name: "Growth",
     monthly: 299,
-    subtitle: "Para una clinica con volumen alto y operativa mas exigente.",
+    subtitle: "Para una clínica con volumen alto y operativa mas exigente.",
     cta: "Probar Growth",
     features: [
       "Todo lo de Pro",
       "1.800 minutos de llamadas IA al mes",
-      "Revision asistida inicial",
+      "Revisión asistida inicial",
     ],
   },
 ];
 
 export const COMPARISON_ROWS: CompareRow[] = [
   { feature: "Precio mensual", starter: "99 EUR/mes", pro: "179 EUR/mes", growth: "299 EUR/mes" },
-  { feature: "Clinicas o sedes", starter: "1", pro: "1", growth: "1" },
+  { feature: "Clínicas o sedes", starter: "1", pro: "1", growth: "1" },
   { feature: "Minutos incluidos", starter: "300 min", pro: "750 min", growth: "1.800 min" },
   { feature: "Agente de voz", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Calendario interno", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Google Calendar opcional", starter: "Si", pro: "Si", growth: "Si" },
   { feature: "Alertas a humano", starter: "Si", pro: "Si", growth: "Si" },
-  { feature: "WhatsApp", starter: "Activacion asistida", pro: "Activacion asistida", growth: "Activacion asistida" },
+  { feature: "WhatsApp", starter: "Activación asistida", pro: "Activación asistida", growth: "Activación asistida" },
   { feature: "Soporte", starter: "Email", pro: "Email + WhatsApp", growth: "Prioritario" },
 ];
 
 export const ENTITY_TERMS = [
-  "recepcionista IA para clinicas",
-  "software de recepcion medica",
-  "automatizacion de llamadas para clinicas",
+  "recepcionista IA para clínicas",
+  "software de recepción médica",
+  "automatización de llamadas para clínicas",
   "agenda de citas con IA",
   "recepcionista virtual sanitaria",
-  "WhatsApp para clinicas",
-  "clasificacion de leads sanitarios",
-  "derivacion humana en consultas sensibles",
-  "Google Calendar para clinicas",
+  "WhatsApp para clínicas",
+  "clasificación de leads sanitarios",
+  "derivación humana en consultas sensibles",
+  "Google Calendar para clínicas",
   "panel de conversaciones y citas",
 ];
 
 export const SECURITY_PRINCIPLES = [
   {
-    title: "IA para recepcion, no para diagnostico",
-    text: "Atiende360 esta pensado para tareas administrativas: responder dudas operativas, recoger datos, proponer citas y escalar conversaciones delicadas.",
+    title: "IA para recepción, no para diagnostico",
+    text: "Atiende360 está pensado para tareas administrativas: responder dudas operativas, recoger datos, proponer citas y escalar conversaciones delicadas.",
   },
   {
-    title: "Derivacion humana configurable",
-    text: "Cuando aparecen sintomas complejos, urgencias, quejas, datos ambiguos o peticiones fuera de reglas, el flujo debe pasar al equipo de la clinica.",
+    title: "Derivación humana configurable",
+    text: "Cuando aparecen sintomas complejos, urgencias, quejas, datos ambiguos o peticiones fuera de reglas, el flujo debe pasar al equipo de la clínica.",
   },
   {
-    title: "Minimizacion de datos",
-    text: "La configuracion debe recoger solo la informacion necesaria para atender, registrar y agendar, evitando pedir datos clinicos que no hagan falta.",
+    title: "Minimización de datos",
+    text: "La configuración debe recoger solo la información necesaria para atender, registrar y agendar, evitando pedir datos clínicos que no hagan falta.",
   },
   {
     title: "Trazabilidad operativa",
@@ -377,34 +377,34 @@ export const SECURITY_PRINCIPLES = [
   },
   {
     title: "Acceso con panel privado",
-    text: "El panel de gestion no esta pensado para indexarse ni exponerse a buscadores; las rutas privadas quedan bloqueadas para rastreadores.",
+    text: "El panel de gestión no está pensado para indexarse ni exponerse a buscadores; las rutas privadas quedan bloqueadas para rastreadores.",
   },
   {
-    title: "Configuracion por clinica",
-    text: "Cada centro define servicios, horarios, reglas de cita, tono de respuesta y criterios de escalado segun su operativa.",
+    title: "Configuración por clínica",
+    text: "Cada centro define servicios, horarios, reglas de cita, tono de respuesta y criterios de escalado según su operativa.",
   },
 ];
 
 export const INTEGRATION_BLOCKS = [
   {
     title: "Google Calendar",
-    text: "Sincroniza disponibilidad y citas si la clinica ya trabaja con Google Calendar.",
+    text: "Sincroniza disponibilidad y citas si la clínica ya trabaja con Google Calendar.",
   },
   {
     title: "Calendario interno",
-    text: "Permite operar sin una agenda externa desde el primer dia, con reglas basicas de disponibilidad.",
+    text: "Permite operar sin una agenda externa desde el primer día, con reglas básicas de disponibilidad.",
   },
   {
-    title: "Telefono IA",
-    text: "Atiende llamadas entrantes y recoge motivo, datos y disponibilidad cuando el canal de voz esta activo.",
+    title: "Teléfono IA",
+    text: "Atiende llamadas entrantes y recoge motivo, datos y disponibilidad cuando el canal de voz está activo.",
   },
   {
     title: "WhatsApp",
-    text: "Canal opcional para seguimiento y conversacion, sujeto a activacion y costes de uso.",
+    text: "Canal opcional para seguimiento y conversación, sujeto a activación y costes de uso.",
   },
   {
     title: "Integraciones personalizadas",
-    text: "Se valoran caso por caso cuando la clinica necesita conectar sistemas adicionales.",
+    text: "Se valoran caso por caso cuando la clínica necesita conectar sistemas adicionales.",
   },
 ];
 
@@ -430,8 +430,8 @@ export const GENERIC_COMPARISON = [
     atende: "Centraliza conversaciones, leads, estados y citas.",
   },
   {
-    title: "Limites clinicos",
-    generic: "Puede requerir mucha supervision para no responder de mas.",
-    atende: "Define derivacion humana para conversaciones sensibles.",
+    title: "Límites clínicos",
+    generic: "Puede requerir mucha supervisión para no responder de mas.",
+    atende: "Define derivación humana para conversaciones sensibles.",
   },
 ];

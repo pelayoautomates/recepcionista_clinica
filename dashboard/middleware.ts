@@ -18,9 +18,20 @@ const PUBLIC_PATHS = [
   "/robots.txt",
   "/sitemap.xml",
   "/llms.txt",
+  "/manifest.webmanifest",
+  "/icon.png",
+  "/logo-largo.png",
+  "/logo-web.png",
   "/opengraph-image",
 ];
-const PUBLIC_PREFIXES = ["/auth", "/api", "/widget", "/blog"];
+const PUBLIC_PREFIXES = [
+  "/auth",
+  "/api",
+  "/widget",
+  "/blog",
+  "/recepcionista-ia",
+  "/comparativa",
+];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

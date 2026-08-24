@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     retell_ws_secret: str = ""  # Secreto para proteger /retell/llm-websocket (query ?token=...)
     retell_voice_id: str = "11labs-Adrian"  # Voz de los agentes creados (ver /list-voices en Retell)
 
+    # YCloud (BSP de WhatsApp — alternativa a Meta directo, permite Coexistence)
+    ycloud_api_key: str = ""         # X-API-Key de la cuenta YCloud
+    ycloud_webhook_secret: str = ""  # Secreto para validar la cabecera YCloud-Signature
+    # Plantilla aprobada por Meta para recordatorios de cita. Sin ella no se puede
+    # escribir a un paciente que lleva mas de 24 h sin responder.
+    # Params esperados: {{1}} nombre, {{2}} clinica, {{3}} fecha y hora.
+    ycloud_template_recordatorio: str = ""
+
     # Telnyx (números de teléfono + SMS)
     telnyx_api_key: str = ""
     telnyx_sip_connection_id: str = ""  # ID of the Telnyx SIP connection

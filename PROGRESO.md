@@ -1,8 +1,77 @@
 # Progreso de Implementación
 
-Última actualización: 2026-08-21
+Última actualización: 2026-08-23
 
 ---
+
+## Web pública: SEO, GEO local y rediseño responsive (2026-08-23)
+
+Revisión completa de la web de marketing con navegador (capturas a 1440 / 834 / 390 px)
+y auditoría automática de SEO, accesibilidad y desbordes sobre el build de producción.
+
+### Bug grave encontrado: el blog no tenía estilos
+
+`app/blog/page.tsx` y `app/blog/[slug]/page.tsx` usaban clases de **Tailwind**, pero
+Tailwind no está instalado en el proyecto y no hay hoja global. Los cuatro artículos SEO
+—los que están en el sitemap y son el activo de content marketing— se servían como HTML
+plano: sin cabecera, sin footer, sin tipografía. Reescritos sobre `MarketingShell` y
+`MarketingStyles.module.css`, con índice lateral, CTA fija, artículos relacionados y
+enlazado interno a las páginas de ciudad.
+
+### Ortografía: 280+ tildes ausentes en la copy
+
+Barrido de todo el texto visible (`clinica`→`clínica`, `telefono`→`teléfono`,
+`recepcion`→`recepción`, terminaciones `-ción/-sión`, interrogativas sin `¿` ni tilde…).
+Se respetaron slugs, rutas, identificadores y nombres de clase. Afecta directamente al
+posicionamiento en castellano y a la percepción de profesionalidad.
+
+### GEO / SEO local (nuevo)
+
+- `lib/geo-content.ts`: 12 plazas con contexto real de mercado (barrios con más clínicas,
+  especialidades con más peso, patrón horario, FAQ propia de la plaza). No son páginas
+  puerta: cada una responde a algo distinto.
+- `/recepcionista-ia` (índice) y `/recepcionista-ia/[ciudad]` (12 páginas SSG) con
+  schema `Service` + `areaServed` (City + GeoCoordinates), `FAQPage`, `BreadcrumbList`
+  y meta `geo.region` / `geo.position` / `ICBM`.
+- Enlazado interno desde home (sección «Cobertura»), footer, blog y entre ciudades.
+- `llms.txt` ampliado con la sección de cobertura geográfica para buscadores generativos.
+
+### SEO técnico
+
+- `og:image` en las 12 páginas públicas (antes solo la home; los hijos sobrescribían
+  el `openGraph` del layout entero).
+- Títulos y meta descriptions dentro de longitud útil de SERP; `seoTitle`/`seoDescription`
+  opcionales en los artículos para no sacrificar el titular en página.
+- `app/manifest.ts`, `viewport` con `themeColor`, `keywords`, `alternates.languages`.
+- Sitemap: añadidos `/recepcionista-ia`, las 12 ciudades, `/privacidad` y `/terminos`.
+- Jerarquía de encabezados corregida (ya no hay saltos h1→h3) en precios y piloto.
+- `Organization` con `logo`, `image`, `areaServed` y `knowsLanguage`.
+- Middleware: la allowlist de rutas públicas dejaba fuera cualquier página nueva, que
+  acababa en 307 hacia `/login`. Añadidos prefijos `/recepcionista-ia` y `/comparativa`
+  más los ficheros de metadatos.
+- CTA del blog apuntaba a `/onboarding` (con login); ahora a `/demo`.
+
+### Diseño y responsive
+
+- **Tablet ya no es un móvil grande**: entre 760 y 1140 px las rejillas van a 2 columnas
+  (antes colapsaban a 1 en 1140 px), los planes se comparan en paralelo, y el visual del
+  hero y la maqueta del panel siguen visibles en vez de desaparecer.
+- Animaciones de entrada disparadas al hacer scroll (`ScrollReveal` +
+  `IntersectionObserver`) en lugar de al cargar la página, con degradación sin JS y red
+  de seguridad a 2,5 s.
+- Bloque `prefers-reduced-motion` respetando la preferencia del sistema.
+- Footer rehecho a cuatro columnas con enlaces de producto, recursos y ciudades.
+- Banner de cookies: de barra que tapaba el contenido a tarjeta compacta abajo a la
+  izquierda, por encima de la CTA fija en móvil.
+- FAQ con chevron y apertura animada; elevación al pasar el cursor en tarjetas y botones;
+  foco visible en todos los elementos interactivos.
+- Objetivos táctiles de móvil por encima de 40 px en navegación, footer y FAQ.
+
+### Verificación
+
+Build de producción + auditoría con Playwright sobre las 12 páginas públicas:
+sin avisos de SEO, sin desbordes horizontales en ninguno de los tres breakpoints,
+sin errores de consola ni de JS. `tsc --noEmit` y `next lint` limpios.
 
 ## Segunda opinión de código sobre la auditoría de Codex (2026-08-21)
 

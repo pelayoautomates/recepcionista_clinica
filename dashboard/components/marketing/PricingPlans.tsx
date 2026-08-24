@@ -25,7 +25,7 @@ function PlanCard({
   return (
     <article className={`${styles.planCard} ${plan.id === "pro" ? styles.planRecommended : ""}`}>
       <div className={styles.planTop}>
-        <h3>{plan.name}</h3>
+        <h2>{plan.name}</h2>
         {plan.badge ? <span>{plan.badge}</span> : null}
       </div>
 
@@ -36,7 +36,7 @@ function PlanCard({
         <small>/mes</small>
       </p>
 
-      <p className={styles.planMeta}>Facturacion mensual · IVA no incluido</p>
+      <p className={styles.planMeta}>Facturación mensual · IVA no incluido</p>
 
       <ul className={styles.planList}>
         {plan.features.map((item) => (
@@ -73,7 +73,7 @@ export default function PricingPlans({ variant }: { variant: "landing" | "full" 
           <section className={styles.comparisonSection}>
             <div className={styles.sectionHeaderCompact}>
               <p className={styles.sectionKicker}>Comparativa</p>
-              <h3 className={styles.sectionTitleCompact}>Starter, Pro y Growth lado a lado</h3>
+              <h2 className={styles.sectionTitleCompact}>Starter, Pro y Growth lado a lado</h2>
             </div>
 
             <div className={styles.tableWrap}>
@@ -103,7 +103,7 @@ export default function PricingPlans({ variant }: { variant: "landing" | "full" 
           <section className={styles.pricingFaqSection}>
             <div className={styles.sectionHeaderCompact}>
               <p className={styles.sectionKicker}>FAQ de precios</p>
-              <h3 className={styles.sectionTitleCompact}>Resuelve dudas antes de decidir</h3>
+              <h2 className={styles.sectionTitleCompact}>Resuelve dudas antes de decidir</h2>
             </div>
 
             <div className={styles.faqGridCompact}>

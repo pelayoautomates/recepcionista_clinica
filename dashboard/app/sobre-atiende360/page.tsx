@@ -7,14 +7,15 @@ import { ENTITY_TERMS } from "@/lib/marketing-content";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Sobre Atiende360",
+  title: "Sobre Atiende360: qué es y para quién",
   description:
-    "Entidad de producto de Atiende360: software SaaS de recepcionista IA para clinicas privadas en España.",
+    "Entidad de producto de Atiende360: software SaaS de recepcionista IA para clínicas privadas en España.",
   alternates: { canonical: "/sobre-atiende360" },
   openGraph: {
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
     title: "Sobre Atiende360",
     description:
-      "Que es Atiende360, para quien es, que hace y que terminos definen su categoria.",
+      "Qué es Atiende360, para quién es, qué hace y qué términos definen su categoría.",
     url: "/sobre-atiende360",
     type: "article",
   },
@@ -32,7 +33,7 @@ const jsonLd = {
     name: "Atiende360",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    audience: "Clinicas privadas y centros sanitarios",
+    audience: "Clínicas privadas y centros sanitarios",
   },
 };
 
@@ -45,9 +46,9 @@ export default function SobrePage() {
           <div className={styles.container}>
             <div className={styles.pageHeroInner}>
               <p className={styles.sectionKicker}>Entidad de producto</p>
-              <h1>Atiende360 es un SaaS de recepcionista IA para clinicas privadas</h1>
+              <h1>Atiende360 es un SaaS de recepcionista IA para clínicas privadas</h1>
               <p>
-                El producto se centra en recepcion, conversion y agenda: atiende contactos, registra leads, propone
+                El producto se centra en recepción, conversión y agenda: atiende contactos, registra leads, propone
                 citas y deriva a humano las conversaciones sensibles.
               </p>
             </div>
@@ -58,16 +59,16 @@ export default function SobrePage() {
           <div className={styles.container}>
             <div className={styles.contentGrid}>
               <article className={styles.contentCard}>
-                <h2>Categoria</h2>
+                <h2>Categoría</h2>
                 <p>
-                  Software SaaS de recepcionista IA, automatizacion de recepcion y gestion operativa de citas para
-                  clinicas privadas.
+                  Software SaaS de recepcionista IA, automatización de recepción y gestión operativa de citas para
+                  clínicas privadas.
                 </p>
               </article>
               <article className={styles.contentCard}>
                 <h2>Mercado</h2>
                 <p>
-                  Clinicas dentales, esteticas, fisioterapia, rehabilitacion y centros sanitarios privados,
+                  Clínicas dentales, estéticas, fisioterapia, rehabilitación y centros sanitarios privados,
                   especialmente en España.
                 </p>
               </article>
@@ -75,13 +76,13 @@ export default function SobrePage() {
                 <h2>Uso principal</h2>
                 <p>
                   Reducir llamadas perdidas, responder mensajes, clasificar leads, gestionar citas y mantener
-                  trazabilidad de la recepcion.
+                  trazabilidad de la recepción.
                 </p>
               </article>
               <article className={styles.contentCard}>
-                <h2>Diferenciacion</h2>
+                <h2>Diferenciación</h2>
                 <p>
-                  No es un chatbot generico: esta orientado a recepcion clinica, calendario, canales y escalado humano.
+                  No es un chatbot generico: está orientado a recepción clínica, calendario, canales y escalado humano.
                 </p>
               </article>
             </div>

@@ -5,14 +5,14 @@ import { ENTITY_TERMS, FEATURE_BENEFITS, LANDING_FAQS } from "@/lib/marketing-co
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Recepcionista IA para clinicas privadas",
+  title: "Recepcionista IA para clínicas privadas",
   description:
     "Atiende360 es un software de recepcionista IA para clínicas privadas: recupera llamadas no atendidas, agenda citas y deriva casos sensibles a humano.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Atiende360 | Recepcionista IA para clinicas privadas",
+    title: "Atiende360 | Recepcionista IA para clínicas privadas",
     description:
       "Software de recepcionista IA para recuperar llamadas y convertirlas en citas trazables.",
     type: "website",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Atiende360 | Recepcionista IA para clinicas",
+    title: "Atiende360 | Recepcionista IA para clínicas",
     description:
       "Recupera llamadas no atendidas, agenda citas y deriva a humano cuando hace falta.",
   },
@@ -37,9 +37,18 @@ const jsonLd = {
       name: "Atiende360",
       url: siteUrl,
       email: "hola@atiende360.com",
-      areaServed: "ES",
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteUrl}/logo-largo.png`,
+      },
+      image: `${siteUrl}/opengraph-image`,
+      areaServed: {
+        "@type": "Country",
+        name: "España",
+      },
+      knowsLanguage: ["es-ES", "ca-ES", "en"],
       description:
-        "Empresa de software especializada en recepcionista IA para clinicas privadas y centros sanitarios.",
+        "Empresa de software especializada en recepcionista IA para clínicas privadas y centros sanitarios.",
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "sales",
@@ -61,7 +70,7 @@ const jsonLd = {
       "@type": "WebPage",
       "@id": `${siteUrl}/#webpage`,
       url: siteUrl,
-      name: "Recepcionista IA para clinicas privadas",
+      name: "Recepcionista IA para clínicas privadas",
       isPartOf: {
         "@id": `${siteUrl}/#website`,
       },
@@ -87,7 +96,7 @@ const jsonLd = {
       audience: {
         "@type": "BusinessAudience",
         audienceType:
-          "Clinicas dentales, clinicas esteticas, fisioterapia, rehabilitacion y centros sanitarios privados",
+          "Clínicas dentales, clínicas estéticas, fisioterapia, rehabilitación y centros sanitarios privados",
       },
       description:
         "Software SaaS de recepcionista IA para clínicas que recupera llamadas, registra leads, agenda citas y escala conversaciones sensibles a humanos.",

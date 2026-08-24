@@ -67,7 +67,7 @@ export default function DemoRequestForm() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || "No se pudo enviar la solicitud");
       trackMetaEvent("Lead", metaEventId);
-      setStatus("Solicitud recibida. Te contactaremos para preparar una demo con la operativa de tu clinica.");
+      setStatus("Solicitud recibida. Te contactaremos para preparar una demo con la operativa de tu clínica.");
       formElement.reset();
     } catch (e: any) {
       setError(e.message || "No se pudo enviar la solicitud. Escribe a hola@atiende360.com.");
@@ -80,11 +80,11 @@ export default function DemoRequestForm() {
     <form className={styles.formCard} onSubmit={handleSubmit}>
       <div className={styles.fieldGrid}>
         <label className={styles.formField}>
-          Nombre de la clinica
+          Nombre de la clínica
           <input name="clinic" type="text" autoComplete="organization" required />
         </label>
         <label className={styles.formField}>
-          Web de la clinica
+          Web de la clínica
           <input name="website" type="url" inputMode="url" placeholder="https://..." />
         </label>
         <label className={styles.formField}>
@@ -92,17 +92,17 @@ export default function DemoRequestForm() {
           <input name="email" type="email" autoComplete="email" required />
         </label>
         <label className={styles.formField}>
-          Telefono
+          Teléfono
           <input name="phone" type="tel" autoComplete="tel" />
         </label>
       </div>
 
       <label className={styles.formField}>
-        Tipo de clinica
+        Tipo de clínica
         <select name="specialty" defaultValue="">
           <option value="" disabled>Selecciona una opcion</option>
-          <option>Clinica estetica</option>
-          <option>Fisioterapia o rehabilitacion</option>
+          <option>Clínica estética</option>
+          <option>Fisioterapia o rehabilitación</option>
           <option>Psicologia</option>
           <option>Centro sanitario privado</option>
         </select>
@@ -110,13 +110,13 @@ export default function DemoRequestForm() {
 
       <fieldset className={styles.checkboxGroup}>
         <legend>Canales que quieres revisar</legend>
-        <label><input type="checkbox" name="channels" value="Telefono IA" /> Telefono IA</label>
+        <label><input type="checkbox" name="channels" value="Teléfono IA" /> Teléfono IA</label>
         <label><input type="checkbox" name="channels" value="WhatsApp" /> WhatsApp</label>
         <label><input type="checkbox" name="channels" value="Google Calendar" /> Google Calendar</label>
       </fieldset>
 
       <label className={styles.formField}>
-        Que quieres mejorar en recepcion?
+        Que quieres mejorar en recepción?
         <textarea
           name="notes"
           rows={5}

@@ -5,6 +5,7 @@ import AgentDemoSandbox from "./AgentDemoSandbox";
 import styles from "./MarketingStyles.module.css";
 import { GoogleCalendarLogo, WhatsAppLogo } from "@/components/BrandLogos";
 import { FEATURE_BENEFITS, LANDING_FAQS, PROCESS_STEPS } from "@/lib/marketing-content";
+import { CITIES } from "@/lib/geo-content";
 
 export default function MarketingLanding() {
   return (
@@ -27,13 +28,14 @@ export default function MarketingLanding() {
 
               <div className={styles.heroConversionCopy}>
                 <p className={`${styles.heroKicker} ${styles.animFadeUp}`} style={{ animationDelay: "0ms" }}>
-                  RECUPERACION DE LLAMADAS PARA CLINICAS ESTETICAS
+                  RECUPERACIÓN DE LLAMADAS PARA CLÍNICAS ESTÉTICAS
                 </p>
                 <h1 className={`${styles.heroConversionTitle} ${styles.animFadeUp}`} style={{ animationDelay: "80ms" }}>
-                  Recupera las primeras consultas<br />que hoy no puedes atender.
+                  Recupera las primeras consultas{" "}
+                  <span className={styles.heroTitleBreak}>que hoy no puedes atender.</span>
                 </h1>
                 <p className={`${styles.heroConversionLead} ${styles.animFadeUp}`} style={{ animationDelay: "160ms" }}>
-                  Si nadie coge el telefono, Atiende360 responde con el contexto de tu clinica,
+                  Si nadie coge el teléfono, Atiende360 responde con el contexto de tu clínica,
                   agenda valoraciones y deja a tu equipo el control de los casos sensibles.
                 </p>
 
@@ -47,14 +49,14 @@ export default function MarketingLanding() {
                 </div>
 
                 <div className={styles.heroMobileTrust}>
-                  <span>✓ Conservas tu numero</span>
-                  <span>✓ Activacion asistida</span>
-                  <span>✓ Derivacion humana</span>
+                  <span>✓ Conservas tu número</span>
+                  <span>✓ Activación asistida</span>
+                  <span>✓ Derivación humana</span>
                 </div>
 
                 <div className={`${styles.heroBadgeRow} ${styles.animFadeUp}`} style={{ animationDelay: "320ms" }}>
                   <span className={styles.heroBadge}>
-                    <PhoneIcon /> Desvio por no respuesta
+                    <PhoneIcon /> Desvío por no respuesta
                   </span>
                   <span className={styles.heroBadge}>
                     <WhatsAppLogo size={15} /> WhatsApp asistido
@@ -82,7 +84,7 @@ export default function MarketingLanding() {
                         <span className={`${styles.flowDot} ${styles.flowDotBlue}`} />
                         LLAMADA NO ATENDIDA
                       </div>
-                      <div className={styles.flowCardTitle}>La clinica esta atendiendo</div>
+                      <div className={styles.flowCardTitle}>La clínica está atendiendo</div>
                       <div className={styles.flowQuote}>
                         <span className={styles.flowQuoteMark}>&ldquo;</span>
                         <span className={styles.flowQuoteText}>Quiero una cita para esta semana</span>
@@ -559,7 +561,7 @@ export default function MarketingLanding() {
               <p className={styles.sectionKicker}>Precios</p>
               <h2 className={styles.sectionTitle}>Elige capacidad; valida el resultado con un piloto.</h2>
               <p className={styles.sectionSubtitle}>
-                El piloto empieza cuando el primer canal esta preparado y ha superado las pruebas acordadas.
+                El piloto empieza cuando el primer canal está preparado y ha superado las pruebas acordadas.
               </p>
             </div>
             <PricingPlans variant="landing" />
@@ -580,6 +582,33 @@ export default function MarketingLanding() {
                   <summary>{faq.q}</summary>
                   <p>{faq.a}</p>
                 </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── COBERTURA GEOGRÁFICA ─────────────────────────────────────── */}
+        <section className={styles.section} id="cobertura">
+          <div className={styles.container}>
+            <div className={styles.sectionHeaderCompact}>
+              <p className={styles.sectionKicker}>Cobertura</p>
+              <h2 className={styles.sectionTitleCompact}>Clínicas de toda España</h2>
+              <p className={styles.sectionSubtitle}>
+                Atiende360 funciona en la nube y se activa por desvío sobre tu numeración
+                actual, así que no depende de dónde esté tu clínica. Estas páginas recogen el
+                contexto de cada plaza: horarios, estacionalidad e idioma del paciente.
+              </p>
+            </div>
+            <div className={`${styles.geoNearbyRow} ${styles.animFadeUp}`}>
+              {CITIES.map((city) => (
+                <Link
+                  key={city.slug}
+                  href={`/recepcionista-ia/${city.slug}`}
+                  className={styles.geoNearbyChip}
+                  prefetch={false}
+                >
+                  Recepcionista IA en {city.name}
+                </Link>
               ))}
             </div>
           </div>

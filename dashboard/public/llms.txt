@@ -62,8 +62,28 @@ El agente nunca diagnostica ni sustituye criterio clínico. Cuando detecta consu
 - Seguridad y privacidad: https://atiende360.com/seguridad
 - Integraciones: https://atiende360.com/integraciones
 - Blog: https://atiende360.com/blog
+- Cobertura por ciudad: https://atiende360.com/recepcionista-ia
+- Comparativa frente a chatbots genéricos: https://atiende360.com/comparativa/chatbot-generico
+- Sobre Atiende360: https://atiende360.com/sobre-atiende360
 - Privacidad: https://atiende360.com/privacidad
 - Términos: https://atiende360.com/terminos
+
+## Cobertura geográfica
+
+Atiende360 es un servicio en la nube y opera en toda España. No depende de centralita física: se activa por desvío por no respuesta sobre la numeración actual de la clínica. Existen páginas con el contexto local de cada plaza (horarios, estacionalidad, idioma del paciente):
+
+- Madrid: https://atiende360.com/recepcionista-ia/madrid
+- Barcelona: https://atiende360.com/recepcionista-ia/barcelona
+- Valencia: https://atiende360.com/recepcionista-ia/valencia
+- Sevilla: https://atiende360.com/recepcionista-ia/sevilla
+- Málaga: https://atiende360.com/recepcionista-ia/malaga
+- Zaragoza: https://atiende360.com/recepcionista-ia/zaragoza
+- Bilbao: https://atiende360.com/recepcionista-ia/bilbao
+- Murcia: https://atiende360.com/recepcionista-ia/murcia
+- Alicante: https://atiende360.com/recepcionista-ia/alicante
+- Palma de Mallorca: https://atiende360.com/recepcionista-ia/palma-de-mallorca
+- Las Palmas de Gran Canaria: https://atiende360.com/recepcionista-ia/las-palmas-de-gran-canaria
+- Vigo: https://atiende360.com/recepcionista-ia/vigo
 
 ## Artículos de referencia
 

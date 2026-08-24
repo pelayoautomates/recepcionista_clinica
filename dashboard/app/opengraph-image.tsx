@@ -52,13 +52,13 @@ export default function Image() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div style={{ color: "#0f4bd9", fontSize: 28, fontWeight: 800 }}>
-            Recepcionista IA para clinicas privadas
+            Recepcionista IA para clínicas privadas
           </div>
           <div style={{ fontSize: 76, lineHeight: 0.96, fontWeight: 800, letterSpacing: -2 }}>
             Convierte llamadas y mensajes en citas trazables
           </div>
           <div style={{ display: "flex", gap: 14, fontSize: 26, color: "#3f4f6f" }}>
-            <span>Telefono</span>
+            <span>Teléfono</span>
             <span>WhatsApp</span>
             <span>Google Calendar</span>
           </div>

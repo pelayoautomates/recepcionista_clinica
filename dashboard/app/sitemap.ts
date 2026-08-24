@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { BLOG_POSTS } from "@/lib/blog-posts";
+import { CITIES } from "@/lib/geo-content";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
@@ -12,10 +13,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/piloto-clinicas-esteticas", changeFrequency: "weekly" as const, priority: 0.95 },
     { path: "/pricing", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/blog", changeFrequency: "weekly" as const, priority: 0.85 },
+    { path: "/recepcionista-ia", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/seguridad", changeFrequency: "monthly" as const, priority: 0.7 },
     { path: "/integraciones", changeFrequency: "monthly" as const, priority: 0.7 },
     { path: "/sobre-atiende360", changeFrequency: "monthly" as const, priority: 0.6 },
     { path: "/comparativa/chatbot-generico", changeFrequency: "monthly" as const, priority: 0.65 },
+    { path: "/privacidad", changeFrequency: "yearly" as const, priority: 0.3 },
+    { path: "/terminos", changeFrequency: "yearly" as const, priority: 0.3 },
   ];
 
   const staticUrls = publicPages.map((page) => ({
@@ -25,12 +29,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: page.priority,
   }));
 
-  const blogUrls = BLOG_POSTS.map((post) => ({
-    url: `${siteUrl}/blog/${post.slug}`,
-    lastModified: new Date(post.date),
+  const cityUrls = CITIES.map((city) => ({
+    url: `${siteUrl}/recepcionista-ia/${city.slug}`,
+    lastModified: now,
     changeFrequency: "monthly" as const,
     priority: 0.75,
   }));
 
-  return [...staticUrls, ...blogUrls];
+  const blogUrls = BLOG_POSTS.map((post) => ({
+    url: `${siteUrl}/blog/${post.slug}`,
+    lastModified: new Date(post.date),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
+  return [...staticUrls, ...cityUrls, ...blogUrls];
 }

@@ -11,7 +11,7 @@ export default function MarketingPricing() {
           <div className={styles.container}>
             <div className={styles.pricingHeroInner}>
               <p className={styles.sectionKicker}>Pricing de Atiende360</p>
-              <h1>Elige el plan que mejor encaja con la recepcion de tu clinica</h1>
+              <h1>Elige el plan que mejor encaja con la recepción de tu clínica</h1>
               <p>
                 Planes mensuales, IVA no incluido y sin permanencia. Los canales opcionales se confirman antes de activar.
               </p>
@@ -37,9 +37,9 @@ export default function MarketingPricing() {
           <div className={styles.container}>
             <div className={styles.finalCtaCardAlt}>
               <p className={styles.finalKickerAlt}>Necesitas una propuesta a medida?</p>
-              <h2>Si tienes varias sedes o flujos complejos, te ayudamos a disenar el setup ideal.</h2>
+              <h2>Si tienes varias sedes o flujos complejos, te ayudamos a diseñar el setup ideal.</h2>
               <p>
-                Podemos ajustar estrategia de recepcion, reglas de derivacion y plan de despliegue por etapas.
+                Podemos ajustar estrategia de recepción, reglas de derivación y plan de despliegue por etapas.
               </p>
               <div className={styles.finalActionRow}>
                 <Link href="/demo" prefetch={false} className={styles.btnPrimary}>

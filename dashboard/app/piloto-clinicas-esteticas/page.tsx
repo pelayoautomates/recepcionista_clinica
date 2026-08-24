@@ -3,10 +3,61 @@ import DemoRequestForm from "@/components/marketing/DemoRequestForm";
 import MarketingShell from "@/components/marketing/MarketingShell";
 import styles from "@/components/marketing/MarketingStyles.module.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
+
 export const metadata: Metadata = {
-  title: "Piloto de recuperación de llamadas para clínicas estéticas",
-  description: "Prueba Atiende360 con tu número, tus servicios y tus reglas de derivación mediante una activación asistida.",
+  title: "Piloto para clínicas estéticas",
+  description:
+    "Prueba Atiende360 en tu clínica estética con tu propio número, tus servicios y tus reglas de derivación, mediante una activación asistida y sin permanencia.",
   alternates: { canonical: "/piloto-clinicas-esteticas" },
+  openGraph: {
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
+    title: "Piloto de recuperación de llamadas para clínicas estéticas",
+    description:
+      "Activación asistida sobre tu numeración actual, con tus servicios y tus reglas de derivación.",
+    url: "/piloto-clinicas-esteticas",
+    type: "website",
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": `${siteUrl}/piloto-clinicas-esteticas#webpage`,
+      url: `${siteUrl}/piloto-clinicas-esteticas`,
+      name: "Piloto de recuperación de llamadas para clínicas estéticas",
+      inLanguage: "es-ES",
+      isPartOf: { "@id": `${siteUrl}/#website` },
+      breadcrumb: {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Inicio", item: `${siteUrl}/` },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Piloto para clínicas estéticas",
+            item: `${siteUrl}/piloto-clinicas-esteticas`,
+          },
+        ],
+      },
+    },
+    {
+      "@type": "Service",
+      "@id": `${siteUrl}/piloto-clinicas-esteticas#service`,
+      name: "Piloto asistido de recepcionista IA para clínicas estéticas",
+      serviceType: "Recuperación de llamadas no atendidas para clínicas estéticas",
+      description:
+        "Activación asistida de Atiende360 sobre la numeración actual de la clínica, con sus servicios, horarios y reglas de derivación humana.",
+      provider: { "@id": `${siteUrl}/#organization` },
+      areaServed: { "@type": "Country", name: "España" },
+      audience: {
+        "@type": "BusinessAudience",
+        audienceType: "Clínicas de medicina estética y centros de estética avanzada",
+      },
+    },
+  ],
 };
 
 const benefits = [
@@ -18,6 +69,10 @@ const benefits = [
 export default function PilotLandingPage() {
   return (
     <MarketingShell active="demo">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <main>
         <section className={styles.pageHero}>
           <div className={styles.container}>
@@ -37,7 +92,7 @@ export default function PilotLandingPage() {
             <div className={styles.featureStrip}>
               {benefits.map(([title, body]) => (
                 <article key={title}>
-                  <h3>{title}</h3>
+                  <h2>{title}</h2>
                   <p>{body}</p>
                 </article>
               ))}

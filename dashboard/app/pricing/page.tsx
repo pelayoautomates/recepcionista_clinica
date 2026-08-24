@@ -5,14 +5,15 @@ import { PLANS, PRICING_FAQS } from "@/lib/marketing-content";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Precios de recepcionista IA para clinicas",
+  title: "Precios de recepcionista IA para clínicas",
   description:
-    "Consulta planes, limites, add-ons y comparativa de Atiende360 para elegir un software de recepcionista IA para tu clinica privada.",
+    "Consulta planes, límites, add-ons y comparativa de Atiende360 para elegir un software de recepcionista IA para tu clínica privada.",
   alternates: {
     canonical: "/pricing",
   },
   openGraph: {
-    title: "Precios Atiende360 | Planes de recepcionista IA para clinicas",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
+    title: "Precios Atiende360 | Planes de recepcionista IA para clínicas",
     description:
       "Planes Starter, Pro y Growth con minutos, usuarios, sedes, add-ons y FAQ de precios.",
     type: "website",
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Precios Atiende360",
-    description: "Planes y add-ons de recepcionista IA para clinicas privadas.",
+    description: "Planes y add-ons de recepcionista IA para clínicas privadas.",
   },
 };
 
@@ -43,7 +44,7 @@ const jsonLd = {
       "@type": "Product",
       "@id": `${siteUrl}/pricing#product`,
       name: "Atiende360",
-      category: "Software de recepcionista IA para clinicas",
+      category: "Software de recepcionista IA para clínicas",
       description:
         "Planes de Atiende360 para recuperar llamadas, gestionar leads y citas en clínicas privadas.",
       brand: {

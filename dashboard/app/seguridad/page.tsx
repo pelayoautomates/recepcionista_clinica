@@ -6,14 +6,15 @@ import { SECURITY_PRINCIPLES } from "@/lib/marketing-content";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Seguridad y limites de la recepcionista IA",
+  title: "Seguridad y límites de la recepcionista IA",
   description:
-    "Como Atiende360 plantea seguridad operativa, derivacion humana, minimizacion de datos y limites clinicos en recepcion con IA.",
+    "Como Atiende360 plantea seguridad operativa, derivación humana, minimización de datos y límites clínicos en recepción con IA.",
   alternates: { canonical: "/seguridad" },
   openGraph: {
-    title: "Seguridad y limites de Atiende360",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
+    title: "Seguridad y límites de Atiende360",
     description:
-      "Recepcionista IA para clinicas con foco en tareas operativas, trazabilidad y derivacion humana.",
+      "Recepcionista IA para clínicas con foco en tareas operativas, trazabilidad y derivación humana.",
     url: "/seguridad",
     type: "article",
   },
@@ -24,8 +25,8 @@ const jsonLd = {
   "@type": "WebPage",
   "@id": `${siteUrl}/seguridad#webpage`,
   url: `${siteUrl}/seguridad`,
-  name: "Seguridad y limites de Atiende360",
-  about: ["recepcionista IA", "seguridad operativa", "derivacion humana", "software para clinicas"],
+  name: "Seguridad y límites de Atiende360",
+  about: ["recepcionista IA", "seguridad operativa", "derivación humana", "software para clínicas"],
   breadcrumb: {
     "@type": "BreadcrumbList",
     itemListElement: [
@@ -44,9 +45,9 @@ export default function SeguridadPage() {
           <div className={styles.container}>
             <div className={styles.pageHeroInner}>
               <p className={styles.sectionKicker}>Seguridad operativa</p>
-              <h1>Recepcionista IA con limites claros para clinicas</h1>
+              <h1>Recepcionista IA con límites claros para clínicas</h1>
               <p>
-                Atiende360 no se presenta como sustituto del criterio clinico. Su papel es reducir carga de recepcion,
+                Atiende360 no se presenta como sustituto del criterio clínico. Su papel es reducir carga de recepción,
                 ordenar conversaciones y escalar a personas cuando una consulta lo requiere.
               </p>
             </div>
@@ -65,26 +66,26 @@ export default function SeguridadPage() {
             </div>
 
             <div className={styles.limitBox}>
-              <h2>Controles antes de activar una clinica</h2>
+              <h2>Controles antes de activar una clínica</h2>
               <p>
-                La activacion es asistida: primero se comprueba la informacion que puede usar la IA,
-                los limites de la agenda y el camino de derivacion a una persona.
+                La activación es asistida: primero se comprueba la información que puede usar la IA,
+                los límites de la agenda y el camino de derivación a una persona.
               </p>
               <ul>
-                <li>El primer mensaje informa de que el paciente interactua con una IA.</li>
-                <li>Se prueban preguntas frecuentes, reserva, cambio, cancelacion y derivacion sensible.</li>
-                <li>La clinica valida servicios, horarios, precios y reglas antes de recibir contactos reales.</li>
-                <li>Se documentan proveedores, instrucciones de tratamiento y periodos de conservacion aplicables.</li>
+                <li>El primer mensaje informa de que el paciente interactúa con una IA.</li>
+                <li>Se prueban preguntas frecuentes, reserva, cambio, cancelación y derivación sensible.</li>
+                <li>La clínica valida servicios, horarios, precios y reglas antes de recibir contactos reales.</li>
+                <li>Se documentan proveedores, instrucciones de tratamiento y periodos de conservación aplicables.</li>
                 <li>Se mantiene siempre un canal humano para incidencias, urgencias y respuestas ambiguas.</li>
               </ul>
             </div>
 
             <div className={styles.finalCtaCardAlt} style={{ marginTop: 28 }}>
               <p className={styles.finalKickerAlt}>Transparencia</p>
-              <h2>La IA se ocupa de recepcion; el criterio clinico sigue siendo humano.</h2>
+              <h2>La IA se ocupa de recepción; el criterio clínico sigue siendo humano.</h2>
               <p>
-                Atiende360 no diagnostica, prescribe ni sustituye la atencion sanitaria. Si una consulta
-                supera las reglas configuradas, registra el contexto y la deriva al equipo de la clinica.
+                Atiende360 no diagnostica, prescribe ni sustituye la atención sanitaria. Si una consulta
+                supera las reglas configuradas, registra el contexto y la deriva al equipo de la clínica.
               </p>
             </div>
           </div>

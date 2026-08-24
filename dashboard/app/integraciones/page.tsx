@@ -13,12 +13,13 @@ import { HiPhone } from "react-icons/hi2";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atiende360.com";
 
 export const metadata: Metadata = {
-  title: "Integraciones de Atiende360",
+  title: "Integraciones: Google Calendar y WhatsApp",
   description:
     "Integraciones y canales de Atiende360: Google Calendar, WhatsApp Business API oficial de Meta, telefonía SIP, OpenAI y Stripe.",
   alternates: { canonical: "/integraciones" },
   openGraph: {
-    title: "Integraciones de Atiende360",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Atiende360, recepcionista IA para clínicas privadas" }],
+    title: "Integraciones de Atiende360 | Google Calendar, WhatsApp y telefonía",
     description:
       "Canales e integraciones para recepcionista IA en clínicas privadas.",
     url: "/integraciones",

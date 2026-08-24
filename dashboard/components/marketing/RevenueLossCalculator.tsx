@@ -43,12 +43,12 @@ export default function RevenueLossCalculator() {
           Antes de pagar nada, calcula cuanto estas perdiendo en llamadas que nadie contesta.
         </h2>
         <p className={styles.calcPitchBody}>
-          Modifica 3 datos y veras una estimacion orientativa del impacto mensual y anual.
+          Modifica 3 datos y veras una estimación orientativa del impacto mensual y anual.
         </p>
       </div>
 
       <div className={styles.calcPanel}>
-        <p className={styles.calcPanelKicker}>Tu estimacion</p>
+        <p className={styles.calcPanelKicker}>Tu estimación</p>
         <p className={styles.calcPanelLabel}>Estas perdiendo aproximadamente</p>
         <div className={styles.calcPanelMoneyRow}>
           <strong>{formatEuro(result.estimatedLostRevenue)}</strong>

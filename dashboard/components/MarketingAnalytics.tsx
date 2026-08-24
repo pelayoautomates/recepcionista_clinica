@@ -61,40 +61,76 @@ export default function MarketingAnalytics() {
   if (!isMarketingPage || consent !== null) return null;
 
   return (
-    <aside
-      aria-label="Preferencias de cookies"
-      style={{
-        position: "fixed", left: 16, right: 16, bottom: 16, zIndex: 1000,
-        maxWidth: 720, margin: "0 auto", padding: "18px 20px", borderRadius: 16,
-        background: "#0a1733", color: "white", boxShadow: "0 20px 55px rgba(2,8,23,.32)",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
-      }}
-    >
-      <div style={{ flex: "1 1 360px" }}>
-        <strong style={{ display: "block", marginBottom: 4 }}>Tu privacidad, sin letra pequeña</strong>
-        <span style={{ fontSize: 13.5, lineHeight: 1.45, color: "#dbeafe" }}>
-          Las cookies técnicas son necesarias. Solo activamos medición publicitaria de Meta si la aceptas.{" "}
+    <>
+      <style>{`
+        .a360-cookie {
+          position: fixed;
+          left: 18px;
+          bottom: 18px;
+          z-index: 1000;
+          width: min(388px, calc(100vw - 36px));
+          padding: 18px 19px 17px;
+          border-radius: 18px;
+          background: #0a1733;
+          color: #fff;
+          border: 1px solid rgba(255,255,255,.1);
+          box-shadow: 0 24px 60px rgba(2,8,23,.42);
+          animation: a360CookieIn .5s cubic-bezier(.22,1,.36,1) .9s both;
+        }
+        @keyframes a360CookieIn {
+          from { opacity: 0; transform: translateY(16px) scale(.97); }
+          to   { opacity: 1; transform: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .a360-cookie { animation: none; }
+        }
+        /* Por encima de la barra fija de CTA en móvil */
+        @media (max-width: 700px) {
+          .a360-cookie { left: 12px; bottom: 84px; width: calc(100vw - 24px); }
+        }
+        .a360-cookie__actions { display: flex; gap: 8px; margin-top: 14px; }
+        .a360-cookie button {
+          flex: 1 1 0;
+          min-width: 0;
+          border-radius: 10px;
+          padding: 10px 8px;
+          font-size: 13px;
+          white-space: nowrap;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background .18s ease, border-color .18s ease, transform .18s ease;
+        }
+        .a360-cookie button:hover { transform: translateY(-1px); }
+        .a360-cookie button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+      `}</style>
+      <aside className="a360-cookie" aria-label="Preferencias de cookies">
+        <strong style={{ display: "block", marginBottom: 5, fontSize: 15 }}>
+          Tu privacidad, sin letra pequeña
+        </strong>
+        <span style={{ display: "block", fontSize: 13.5, lineHeight: 1.5, color: "#c7d9f5" }}>
+          Las cookies técnicas son necesarias. Solo activamos medición publicitaria de Meta si la
+          aceptas.{" "}
           <a href="/privacidad" style={{ color: "#bfdbfe", textDecoration: "underline" }}>
             Ver detalles
           </a>
         </span>
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => { setConsent("denied"); setConsentState("denied"); }}
-          style={{ border: "1px solid #64748b", background: "transparent", color: "white", borderRadius: 10, padding: "10px 14px", fontWeight: 700 }}
-        >
-          Solo necesarias
-        </button>
-        <button
-          type="button"
-          onClick={() => { setConsent("granted"); setConsentState("granted"); }}
-          style={{ border: 0, background: "#2563eb", color: "white", borderRadius: 10, padding: "10px 14px", fontWeight: 800 }}
-        >
-          Aceptar medición
-        </button>
-      </div>
-    </aside>
+        <div className="a360-cookie__actions">
+          <button
+            type="button"
+            onClick={() => { setConsent("denied"); setConsentState("denied"); }}
+            style={{ border: "1px solid #3d4d6d", background: "transparent", color: "white" }}
+          >
+            Solo necesarias
+          </button>
+          <button
+            type="button"
+            onClick={() => { setConsent("granted"); setConsentState("granted"); }}
+            style={{ border: 0, background: "#2563eb", color: "white" }}
+          >
+            Aceptar medición
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

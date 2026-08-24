@@ -7,6 +7,10 @@ export type BlogPost = {
   readingTime: number;
   content: BlogSection[];
   keywords: string[];
+  /** Título para <title> cuando el titular del artículo es demasiado largo para SERP */
+  seoTitle?: string;
+  /** Meta description recortada a la longitud que muestra Google */
+  seoDescription?: string;
 };
 
 export type BlogSection = {
@@ -21,17 +25,20 @@ export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "como-reducir-no-shows-clinica-privada",
     title: "Cómo reducir las citas no atendidas en tu clínica privada",
+    seoTitle: "Cómo reducir los no-shows en tu clínica",
+    seoDescription:
+      "Los no-shows cuestan entre 40 y 120 € por cita. Cómo reducirlos con recordatorios, confirmación activa y lista de espera automática.",
     description:
       "Los no-shows cuestan entre 40 y 120€ por cita en clínicas privadas. Descubre las estrategias más efectivas para reducirlos con recordatorios, confirmación activa y lista de espera automática.",
     date: "2026-05-10",
     category: "Gestión de citas",
     readingTime: 7,
     keywords: [
-      "no-shows clinica",
+      "no-shows clínica",
       "reducir citas no atendidas",
-      "recordatorios automaticos clinica",
-      "confirmacion citas clinica privada",
-      "lista de espera clinica",
+      "recordatorios automáticos clínica",
+      "confirmación citas clínica privada",
+      "lista de espera clínica",
     ],
     content: [
       {
@@ -130,17 +137,20 @@ export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "inteligencia-artificial-para-clinicas-guia",
     title: "Inteligencia artificial para clínicas: qué necesitas saber antes de contratar",
+    seoTitle: "IA para clínicas: guía antes de contratar",
+    seoDescription:
+      "Cómo la IA ayuda en recepción, agenda y seguimiento de pacientes: casos de uso reales, limitaciones y criterios para elegir bien.",
     description:
       "Guía práctica sobre cómo la IA puede ayudar a una clínica privada en recepción, agenda y seguimiento de pacientes. Casos de uso reales, limitaciones y criterios para elegir bien.",
     date: "2026-05-08",
     category: "IA para clínicas",
     readingTime: 9,
     keywords: [
-      "inteligencia artificial clinica privada",
-      "software IA clinica",
-      "automatizacion recepcion medica",
-      "chatbot para clinicas",
-      "recepcionista virtual clinica",
+      "inteligencia artificial clínica privada",
+      "software IA clínica",
+      "automatización recepción médica",
+      "chatbot para clínicas",
+      "recepcionista virtual clínica",
     ],
     content: [
       {
@@ -267,24 +277,27 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         type: "cta",
         ctaText: "Probar Atiende360 gratis 7 días",
-        ctaHref: "/onboarding",
+        ctaHref: "/demo",
       },
     ],
   },
   {
     slug: "como-automatizar-recordatorios-citas-clinica",
     title: "Cómo automatizar los recordatorios de citas en tu clínica sin herramientas complejas",
+    seoTitle: "Recordatorios de citas automáticos",
+    seoDescription:
+      "Cómo implantar recordatorios automáticos por SMS y WhatsApp en una clínica: plantillas, momento de envío y cómo medir el impacto.",
     description:
       "Guía práctica para implementar recordatorios automáticos de citas en clínicas privadas por SMS y WhatsApp. Plantillas de mensajes, timing óptimo y cómo medir el impacto.",
     date: "2026-05-05",
     category: "Automatización",
     readingTime: 6,
     keywords: [
-      "recordatorios automaticos citas clinica",
-      "sms recordatorio clinica",
-      "whatsapp recordatorio medico",
-      "automatizacion agenda clinica",
-      "confirmacion cita automatica",
+      "recordatorios automáticos citas clínica",
+      "sms recordatorio clínica",
+      "whatsapp recordatorio médico",
+      "automatización agenda clínica",
+      "confirmación cita automática",
     ],
     content: [
       {
@@ -383,6 +396,9 @@ export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "software-agenda-clinica-fisioterapia-rehabilitacion",
     title: "Software de agenda para clínicas de fisioterapia: qué buscar y qué evitar",
+    seoTitle: "Software de agenda para fisioterapia",
+    seoDescription:
+      "Sesiones frecuentes, varios profesionales y pacientes recurrentes: qué funcionalidades de agenda son imprescindibles y cuáles sobran.",
     description:
       "Las clínicas de fisioterapia y rehabilitación tienen necesidades específicas de agenda: sesiones frecuentes, múltiples profesionales y pacientes recurrentes. Qué funcionalidades son esenciales.",
     date: "2026-05-01",
@@ -390,10 +406,10 @@ export const BLOG_POSTS: BlogPost[] = [
     readingTime: 7,
     keywords: [
       "software agenda fisioterapia",
-      "gestion citas rehabilitacion",
-      "agenda online clinica fisio",
-      "software recepcion fisioterapia",
-      "automatizacion citas fisioterapia",
+      "gestión citas rehabilitación",
+      "agenda online clínica fisio",
+      "software recepción fisioterapia",
+      "automatización citas fisioterapia",
     ],
     content: [
       {
@@ -488,7 +504,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         type: "cta",
         ctaText: "Probar Atiende360 gratis 7 días",
-        ctaHref: "/onboarding",
+        ctaHref: "/demo",
       },
     ],
   },

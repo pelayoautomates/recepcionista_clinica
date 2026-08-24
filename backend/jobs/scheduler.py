@@ -195,27 +195,41 @@ def _ejecutar_job(job: dict):
         logger.error("Job %s (%s) falló (intento %d): %s", job_id, job["tipo"], intentos, e)
 
 
-def _credenciales_whatsapp(clinic_id: str | None) -> tuple[str, str] | None:
-    """(phone_number_id, access_token) de la clínica, si tiene WhatsApp conectado."""
+def _canal_whatsapp(clinic_id: str | None) -> dict | None:
+    """
+    Cómo escribir por WhatsApp a los pacientes de esta clínica.
+
+    Devuelve {"bsp": "meta", "phone_id", "token"} o {"bsp": "ycloud", "numero"},
+    o None si no tiene WhatsApp conectado.
+    """
     if not clinic_id:
         return None
     from database.client import get_supabase
 
     try:
         row = get_supabase().table("clinicas").select(
-            "meta_phone_number_id, meta_access_token"
+            "whatsapp_bsp, ycloud_phone_number, meta_phone_number_id, meta_access_token"
         ).eq("id", clinic_id).single().execute().data or {}
-        phone_id = row.get("meta_phone_number_id")
-        token_enc = row.get("meta_access_token")
-        if not phone_id or not token_enc:
-            return None
+    except Exception as exc:
+        logger.warning("No se pudo leer el canal WhatsApp de %s: %s", clinic_id, exc)
+        return None
+
+    if row.get("whatsapp_bsp") == "ycloud":
+        numero = row.get("ycloud_phone_number")
+        return {"bsp": "ycloud", "numero": numero} if numero else None
+
+    phone_id = row.get("meta_phone_number_id")
+    token_enc = row.get("meta_access_token")
+    if not phone_id or not token_enc:
+        return None
+    try:
         from cryptography.fernet import Fernet
         from config import settings
         token = Fernet(settings.fernet_key.encode()).decrypt(token_enc.encode()).decode()
-        return phone_id, token
     except Exception as exc:
-        logger.warning("No se pudieron leer credenciales WhatsApp de %s: %s", clinic_id, exc)
+        logger.warning("No se pudo descifrar el token Meta de %s: %s", clinic_id, exc)
         return None
+    return {"bsp": "meta", "phone_id": phone_id, "token": token}
 
 
 def _enviar_recordatorio_sms(job: dict, tipo: str):
@@ -259,9 +273,30 @@ def _enviar_recordatorio_sms(job: dict, tipo: str):
     )
 
     if not sent:
-        credenciales = _credenciales_whatsapp(job.get("clinic_id"))
-        if credenciales:
-            phone_id, token = credenciales
+        canal = _canal_whatsapp(job.get("clinic_id"))
+        if canal and canal["bsp"] == "ycloud":
+            # Un recordatorio 24 h antes cae casi siempre fuera de la ventana de
+            # 24 h de Meta, así que el texto libre lo rechazarían: hace falta una
+            # plantilla aprobada.
+            import ycloud
+            from config import settings
+
+            plantilla = (settings.ycloud_template_recordatorio or "").strip()
+            if not plantilla:
+                raise JobOmitido(
+                    "la clínica usa YCloud y no hay plantilla de recordatorio aprobada"
+                )
+            sent = asyncio.run(
+                ycloud.send_template(
+                    desde=canal["numero"],
+                    para=telefono,
+                    nombre_plantilla=plantilla,
+                    parametros=[nombre, nombre_clinica, fecha_texto],
+                )
+            )
+            if sent:
+                logger.info("Recordatorio %s entregado por plantilla YCloud", tipo)
+        elif canal:
             sent = asyncio.run(
                 wa.recordatorio_cita(
                     to=telefono,
@@ -270,8 +305,8 @@ def _enviar_recordatorio_sms(job: dict, tipo: str):
                     servicio=servicio,
                     fecha_texto=fecha_texto,
                     tipo=tipo,
-                    clinic_whatsapp_number=phone_id,
-                    access_token=token,
+                    clinic_whatsapp_number=canal["phone_id"],
+                    access_token=canal["token"],
                 )
             )
             if sent:
