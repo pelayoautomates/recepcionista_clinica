@@ -88,7 +88,7 @@ def _evento(msg_id="wamid.yc1", texto="Hola, quiero pedir cita", tipo="text", pa
         mensaje["text"] = contenido
     return {
         "id": f"evt_{msg_id}",
-        "type": "whatsapp.inbound.message",
+        "type": "whatsapp.inbound_message.received",
         "apiVersion": "v2",
         "whatsappInboundMessage": mensaje,
     }
@@ -317,3 +317,30 @@ async def test_send_template_usa_la_estructura_de_plantilla(monkeypatch):
 async def test_sin_api_key_no_intenta_enviar(monkeypatch):
     monkeypatch.setattr(settings, "ycloud_api_key", "")
     assert await ycloud.send_text("+34910000001", "+34600111222", "Hola") is False
+
+
+# El panel de YCloud nombra el evento `whatsapp.inbound_message.received` y su
+# documentación `whatsapp.inbound.message`. Si solo se acepta uno, los mensajes
+# se descartan en silencio: ni error, ni log, ni respuesta al paciente.
+
+def test_acepta_el_nombre_de_evento_del_panel():
+    body = _evento()
+    body["type"] = "whatsapp.inbound_message.received"
+    assert ycloud.extraer_mensaje(body) is not None
+
+
+def test_acepta_el_nombre_de_evento_de_la_documentacion():
+    body = _evento()
+    body["type"] = "whatsapp.inbound.message"
+    assert ycloud.extraer_mensaje(body) is not None
+
+
+def test_evento_entrante_sin_cuerpo_reconocible_no_revienta():
+    assert ycloud.extraer_mensaje({"type": "whatsapp.inbound_message.received"}) is None
+
+
+def test_eventos_de_coexistence_se_ignoran():
+    """Con Coexistence llegan echoes de lo que escribe la recepcionista."""
+    for tipo in ("whatsapp.smb.message.echoes", "whatsapp.smb.history",
+                 "whatsapp.template.reviewed", "whatsapp.message.updated"):
+        assert ycloud.extraer_mensaje({"type": tipo}) is None

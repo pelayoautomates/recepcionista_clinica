@@ -150,17 +150,39 @@ async def _enviar(payload: dict, destino: str) -> bool:
         return False
 
 
+# El panel de YCloud llama al evento `whatsapp.inbound_message.received`, pero su
+# documentación de referencia usa `whatsapp.inbound.message`. Se aceptan los dos:
+# equivocarse aquí no da error, simplemente se descartan todos los mensajes en
+# silencio, que es la peor forma posible de fallar.
+_EVENTOS_ENTRANTES = {
+    "whatsapp.inbound_message.received",
+    "whatsapp.inbound.message",
+}
+
+# Igual con el contenedor del mensaje dentro del payload.
+_CLAVES_MENSAJE = ("whatsappInboundMessage", "whatsappMessage", "message")
+
+
 def extraer_mensaje(body: dict) -> dict | None:
     """
     Normaliza el webhook de YCloud a la forma que espera el router.
 
-    Solo interesa `whatsapp.inbound.message`; el resto de eventos (estados de
-    entrega, plantillas aprobadas) se ignoran sin ruido.
+    Solo interesan los eventos de mensaje entrante; el resto (estados de entrega,
+    plantillas revisadas, eventos de Coexistence) se ignoran sin ruido.
     """
-    if body.get("type") != "whatsapp.inbound.message":
+    if body.get("type") not in _EVENTOS_ENTRANTES:
         return None
 
-    mensaje = body.get("whatsappInboundMessage") or {}
+    mensaje: dict = {}
+    for clave in _CLAVES_MENSAJE:
+        valor = body.get(clave)
+        if isinstance(valor, dict) and valor:
+            mensaje = valor
+            break
+    if not mensaje:
+        logger.warning("Evento entrante de YCloud sin cuerpo reconocible: %s", list(body.keys()))
+        return None
+
     tipo = mensaje.get("type")
 
     texto = ""
