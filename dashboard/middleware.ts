@@ -85,8 +85,9 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // /agencia → solo superadmin
-  if (path.startsWith("/agencia")) {
+  // /agencia y /clinicas → solo superadmin. La comprobación real vive además en
+  // cada página (server-side): el middleware es la primera barrera, no la única.
+  if (path.startsWith("/agencia") || path.startsWith("/clinicas")) {
     const superadminEmail = process.env.SUPERADMIN_EMAIL;
     if (!superadminEmail || user.email !== superadminEmail) {
       return NextResponse.redirect(new URL("/panel", request.url));

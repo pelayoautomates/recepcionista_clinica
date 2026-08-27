@@ -42,6 +42,18 @@ export function enforceClinicScope(
   access: Access,
   clinicId: string
 ): NextResponse | null {
+  // La agencia administra todas sus clínicas. Sin esto, el alta de un cliente se
+  // quedaba a medias: podía crearse la clínica (rol "agencia") pero no generarle
+  // el enlace de acceso ni configurarla, porque esta función exigía rol "clinica"
+  // con el clinic_id coincidiendo. Nadie podía dar de alta a nadie.
+  //
+  // El rol lo resuelve el backend contra `agencia_admins`; no viene del cliente,
+  // así que no se puede falsear desde el navegador. Aun así, esta es la frontera
+  // multi-tenant de la API: ampliarla es deliberado y solo cubre a las cuentas
+  // que estén en esa tabla.
+  if (access.role === "agencia") {
+    return null;
+  }
   if (access.role !== "clinica") {
     return NextResponse.json({ detail: "Sin acceso" }, { status: 403 });
   }

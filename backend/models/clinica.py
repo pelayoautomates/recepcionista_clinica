@@ -36,6 +36,12 @@ class ClinicaCreate(BaseModel):
     horarios: dict[str, Any] = {}
     servicios: list[Any] = []
     prompt_personalizado: str | None = None
+    # El alta desde el panel de agencia manda estos dos. Pydantic descarta en
+    # silencio lo que no está declarado, así que sin esto la especialidad se
+    # perdía — y de ella depende el protocolo de seguridad del vertical que se
+    # inyecta en el prompt del agente.
+    especialidad: str | None = None
+    url_web: str | None = None
 
 
 class ClinicaUpdate(BaseModel):
