@@ -17,10 +17,47 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 _warned_unprotected_ws = False
 
+# Saludo de reserva, para cuando todavía no se sabe a qué clínica llamaron.
 RETELL_AI_GREETING = (
-    "Hola, soy Valeria, la asistente de inteligencia artificial de la clínica. "
+    "Hola, soy Valeria, la asistente virtual con inteligencia artificial. "
     "¿En qué puedo ayudarte?"
 )
+
+
+def _saludo_para(clinic_id: str | None) -> str:
+    """
+    Primera frase de la llamada, con el nombre real de la clínica.
+
+    Decía literalmente "de la clínica", sin nombre: suena a plantilla en la
+    primera frase que oye el paciente. Se construye aquí y no en el prompt
+    porque este saludo se envía antes de que intervenga el modelo.
+
+    La identificación como IA es obligatoria (art. 50 del Reglamento de IA) y va
+    siempre, se sepa el nombre o no.
+    """
+    if not clinic_id:
+        return RETELL_AI_GREETING
+
+    try:
+        from database.client import get_supabase
+        row = get_supabase().table("clinicas").select("nombre, agente_nombre").eq(
+            "id", clinic_id
+        ).single().execute().data or {}
+    except Exception as exc:
+        logger.warning("No se pudo leer el nombre de la clínica %s: %s", clinic_id, exc)
+        return RETELL_AI_GREETING
+
+    nombre_clinica = (row.get("nombre") or "").strip()
+    agente = (row.get("agente_nombre") or "Valeria").strip()
+    if not nombre_clinica:
+        return (
+            f"Hola, soy {agente}, la asistente virtual con inteligencia artificial. "
+            "¿En qué puedo ayudarte?"
+        )
+    return (
+        f"Hola, soy {agente}, la asistente virtual con inteligencia artificial "
+        f"de {nombre_clinica}. ¿En qué puedo ayudarte?"
+    )
 
 
 def _extract_clinic_id(call: dict, message: dict | None = None) -> str | None:
@@ -252,11 +289,11 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
             }
         )
     )
-    # Retell reproduce esta respuesta al abrir la llamada. La identificación como IA
-    # sucede antes de recoger el motivo de consulta del paciente.
-    await websocket.send_text(
-        json.dumps(_retell_response(response_id=0, content=RETELL_AI_GREETING, content_complete=True))
-    )
+    # El saludo NO se manda aquí: al abrir el socket todavía no se sabe a qué
+    # clínica llamó el paciente, y decir "la clínica" sin nombre suena a plantilla
+    # en la primera frase. Se envía al recibir `call_details`, que es cuando Retell
+    # informa de la llamada (por eso se pide `call_details: true` en el config).
+    saludo_enviado = False
 
     try:
         while True:
@@ -294,6 +331,18 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
                 if clinic_id and conversacion_id:
                     _ensure_conversation_exists(clinic_id, conversacion_id)
 
+                if not saludo_enviado:
+                    await websocket.send_text(
+                        json.dumps(
+                            _retell_response(
+                                response_id=0,
+                                content=_saludo_para(clinic_id),
+                                content_complete=True,
+                            )
+                        )
+                    )
+                    saludo_enviado = True
+
                 logger.info("Retell call started - call_id=%s clinic_id=%s", call_id, clinic_id)
                 continue
 
@@ -306,6 +355,22 @@ async def _handle_retell_ws(websocket: WebSocket, path_call_id: str | None) -> N
             response_id = int(message.get("response_id") or 0)
             call = message.get("call", {})
             transcript: list = message.get("transcript", [])
+
+            if not saludo_enviado:
+                # `call_details` no llegó. Antes que dejar al paciente en silencio,
+                # se saluda con lo que se sepa; sin identificarse como IA la
+                # llamada no puede seguir (art. 50 del Reglamento de IA).
+                await websocket.send_text(
+                    json.dumps(
+                        _retell_response(
+                            response_id=response_id,
+                            content=_saludo_para(clinic_id or _extract_clinic_id(call, message)),
+                            content_complete=True,
+                        )
+                    )
+                )
+                saludo_enviado = True
+                continue
 
             if not clinic_id:
                 clinic_id = _extract_clinic_id(call, message)

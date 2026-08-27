@@ -41,7 +41,10 @@ class Settings(BaseSettings):
     retell_api_key: str = ""   # API key de Retell — también usada para validar firmas
     retell_agent_id: str = ""  # ID del agente en Retell (para crear llamadas salientes)
     retell_ws_secret: str = ""  # Secreto para proteger /retell/llm-websocket (query ?token=...)
-    retell_voice_id: str = "11labs-Adrian"  # Voz de los agentes creados (ver /list-voices en Retell)
+    # Voz de los agentes creados (ver /list-voices en Retell). El agente se
+    # presenta como Valeria, así que el default masculino "11labs-Adrian" sonaba
+    # incoherente en la primera frase de la llamada.
+    retell_voice_id: str = "azure-es-ES-ElviraNeural"
 
     # YCloud (BSP de WhatsApp — alternativa a Meta directo, permite Coexistence)
     ycloud_api_key: str = ""         # X-API-Key de la cuenta YCloud

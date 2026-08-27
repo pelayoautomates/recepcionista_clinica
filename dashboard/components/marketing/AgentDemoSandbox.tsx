@@ -521,16 +521,28 @@ export default function AgentDemoSandbox() {
                 )}
 
                 {!voiceSupported && (
-                  <p style={{ color: "#FCA5A5", fontSize: 11, textAlign: "center", maxWidth: 210, lineHeight: 1.5 }}>
-                    Tu navegador no soporta micrófono. Prueba Chrome o Edge.
-                  </p>
+                  <div style={{ textAlign: "center", maxWidth: 220 }}>
+                    <p style={{ color: "#FCA5A5", fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
+                      Este navegador no deja usar el micrófono.
+                    </p>
+                    <button type="button" onClick={() => switchMode("chat")} style={{
+                      background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)",
+                      color: "white", borderRadius: 9, padding: "9px 16px",
+                      fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    }}>
+                      Probar por chat
+                    </button>
+                    <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, lineHeight: 1.5, marginTop: 10 }}>
+                      Para hablar con ella, abre la demo en Chrome o Edge.
+                    </p>
+                  </div>
                 )}
               </div>
 
               {/* Buttons */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                 {/* IDLE / ENDED — big green call button */}
-                {(callState === "idle" || callState === "ended") && (
+                {voiceSupported && (callState === "idle" || callState === "ended") && (
                   <>
                     <button type="button" onClick={initiateCall} style={{
                       width: 68, height: 68, borderRadius: "50%",

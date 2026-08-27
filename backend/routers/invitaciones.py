@@ -168,10 +168,23 @@ async def vincular_usuario(data: VincularRequest):
 @router.get("/me/rol")
 async def obtener_rol(user_id: str, email: str):
     """
-    Devuelve el rol del usuario: 'clinica' | None
+    Devuelve el rol del usuario: 'agencia' | 'clinica' | None
     El dashboard lo llama justo después del login.
+
+    El rol de agencia se comprobaba en `agencia_admins` desde la migración 002,
+    pero esta función nunca la consultaba: devolvía como mucho 'clinica'. Como
+    crear una clínica exige rol 'agencia' en el BFF, el alta de un cliente nuevo
+    respondía 403 siempre y no había forma de dar de alta a nadie desde el panel.
     """
     db = get_supabase()
+
+    # ¿Es admin de la agencia? Se comprueba primero: manda sobre cualquier otro rol.
+    try:
+        admin = db.table("agencia_admins").select("user_id").eq("user_id", user_id).limit(1).execute()
+        if admin.data:
+            return {"rol": "agencia", "clinic_id": None}
+    except Exception as exc:
+        logger.warning("No se pudo comprobar agencia_admins para %s: %s", user_id, exc)
 
     # ¿Está vinculado a una clínica?
     clinica_user = db.table("clinica_usuarios")\

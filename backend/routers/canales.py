@@ -22,7 +22,8 @@ class TelefonoBody(BaseModel):
 class ActivarVozBody(BaseModel):
     telefono_clinica: str          # el número real que ya tiene el negocio
     routing_mode: str = "siempre"  # siempre | fuera_horario | si_no_contestan
-    segundos_desvio: int = 20      # solo aplica a si_no_contestan
+    segundos_desvio: int = 20      # solo aplica a si_no_contestan (y solo en móvil)
+    tipo_linea: str = "movil"      # movil | fijo — cambia la sintaxis del código
 
 
 ROUTING_MODES = {"siempre", "fuera_horario", "si_no_contestan"}
@@ -310,35 +311,70 @@ async def _asignar_numero_a_clinica(clinic_id: str, telefono: str) -> dict:
     return {"ok": True, "telefono_ia": telefono, "telnyx_number_id": telnyx_number_id}
 
 
-def _codigos_desvio(destino: str, routing_mode: str, segundos: int = 20) -> dict:
+def _codigos_desvio(destino: str, routing_mode: str, segundos: int = 20, tipo_linea: str = "movil") -> dict:
     """
-    Códigos MMI que el negocio marca en su propio teléfono para desviar las
-    llamadas hacia el número de la IA. Sintaxis GSM estándar (**SC*número*BS*T#,
-    donde BS=11 es voz). Los operadores españoles la soportan, pero alguno usa
-    variantes, así que la UI debe ofrecer también la vía "llama a tu operador".
+    Códigos que el negocio marca en SU propio teléfono para que las llamadas que
+    no coge lleguen a la IA. El paciente no marca nada y el número de la clínica
+    no cambia.
+
+    La sintaxis depende del tipo de línea, y esto importa porque casi todas las
+    clínicas tienen fijo:
+
+    - **Móvil**: sintaxis GSM completa `**61*<destino>*11*<segundos>#`, donde 11
+      es el servicio de voz. Permite elegir los segundos de espera.
+    - **Fijo**: `*61*<destino>#`, con un solo asterisco y **sin** poder fijar los
+      segundos — el tiempo lo decide la operadora. Además suele ser un servicio
+      de pago (Movistar lo cobra aparte).
+
+    Antes se devolvía siempre la sintaxis de móvil, así que a una clínica con
+    fijo se le daba un código que no le iba a funcionar.
     """
     seg = max(5, min(30, int(segundos or 20)))
+    es_fijo = tipo_linea == "fijo"
+
     if routing_mode == "si_no_contestan":
-        activar = f"**61*{destino}*11*{seg}#"
-        explicacion = (
-            f"Las llamadas suenan primero en la clínica. Si nadie contesta en {seg} "
-            "segundos, entra la IA."
-        )
+        if es_fijo:
+            activar = f"*61*{destino}#"
+            explicacion = (
+                "Las llamadas suenan primero en la clínica y, si nadie contesta, "
+                "entra la IA. En un fijo el tiempo de espera lo fija la operadora: "
+                "no se puede elegir desde el teléfono."
+            )
+        else:
+            activar = f"**61*{destino}*11*{seg}#"
+            explicacion = (
+                f"Las llamadas suenan primero en la clínica. Si nadie contesta en {seg} "
+                "segundos, entra la IA."
+            )
     elif routing_mode == "fuera_horario":
-        activar = f"**21*{destino}#"
+        activar = f"*21*{destino}#" if es_fijo else f"**21*{destino}#"
         explicacion = (
             "Desvío total: actívalo al cerrar y desactívalo al abrir. La IA ya sabe "
             "que la clínica está cerrada y lo explica al paciente."
         )
     else:  # siempre
-        activar = f"**21*{destino}#"
+        activar = f"*21*{destino}#" if es_fijo else f"**21*{destino}#"
         explicacion = "Todas las llamadas entran directamente a la IA, 24/7."
+
+    desactivar = "#61#" if (es_fijo and routing_mode == "si_no_contestan") else (
+        "#21#" if es_fijo else "##002#"
+    )
+
+    aviso = None
+    if es_fijo:
+        aviso = (
+            "En línea fija el desvío suele ser un servicio de pago de la operadora "
+            "(en Movistar, unos 4 €/mes). Si la clínica tiene centralita, el desvío "
+            "se configura dentro de la centralita, no con estos códigos."
+        )
 
     return {
         "activar": activar,
-        "desactivar": "##002#",
+        "desactivar": desactivar,
         "explicacion": explicacion,
-        "segundos": seg if routing_mode == "si_no_contestan" else None,
+        "tipo_linea": tipo_linea,
+        "aviso": aviso,
+        "segundos": seg if (routing_mode == "si_no_contestan" and not es_fijo) else None,
     }
 
 
@@ -395,7 +431,7 @@ async def activar_voz(clinic_id: UUID, body: ActivarVozBody):
         "telefono_ia": numero_ia,
         "telefono_clinica": telefono_clinica,
         "routing_mode": routing_mode,
-        "desvio": _codigos_desvio(numero_ia, routing_mode, body.segundos_desvio),
+        "desvio": _codigos_desvio(numero_ia, routing_mode, body.segundos_desvio, body.tipo_linea),
     }
 
 

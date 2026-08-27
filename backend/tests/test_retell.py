@@ -79,3 +79,59 @@ def test_retell_event_key_transcript_changes_when_transcript_changes():
     call_a = {"call_id": "c1", "transcript": "hola"}
     call_b = {"call_id": "c1", "transcript": "hola mundo"}
     assert _retell_event_key("transcript_updated", call_a) != _retell_event_key("transcript_updated", call_b)
+
+
+# ── Saludo de la llamada ─────────────────────────────────────────────────────
+# Decía literalmente "de la clínica", sin nombre: la primera frase que oye el
+# paciente sonaba a plantilla. Ahora se construye con la clínica ya resuelta.
+
+from unittest.mock import MagicMock, patch  # noqa: E402
+
+
+def _db_clinica(nombre=None, agente=None):
+    db = MagicMock()
+    db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {
+        "nombre": nombre, "agente_nombre": agente,
+    }
+    return db
+
+
+def test_saludo_incluye_el_nombre_de_la_clinica():
+    from routers.retell import _saludo_para
+    with patch("database.client.get_supabase", return_value=_db_clinica("Clínica Luna")):
+        saludo = _saludo_para("clinic-1")
+    assert "Clínica Luna" in saludo
+    assert "inteligencia artificial" in saludo
+
+
+def test_saludo_respeta_el_nombre_del_agente_configurado():
+    from routers.retell import _saludo_para
+    with patch("database.client.get_supabase", return_value=_db_clinica("Clínica Luna", "Marta")):
+        saludo = _saludo_para("clinic-1")
+    assert saludo.startswith("Hola, soy Marta")
+
+
+def test_sin_clinic_id_usa_el_saludo_de_reserva():
+    from routers.retell import RETELL_AI_GREETING, _saludo_para
+    assert _saludo_para(None) == RETELL_AI_GREETING
+
+
+def test_si_falla_la_consulta_se_saluda_igual():
+    """Quedarse mudo al descolgar es peor que un saludo genérico."""
+    from routers.retell import RETELL_AI_GREETING, _saludo_para
+    db = MagicMock()
+    db.table.side_effect = RuntimeError("BD caída")
+    with patch("database.client.get_supabase", return_value=db):
+        assert _saludo_para("clinic-1") == RETELL_AI_GREETING
+
+
+def test_el_saludo_siempre_se_identifica_como_ia():
+    """Obligación del art. 50 del Reglamento de IA, se sepa el nombre o no."""
+    from routers.retell import RETELL_AI_GREETING, _saludo_para
+    with patch("database.client.get_supabase", return_value=_db_clinica("Clínica Luna")):
+        con_nombre = _saludo_para("clinic-1")
+    with patch("database.client.get_supabase", return_value=_db_clinica(None)):
+        sin_nombre = _saludo_para("clinic-1")
+
+    for saludo in (con_nombre, sin_nombre, RETELL_AI_GREETING):
+        assert "inteligencia artificial" in saludo.lower()
